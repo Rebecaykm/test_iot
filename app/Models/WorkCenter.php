@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class WorkCenter extends Model
+{
+    protected $fillable = [
+        'number',
+        'name',
+        'ip',
+        'tag_id',
+        'line_id'
+    ];
+
+    /**
+     *
+     */
+    public function tag(): BelongsTo
+    {
+        return $this->belongsTo(Tag::class, 'tag_id');
+    }
+
+    /**
+     *
+     */
+    public function line(): BelongsTo
+    {
+        return $this->belongsTo(Line::class, 'line_id');
+    }
+
+    /**
+     *
+     */
+    public function partNumbers(): HasMany
+    {
+        return $this->hasMany(PartNumber::class, 'work_center_id');
+    }
+
+    /**
+     *
+     */
+    public function alertRecords(): HasMany
+    {
+        return $this->hasMany(AlertRecord::class, 'work_center_id');
+    }
+
+    /**
+     *
+     */
+    public function lineStoppageRecord(): HasMany
+    {
+        return $this->hasMany(LineStoppageRecord::class, 'work_center_id');
+    }
+}
