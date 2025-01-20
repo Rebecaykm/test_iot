@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('number');
             $table->string('name')->nullable();
             $table->string('ip')->nullable();
-            $table->foreignId('tag_id')->nullable()->constrained('tags');
             $table->foreignId('line_id')->nullable()->constrained('lines');
             $table->timestamps();
         });

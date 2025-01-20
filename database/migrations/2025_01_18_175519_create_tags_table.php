@@ -17,6 +17,7 @@ return new class extends Migration
             $table->integer('long')->nullable();
             $table->string('value')->nullable();
             $table->string('description')->nullable();
+            $table->foreignId('work_center_id')->nullable()->constrained('work_centers');
             $table->foreignId('tag_type_id')->nullable()->constrained('tag_types');
             $table->timestamps();
         });
