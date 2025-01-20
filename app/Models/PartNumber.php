@@ -12,7 +12,8 @@ class PartNumber extends Model
         'number',
         'name',
         'production_rate',
-        'work_center_id'
+        'work_center_id',
+        'is_obsolete'
     ];
 
     /**

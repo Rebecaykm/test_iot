@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\PartNumberController;
+use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -19,3 +21,6 @@ Route::middleware([
 Route::get('test', function () {
     return view('test');
 });
+
+Route::resource('part-numbers', PartNumberController::class);
+Route::resource('work-centers', WorkCenterController::class);
