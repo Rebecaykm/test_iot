@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0152b92b882904b9e5861683d8e2e059",
+    "content-hash": "db7fd544c6018867afba0d6095366b50",
     "packages": [
         {
             "name": "almasaeed2010/adminlte",
@@ -6507,6 +6507,58 @@
                 "source": "https://github.com/webmozarts/assert/tree/1.11.0"
             },
             "time": "2022-06-03T18:03:27+00:00"
+        },
+        {
+            "name": "yoramdelangen/laravel-pdo-odbc",
+            "version": "1.2.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/appsfortableau/laravel-pdo-odbc.git",
+                "reference": "d59c7d61731758cde7341b1ef67ae0bb8bd12c35"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/appsfortableau/laravel-pdo-odbc/zipball/d59c7d61731758cde7341b1ef67ae0bb8bd12c35",
+                "reference": "d59c7d61731758cde7341b1ef67ae0bb8bd12c35",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/database": ">= 7.0",
+                "illuminate/support": ">= 7.0",
+                "php": "^7.4|^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "LaravelPdoOdbc\\ODBCServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "LaravelPdoOdbc\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Yoram de Langen",
+                    "email": "yoram@appsfortableau.infotopics.com",
+                    "homepage": "https://github.com/appsfortableau",
+                    "role": "Developer"
+                }
+            ],
+            "description": "PDO ODBC/Snowflake integration for Laravel framework. Support ODBC and native PDO Snowflake.",
+            "homepage": "https://github.com/yoramdelangen/laravel-odbc",
+            "support": {
+                "issues": "https://github.com/appsfortableau/laravel-pdo-odbc/issues",
+                "source": "https://github.com/appsfortableau/laravel-pdo-odbc/tree/1.2.5"
+            },
+            "time": "2024-08-07T11:23:22+00:00"
         }
     ],
     "packages-dev": [
