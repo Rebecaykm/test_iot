@@ -25,7 +25,7 @@ class GetPartNumberJob implements ShouldQueue
     public function handle(): void
     {
 
-        $itemMaster = IIM::query()->select('IPROD AS partNumber', 'IDESC AS partName', 'IREF04 AS project', 'IMPLC AS isObsolete')->get();
+        $itemMaster = IIM::query()->select('IPROD AS partNumber', 'IDESC AS partName', 'IREF04 AS project', 'IMPLC AS isObsolete')->where('IMPLC', 'LIKE', 'OBSOLETE  ')->get();
 
         foreach ($itemMaster as $key => $item) {
             StorePartNumberJob::dispatch(

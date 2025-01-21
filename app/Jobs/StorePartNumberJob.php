@@ -41,26 +41,22 @@ class StorePartNumberJob implements ShouldQueue
             $partNumber->update([
                 'number' => $this->partNumber,
                 'name' => $this->partName,
-                'obsolete' => ($this->isObsolete == "OBSOLETE") ? true : false,
+                'is_obsolete' => ($this->isObsolete == "OBSOLETE  ") ? true : false,
             ]);
         } else {
             $partNumber = PartNumber::create([
                 'number' => $this->partNumber,
                 'name' => $this->partName,
-                'is_obsolete' => ($this->isObsolete == "OBSOLETE") ? true : false,
+                'is_obsolete' => ($this->isObsolete == "OBSOLETE  ") ? true : false,
             ]);
         }
 
         $routingMaster = DB::connection('infor-live')
             ->table('LX834F01.FRT')
             ->select([
-                'LX834F01.IIM.IPROD AS partNumber',
-                'LX834F01.IIM.IDESC AS partName',
                 'LX834F01.LWK.WWRKC AS workNumber',
                 'LX834F01.LWK.WDESC AS workName',
-                'LX834F01.IIM.IREF04 AS project',
                 'LX834F01.FRT.RLAB AS productionRate',
-                'LX834F01.IIM.IMPLC AS isObsolete',
             ])
             ->join('LX834F01.IIM', 'LX834F01.IIM.IPROD', '=', 'LX834F01.FRT.RPROD')
             ->join('LX834F01.LWK', 'LX834F01.LWK.WWRKC', '=', 'LX834F01.FRT.RWRKC')
