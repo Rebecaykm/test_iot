@@ -47,4 +47,12 @@ class PartNumber extends Model
     {
         return $this->hasMany(ScrapRecord::class, 'part_number_id');
     }
+
+    /**
+     *
+     */
+    public function productionRecords(): HasMany
+    {
+        return $this->hasMany(ProductionRecord::class, 'part_number_id');
+    }
 }

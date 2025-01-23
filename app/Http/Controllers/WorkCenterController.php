@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\GetWorkCenterJob;
+use App\Models\WorkCenter;
 use Illuminate\Http\Request;
 
 class WorkCenterController extends Controller
@@ -12,7 +13,10 @@ class WorkCenterController extends Controller
      */
     public function index()
     {
-        GetWorkCenterJob::dispatch();
+        $workCenters = WorkCenter::query()->orderBy('created_at', 'desc')->paginate(10);
+
+        return view('work-centers.index', ['workCenters' => $workCenters]);
+        // GetWorkCenterJob::dispatch();
     }
 
     /**

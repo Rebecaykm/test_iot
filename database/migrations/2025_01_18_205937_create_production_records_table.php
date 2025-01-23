@@ -18,8 +18,8 @@ return new class extends Migration
             $table->integer('produced_quantity')->default(0);
             $table->integer('scrap_quantity')->default(0);
             $table->date('planned_date');
-            $table->timestamp('production_start');
-            $table->timestamp('production_end');
+            $table->timestamp('production_start')->nullable();
+            $table->timestamp('production_end')->nullable();
             $table->foreignId('shift_id')->nullable()->constrained('shifts');
             $table->foreignId('status_id')->nullable()->constrained('statuses');
             $table->timestamps();

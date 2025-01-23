@@ -34,4 +34,11 @@ class ProductionRecord extends Model
     {
         return $this->belongsTo(Status::class, 'status_id');
     }
+
+    /**
+     *
+     */
+    public function partNumber() : BelongsTo {
+        return $this->belongsTo(PartNumber::class, 'part_number_id');
+    }
 }

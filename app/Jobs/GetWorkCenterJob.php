@@ -23,12 +23,12 @@ class GetWorkCenterJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $workCenters = LWK::query()->select('WWRKC', 'WDESC')->orderBy('WWRKC', 'ASC')->get();
+        $workCenters = LWK::query()->select('WWRKC AS workNumber', 'WDESC AS workName')->orderBy('WWRKC', 'ASC')->get();
 
         foreach ($workCenters as $workCenter) {
             StoreWorkCenterJob::dispatch(
-                $workCenter->WWRKC,
-                $workCenter->WDESC,
+                trim($workCenter->workNumber),
+                trim($workCenter->workName)
             );
         }
     }

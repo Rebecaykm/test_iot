@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\GetPartNumberJob;
+use App\Models\PartNumber;
 use Illuminate\Http\Request;
 
 class PartNumberController extends Controller
@@ -12,7 +13,18 @@ class PartNumberController extends Controller
      */
     public function index()
     {
-        GetPartNumberJob::dispatch();
+        $partNumbers = PartNumber::query()->where('is_obsolete', false)->orderBy('created_at', 'desc')->paginate(10);
+
+
+        return view('part-numbers.index', ['partNumbers' => $partNumbers]);
+        // GetPartNumberJob::dispatch();
+    }
+
+    public function test() {
+        $partNumbers = PartNumber::query()->where('is_obsolete', false)->orderBy('created_at', 'desc')->paginate(10);
+
+
+        return view('test', ['partNumbers' => $partNumbers]);
     }
 
     /**
