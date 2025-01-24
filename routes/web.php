@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\PartNumberController;
-use App\Http\Controllers\ProductionRecordconController;
+use App\Http\Controllers\ProductionRecordController;
 use App\Http\Controllers\WorkCenterController;
 use App\Models\ProductionRecord;
 use Illuminate\Support\Facades\Route;
@@ -15,12 +15,15 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
-    Route::get('/home', function () {
-        return view('home');
-    })->name('home');
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
 
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('work-centers', WorkCenterController::class);
+    Route::resource('production-records', ProductionRecordController::class);
 });
 
-Route::get('chart', [ProductionRecordconController::class, 'chart'])->name('chart');
+Route::get('chart', [ProductionRecordController::class, 'chart'])->name('chart');
+Route::get('show-plan-production', [ProductionRecordController::class, 'showPlanAndProduction'])->name('production-records.plan-production');
+Route::get('get-hourly', [ProductionRecordController::class, 'getHourlyProductionRecord'])->name('production-records.get-hourly');
