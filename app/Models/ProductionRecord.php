@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductionRecord extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'part_number_id',
         'planned_quantity',
@@ -38,7 +41,8 @@ class ProductionRecord extends Model
     /**
      *
      */
-    public function partNumber() : BelongsTo {
+    public function partNumber(): BelongsTo
+    {
         return $this->belongsTo(PartNumber::class, 'part_number_id');
     }
 }

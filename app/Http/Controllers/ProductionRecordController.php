@@ -228,49 +228,89 @@ class ProductionRecordController extends Controller
      */
     public function getHourlyProductionRecord()
     {
-
         $now = Carbon::now();
 
         $startDate = $now->copy()->subHours(8)->startOfHour()->format('Y-m-d H:i:s');
         $endDate = $now->copy()->addHours(8)->startOfHour()->format('Y-m-d H:i:s');
 
-        // $historyRecords = History::join('part_numbers', 'part_numbers.id', '=', 'histories.part_number_id')
-        //     ->join('work_centers', 'work_centers.id', '=', 'part_numbers.work_center_id')
-        //     ->whereBetween('histories.created_at', [$startDate, $endDate])
-        //     ->orderBy('histories.created_at', 'desc')
-        //     ->select('part_numbers.number AS part_number', 'part_numbers.name AS part_name', 'work_centers.number AS work_number', 'work_centers.name AS work_name', 'histories.quantity')
-        //     ->get();
-
         $historyRecords = History::join('part_numbers', 'part_numbers.id', '=', 'histories.part_number_id')
             ->join('work_centers', 'work_centers.id', '=', 'part_numbers.work_center_id')
             ->whereBetween('histories.created_at', [$startDate, $endDate])
             ->select(
+                'work_centers.number AS work_number',
                 'work_centers.name AS work_name',
                 'part_numbers.number AS part_number',
-                'histories.created_at', // Usamos FORMAT() para SQL Server
-                DB::raw('MAX(histories.quantity) AS max_quantity') // Obtenemos la cantidad más alta
+                'part_numbers.name AS part_name',
+                'histories.created_at',
+                'histories.quantity'
             )
-            ->groupBy('work_centers.name', 'part_numbers.number', 'hour') // Agrupamos por work_name, part_number y hora
-            ->orderBy('work_centers.name', 'asc')
-            ->orderBy('part_numbers.number', 'asc')
-            ->orderBy('hour', 'asc')
             ->get();
 
-        $groupedRecords = [];
+        // Iniciar el arreglo para agrupar los datos
+        $groupedData = [];
 
+        // Iterar sobre los registros obtenidos
         foreach ($historyRecords as $record) {
-            // Asegúrate de que el array para cada work_name y part_number esté inicializado
-            if (!isset($groupedRecords[$record->work_name])) {
-                $groupedRecords[$record->work_name] = [];
-            }
-            if (!isset($groupedRecords[$record->work_name][$record->part_number])) {
-                $groupedRecords[$record->work_name][$record->part_number] = [];
+            // Formatear la fecha y hora combinadas
+            $dateTime = Carbon::parse($record->created_at)->format('Y-m-d H:00');
+
+            // Agrupar por work_name
+            if (!isset($groupedData[$record->work_name])) {
+                $groupedData[$record->work_name] = [];
             }
 
-            // Asignamos la cantidad más alta a la hora correspondiente
-            $groupedRecords[$record->work_name][$record->part_number][$record->hour] = $record->max_quantity;
+            // Agrupar por fecha y hora combinadas
+            if (!isset($groupedData[$record->work_name][$dateTime])) {
+                $groupedData[$record->work_name][$dateTime] = [];
+            }
+
+            // Agrupar los part_numbers y almacenar el valor máximo de quantity
+            if (!isset($groupedData[$record->work_name][$dateTime][$record->part_number])) {
+                $groupedData[$record->work_name][$dateTime][$record->part_number] = $record->quantity;
+            } else {
+                // Tomar el valor máximo de quantity
+                $groupedData[$record->work_name][$dateTime][$record->part_number] = max(
+                    $groupedData[$record->work_name][$dateTime][$record->part_number],
+                    $record->quantity
+                );
+            }
         }
 
-        dd($groupedRecords, $startDate, $endDate);
+        // Convertir el arreglo a un formato más adecuado para Chart.js
+        $chartData = [];
+
+        foreach ($groupedData as $workName => $records) {
+            $labels = array_keys($records);  // Las fechas como etiquetas
+            $datasets = [];
+
+            // Agrupar los part_numbers por cada work_name
+            foreach ($records as $dateTime => $parts) {
+                foreach ($parts as $partNumber => $quantity) {
+                    // Si el dataset para este `partNumber` no existe, lo creamos
+                    if (!isset($datasets[$partNumber])) {
+                        $datasets[$partNumber] = [
+                            'label' => $partNumber,
+                            'data' => [],
+                            'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
+                            'borderColor' => 'rgba(54, 162, 235, 1)',
+                            'borderWidth' => 1,
+                        ];
+                    }
+
+                    // Añadir la cantidad al dataset correspondiente
+                    $datasets[$partNumber]['data'][] = $quantity;
+                }
+            }
+
+            $chartData[$workName] = [
+                'labels' => $labels,
+                'datasets' => array_values($datasets),  // Convertir los datasets a un array
+            ];
+        }
+
+        // Enviar el JSON de datos a la vista
+        return view('production-records.hourly-production-record', [
+            'chartData' => $chartData
+        ]);
     }
 }
