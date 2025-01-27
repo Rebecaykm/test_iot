@@ -12,7 +12,7 @@
             <div class="card">
                 <div class="card-body">
                     <div class="chart-wrapper mb-5">
-                        <h3 class="text-center">{{ $workName }}</h3>
+                        <h3 class="text-center text-uppercase">{{ $workName }}</h3>
                         <canvas id="chart-{{ Str::slug($workName, '-') }}"></canvas>
                     </div>
                 </div>
@@ -26,7 +26,7 @@
     <style>
         .chart-wrapper {
             width: 100%;
-            height: 300px; /* Ajusta la altura que prefieras para la gráfica */
+            height: 400px; /* Ajusta la altura que prefieras para la gráfica */
         }
 
         canvas {
@@ -51,7 +51,7 @@
 
                 if (ctx) {
                     new Chart(ctx, {
-                        type: 'line', // Tipo de gráfica (puedes cambiarlo a 'line', 'pie', etc.)
+                        type: 'bar', // Tipo de gráfica (puedes cambiarlo a 'line', 'pie', etc.)
                         data: {
                             labels: chartConfig.labels, // Etiquetas en el eje X
                             datasets: chartConfig.datasets // Conjunto de datos

@@ -17,7 +17,7 @@
                             <div class="d-flex justify-content-between w-100 align-items-center"> <!-- Usamos flexbox para alinearlo en una fila -->
                                     <!-- Badge del workCenterName -->
                                     <h4 class="mr-3 mb-0">
-                                        <span class="badge bg-primary text-dark">{{ $workCenterName }}</span>
+                                        <span class="badge bg-primary text-dark text-uppercase">{{ $workCenterName }}</span>
                                     </h4>
 
                                     <!-- Fechas y turnos -->
@@ -26,7 +26,7 @@
                                             <span class="badge bg-primary text-dark">{{ $plannedDate }}</span>
                                         </h4>
                                         <h4 class="mb-0">
-                                            <span class="badge bg-secondary text-dark">{{ $shiftName }}</span>
+                                            <span class="badge bg-secondary text-dark text-uppercase">{{ $shiftName }}</span>
                                         </h4>
                                     </div>
                                 </div>

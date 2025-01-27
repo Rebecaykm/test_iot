@@ -127,6 +127,7 @@ class ProductionRecordController extends Controller
         // }
 
         // return view('chart',  ['groupedData', $groupedData]);
+
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
@@ -187,7 +188,7 @@ class ProductionRecordController extends Controller
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             // ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->orderBy('production_records.planned_date', 'asc')
-            ->orderBy('shifts.start', 'asc')
+            ->orderBy('shifts.start_time', 'asc')
             ->get([
                 // 'production_records.id AS id',
                 // 'work_centers.number AS work_center_number',
@@ -230,17 +231,44 @@ class ProductionRecordController extends Controller
     {
         $now = Carbon::now();
 
-        $startDate = $now->copy()->subHours(8)->startOfHour()->format('Y-m-d H:i:s');
-        $endDate = $now->copy()->addHours(8)->startOfHour()->format('Y-m-d H:i:s');
+        $shift = Shift::query()
+            ->where(function ($query) use ($now) {
+                $query->whereTime('start_time', '<=', $now->format('H:i'))
+                    ->whereTime('end_time', '>', $now->format('H:i'));
+            })
+            ->orWhere(function ($query) use ($now) {
+                $query->whereTime('start_time', '<=', $now->format('H:i'))
+                    ->whereTime('end_time', '>=', $now->format('H:i'));
+            })
+            ->first();
+
+        $startDateTime = $now->copy()->setTimeFromTimeString($shift->start_time);
+
+        if ($shift->abbreviation === 'N') {
+            $endDateTime = $now->copy()->addDay()->setTimeFromTimeString($shift->end_time);
+        } else {
+            $endDateTime = $now->copy()->setTimeFromTimeString($shift->end_time);
+        }
+
+        // $startDate = $now->copy()->subHours(8)->startOfHour()->format('Y-m-d H:i:s');
+        // $endDate = $now->copy()->addHours(8)->startOfHour()->format('Y-m-d H:i:s');
 
         $historyRecords = History::join('part_numbers', 'part_numbers.id', '=', 'histories.part_number_id')
             ->join('work_centers', 'work_centers.id', '=', 'part_numbers.work_center_id')
-            ->whereBetween('histories.created_at', [$startDate, $endDate])
+            ->join('production_records', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('shifts', 'shifts.id', '=', 'production_records.shift_id')
+            ->where('shifts.id', '=', $shift->id)
+            ->whereBetween('histories.created_at', [$startDateTime, $endDateTime])
+            ->orderBy('work_centers.number', 'asc')
+            ->orderBy('histories.created_at', 'asc')
             ->select(
                 'work_centers.number AS work_number',
                 'work_centers.name AS work_name',
+                'part_numbers.id AS part_id',
                 'part_numbers.number AS part_number',
                 'part_numbers.name AS part_name',
+                'production_records.planned_quantity AS planned_quantity',
+                'shifts.abbreviation',
                 'histories.created_at',
                 'histories.quantity'
             )
@@ -256,59 +284,81 @@ class ProductionRecordController extends Controller
 
             // Agrupar por work_name
             if (!isset($groupedData[$record->work_name])) {
-                $groupedData[$record->work_name] = [];
+                $groupedData[$record->work_name] = [
+                    'planned_quantity' => $record->planned_quantity,
+                    'date' => []
+                ];
             }
 
             // Agrupar por fecha y hora combinadas
-            if (!isset($groupedData[$record->work_name][$dateTime])) {
-                $groupedData[$record->work_name][$dateTime] = [];
+            if (!isset($groupedData[$record->work_name]['date'][$dateTime])) {
+                $groupedData[$record->work_name]['date'][$dateTime] = [];
             }
 
             // Agrupar los part_numbers y almacenar el valor máximo de quantity
-            if (!isset($groupedData[$record->work_name][$dateTime][$record->part_number])) {
-                $groupedData[$record->work_name][$dateTime][$record->part_number] = $record->quantity;
+            if (!isset($groupedData[$record->work_name]['date'][$dateTime][$record->part_number])) {
+                $groupedData[$record->work_name]['date'][$dateTime][$record->part_number] = $record->quantity;
             } else {
                 // Tomar el valor máximo de quantity
-                $groupedData[$record->work_name][$dateTime][$record->part_number] = max(
-                    $groupedData[$record->work_name][$dateTime][$record->part_number],
+                $groupedData[$record->work_name]['date'][$dateTime][$record->part_number] = max(
+                    $groupedData[$record->work_name]['date'][$dateTime][$record->part_number],
                     $record->quantity
                 );
             }
         }
 
+        $hours = $startDateTime->diffInHours($endDateTime);
+
         // Convertir el arreglo a un formato más adecuado para Chart.js
         $chartData = [];
 
         foreach ($groupedData as $workName => $records) {
-            $labels = array_keys($records);  // Las fechas como etiquetas
+
+            $plannedPerHour  = round($records['planned_quantity'] / $hours, 2);
+            $labels = array_keys($records['date']);  // Las fechas como etiquetas
             $datasets = [];
 
-            // Agrupar los part_numbers por cada work_name
-            foreach ($records as $dateTime => $parts) {
+            // Crear el dataset para plannedPerHour con valores acumulados
+            $plannedData = [];
+            $accumulatedPlanned = 0;  // Variable para acumular el valor
+
+            foreach ($labels as $label) {
+                $accumulatedPlanned += $plannedPerHour;
+                $plannedData[] = $accumulatedPlanned;
+            }
+
+            $datasets[] = [
+                'label' => 'Cantidad Planeada Por Hora',
+                'data' => $plannedData,
+                // 'fill' => false,
+                'backgroundColor' => 'rgba(75, 192, 192, 0.2)',
+                'borderColor' => 'rgba(75, 192, 192, 1)',
+                'borderWidth' => 2,
+            ];
+
+            foreach ($records['date'] as $dateTime => $parts) {
                 foreach ($parts as $partNumber => $quantity) {
-                    // Si el dataset para este `partNumber` no existe, lo creamos
                     if (!isset($datasets[$partNumber])) {
                         $datasets[$partNumber] = [
-                            'label' => $partNumber,
+                            'label' => 'Cantidad Producida por Hora',
                             'data' => [],
+                            // 'fill' => false,
                             'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
                             'borderColor' => 'rgba(54, 162, 235, 1)',
-                            'borderWidth' => 1,
+                            'borderWidth' => 2,
                         ];
                     }
 
-                    // Añadir la cantidad al dataset correspondiente
                     $datasets[$partNumber]['data'][] = $quantity;
                 }
             }
 
-            $chartData[$workName] = [
+            $chartData[$partNumber] = [
                 'labels' => $labels,
-                'datasets' => array_values($datasets),  // Convertir los datasets a un array
+                'datasets' => array_values($datasets)
             ];
         }
 
-        // Enviar el JSON de datos a la vista
         return view('production-records.hourly-production-record', [
             'chartData' => $chartData
         ]);

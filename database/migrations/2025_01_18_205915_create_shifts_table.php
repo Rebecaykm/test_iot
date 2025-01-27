@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('abbreviation');
             $table->string('name');
-            $table->time('start')->nullable();
-            $table->time('end')->nullable();
+            $table->time('start_time')->nullable();
+            $table->time('end_time')->nullable();
             $table->string('description')->nullable();
             $table->timestamps();
         });

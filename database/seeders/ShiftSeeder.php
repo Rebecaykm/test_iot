@@ -14,7 +14,7 @@ class ShiftSeeder extends Seeder
      */
     public function run(): void
     {
-        Shift::create(['abbreviation' => 'D', 'name' => 'Diurno', 'start' => Carbon::createFromTime(8, 0, 0), 'end' => Carbon::createFromTime(20, 0, 0)]);
-        Shift::create(['abbreviation' => 'N', 'name' => 'Nocturno', 'start' => Carbon::createFromTime(20, 0, 0), 'end' => Carbon::createFromTime(8, 0, 0)]);
+        Shift::create(['abbreviation' => 'D', 'name' => 'Diurno', 'start_time' => Carbon::createFromTime(8, 0, 0), 'end_time' => Carbon::createFromTime(20, 0, 0)]);
+        Shift::create(['abbreviation' => 'N', 'name' => 'Nocturno', 'start_time' => Carbon::createFromTime(20, 0, 0), 'end_time' => Carbon::createFromTime(8, 0, 0)]);
     }
 }
