@@ -24,7 +24,7 @@
                                     <div class="card-tools d-flex">
                                         <h4 class="mr-3 mb-0">
                                             <span class="badge bg-primary text-dark">{{ $plannedDate }}</span>
-                                        </h4>
+                                       A </h4>
                                         <h4 class="mb-0">
                                             <span class="badge bg-secondary text-dark text-uppercase">{{ $shiftName }}</span>
                                         </h4>

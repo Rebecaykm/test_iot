@@ -27,5 +27,5 @@ Route::middleware([
 Route::get('chart', function () {
     return view('chart_test');
 })->name('chart');
-Route::get('show-plan-production', [ProductionRecordController::class, 'showPlanAndProduction'])->name('production-records.plan-production');
-Route::get('get-hourly', [ProductionRecordController::class, 'getHourlyProductionRecord'])->name('production-records.get-hourly');
+Route::get('production-records', [ProductionRecordController::class, 'getProductionRecords'])->name('production-records.production-records');
+Route::get('hourly-production-graph', [ProductionRecordController::class, 'getHourlyProductionGraph'])->name('production-records.hourly-production-graph');

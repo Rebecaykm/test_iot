@@ -8,12 +8,12 @@
 
 @section('content')
     <div id="charts-container">
-        @foreach ($chartData as $workName => $data)
+        @foreach ($chartData as $chart)
             <div class="card">
                 <div class="card-body">
                     <div class="chart-wrapper mb-5">
-                        <h3 class="text-center text-uppercase">{{ $workName }}</h3>
-                        <canvas id="chart-{{ Str::slug($workName, '-') }}"></canvas>
+                        <h3 class="text-center text-uppercase">{{ $chart['work_name'] }} - {{ $chart['part_number'] }}</h3>
+                        <canvas id="chart-{{ Str::slug($chart['work_name'] . '-' . $chart['part_number'], '-') }}"></canvas>
                     </div>
                 </div>
             </div>
@@ -22,11 +22,10 @@
 @stop
 
 @section('css')
-    {{-- Opcional: Agrega estilos si necesitas personalizar --}}
     <style>
         .chart-wrapper {
             width: 100%;
-            height: 400px; /* Ajusta la altura que prefieras para la gráfica */
+            height: 400px;
         }
 
         canvas {
@@ -37,40 +36,36 @@
 @stop
 
 @section('js')
+    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Obtén los datos de $chartData en formato JSON
             const chartData = @json($chartData);
 
-            // Itera sobre los datos y crea una gráfica para cada Work Name
-            Object.keys(chartData).forEach(workName => {
-                const chartConfig = chartData[workName];
-
-                // Obtener el canvas correspondiente
-                const ctx = document.getElementById(`chart-${workName.replace(/\s+/g, '-')}`);
+            chartData.forEach(chart => {
+                const ctx = document.getElementById(`chart-${chart.work_name.replace(/\s+/g, '-').toLowerCase()}-${chart.part_number}`);
 
                 if (ctx) {
                     new Chart(ctx, {
-                        type: 'bar', // Tipo de gráfica (puedes cambiarlo a 'line', 'pie', etc.)
+                        type: 'bar', // Tipo de gráfica
                         data: {
-                            labels: chartConfig.labels, // Etiquetas en el eje X
-                            datasets: chartConfig.datasets // Conjunto de datos
+                            labels: chart.labels, // Etiquetas en el eje X
+                            datasets: chart.datasets // Datos
                         },
                         options: {
                             responsive: true,
-                            maintainAspectRatio: false, // Permite que la gráfica ocupe el tamaño completo de su contenedor
+                            maintainAspectRatio: false,
                             plugins: {
                                 legend: {
-                                    position: 'top', // Posición de la leyenda
+                                    position: 'top',
                                 },
                                 title: {
                                     display: true,
-                                    text: `Production Data for ${workName}`
+                                    text: `Production Data for ${chart.work_name} - ${chart.part_number}`
                                 }
                             },
                             scales: {
                                 y: {
-                                    beginAtZero: true // Comienza en 0 en el eje Y
+                                    beginAtZero: true
                                 }
                             }
                         }
