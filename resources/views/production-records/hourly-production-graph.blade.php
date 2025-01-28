@@ -3,7 +3,7 @@
 @section('title', 'Hourly Production Record')
 
 @section('content_header')
-    <h1>Hourly Production Record</h1>
+    <!-- <h1>Hourly Production Record</h1> -->
 @stop
 
 @section('content')
@@ -65,7 +65,7 @@
                             },
                             scales: {
                                 y: {
-                                    beginAtZero: true
+                                    beginAtZero: true,
                                 }
                             }
                         }

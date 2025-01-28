@@ -181,6 +181,13 @@ class ProductionRecordController extends Controller
     /**
      *
      */
+    public function getProductionPlan() {
+
+    }
+
+    /**
+     *
+     */
     public function getProductionRecords()
     {
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
@@ -320,7 +327,7 @@ class ProductionRecordController extends Controller
 
                 $productionData = [];
                 foreach ($data['production_per_hour'] as $hourData) {
-                    $productionData[] = array_sum($hourData); // Sumar las cantidades de producción por hora
+                    $productionData[] = array_sum($hourData);
                 }
 
                 $chartData[] = [
@@ -334,6 +341,7 @@ class ProductionRecordController extends Controller
                             'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
                             'borderColor' => 'rgb(54, 162, 235)',
                             'borderWidth' => 2,
+                            'stack' => 'combined'
                         ],
                         [
                             'label' => 'Cantidad Producida por Hora',
@@ -341,6 +349,7 @@ class ProductionRecordController extends Controller
                             'backgroundColor' => 'rgba(255, 159, 64, 0.2)',
                             'borderColor' => 'rgb(255, 159, 64)',
                             'borderWidth' => 2,
+                            'stack' => 'combined'
                         ]
                     ]
                 ];
