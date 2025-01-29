@@ -3,15 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\History;
-use App\Models\PartNumber;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use JeroenNoten\LaravelAdminLte\View\Components\Widget\Card;
-
-use function Laravel\Prompts\select;
+use Illuminate\Support\Str;
 
 class ProductionRecordController extends Controller
 {
@@ -181,18 +177,31 @@ class ProductionRecordController extends Controller
     /**
      *
      */
-    public function getProductionPlan() {
-
-    }
+    public function getProductionPlan() {}
 
     /**
      *
      */
     public function getProductionRecords()
     {
+        $now = Carbon::now();
+
+        $shift = Shift::query()
+            ->where(function ($query) use ($now) {
+                $query->whereTime('start_time', '<=', $now->format('H:i'))
+                    ->whereTime('end_time', '>', $now->format('H:i'));
+            })
+            ->orWhere(function ($query) use ($now) {
+                $query->whereTime('start_time', '<=', $now->format('H:i'))
+                    ->whereTime('end_time', '>=', $now->format('H:i'));
+            })
+            ->first();
+
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            // ->where('shift_id', $shift->id)
+            ->where('planned_date', $now->format('Y-m-d'))
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
             ->select([
@@ -316,7 +325,7 @@ class ProductionRecordController extends Controller
             foreach ($parts as $partNumber => $data) {
                 $labels = array_keys($data['production_per_hour']);
 
-                $plannedPerHour = round($data['planned_quantity'] / count($labels), 3);
+                $plannedPerHour = round($data['planned_quantity'] / $hours, 3);
                 $plannedData = [];
                 $accumulatedPlanned = 0;
 
@@ -338,20 +347,21 @@ class ProductionRecordController extends Controller
                         [
                             'label' => 'Cantidad Planeada Por Hora',
                             'data' => $plannedData,
-                            'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
-                            'borderColor' => 'rgb(54, 162, 235)',
+                            'backgroundColor' => 'rgba(255, 159, 64, 0.2)',
+                            'borderColor' => 'rgb(255, 159, 64)',
                             'borderWidth' => 2,
                             'stack' => 'combined'
                         ],
                         [
                             'label' => 'Cantidad Producida por Hora',
                             'data' => $productionData,
-                            'backgroundColor' => 'rgba(255, 159, 64, 0.2)',
-                            'borderColor' => 'rgb(255, 159, 64)',
+                            'backgroundColor' => 'rgba(75, 192, 192, 0.2)',
+                            'borderColor' => 'rgb(75, 192, 192)',
                             'borderWidth' => 2,
                             'stack' => 'combined'
                         ]
-                    ]
+                    ],
+                    'chart_id' => Str::ulid()
                 ];
             }
         }
