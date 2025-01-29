@@ -9,11 +9,13 @@ class ProductionRecords extends Component
 {
     public $groupedByWorkCenter;
 
+    // Este método solo se ejecuta al inicio
     public function mount()
     {
         $this->getProductionRecords();
     }
 
+    // Este método se encargará de traer los registros de producción
     public function getProductionRecords()
     {
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
@@ -31,6 +33,7 @@ class ProductionRecords extends Component
             ])
             ->get();
 
+        // Agrupar los registros por WorkCenter, PlannedDate y Shift
         $this->groupedByWorkCenter = $productionRecords->groupBy('work_center_name')
             ->map(function ($workCenterGroup) {
                 return $workCenterGroup->groupBy('planned_date')
@@ -48,6 +51,12 @@ class ProductionRecords extends Component
                             });
                     });
             });
+    }
+
+    // Este método será llamado por el `wire:poll`
+    public function pollUpdate()
+    {
+        $this->getProductionRecords();
     }
 
     public function render()
