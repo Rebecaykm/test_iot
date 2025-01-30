@@ -61,7 +61,7 @@ class GetProductionRecords extends Component
     public function pollUpdate()
 
     {
-        $this->getHourlyProductionGraph();
+        $this->getProductionRecords();
     }
 
 
