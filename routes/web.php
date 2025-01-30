@@ -28,5 +28,12 @@ Route::get('chart', function () {
     return view('chart_test');
 })->name('dashboard');
 
-Route::get('production-records', [ProductionRecordController::class, 'getProductionRecords'])->name('production-records.production-records');
-Route::get('hourly-production-graph', [ProductionRecordController::class, 'getHourlyProductionGraph'])->name('production-records.hourly-production-graph');
+Route::get('get-production-records', function () {
+    return view('production-records.get-production-records');
+});
+
+Route::get('hourly-production-graph', function () {
+    return view('production-records.hourly-production-graph');
+});
+// Route::get('production-records', [ProductionRecordController::class, 'getProductionRecords'])->name('production-records.production-records');
+// Route::get('hourly-production-graph', [ProductionRecordController::class, 'getHourlyProductionGraph'])->name('production-records.hourly-production-graph');

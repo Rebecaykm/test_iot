@@ -200,21 +200,16 @@ class ProductionRecordController extends Controller
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-            // ->where('shift_id', $shift->id)
             ->where('planned_date', $now->format('Y-m-d'))
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
             ->select([
-                // 'production_records.id AS id',
-                // 'work_centers.number AS work_center_number',
                 'work_centers.name AS work_center_name',
                 'part_numbers.number AS part_number',
-                // 'part_numbers.name AS part_name',
                 'production_records.planned_quantity AS planned_quantity',
                 'production_records.produced_quantity AS produced_quantity',
                 'production_records.planned_date AS planned_date',
                 'shifts.abbreviation AS shift_name',
-                // 'statuses.name AS status_name'
             ])->get();
 
         $groupedByWorkCenter = $productionRecords->groupBy('work_center_name')
@@ -224,7 +219,6 @@ class ProductionRecordController extends Controller
                         return $dateGroup->groupBy('shift_name')
                             ->map(function ($shiftGroup) {
                                 return $shiftGroup->map(function ($record) {
-                                    // Guardamos la información que quieres en un formato adecuado
                                     return [
                                         'part_number' => $record->part_number,
                                         'planned_quantity' => $record->planned_quantity,
@@ -366,7 +360,7 @@ class ProductionRecordController extends Controller
             }
         }
 
-        return view('production-records.hourly-production-graph', [
+        return view('chart_test', [
             'chartData' => $chartData
         ]);
     }
