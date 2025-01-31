@@ -242,12 +242,18 @@ class ProductionRecordController extends Controller
 
         $shift = Shift::query()
             ->where(function ($query) use ($now) {
-                $query->whereTime('start_time', '<=', $now->format('H:i'))
-                    ->whereTime('end_time', '>', $now->format('H:i'));
+                // Turno diurno: 08:00 - 20:00
+                $query->where('name', 'Diurno') // Asegúrate de que esto coincida con el nombre del turno en tu tabla
+                    ->whereTime('start_time', '<=', $now)
+                    ->whereTime('end_time', '>', $now);
             })
             ->orWhere(function ($query) use ($now) {
-                $query->whereTime('start_time', '<=', $now->format('H:i'))
-                    ->whereTime('end_time', '>=', $now->format('H:i'));
+                // Turno nocturno: 20:00 - 08:00
+                $query->where('name', 'Nocturno')
+                    ->where(function ($nestedQuery) use ($now) {
+                        $nestedQuery->whereTime('start_time', '<=', $now) // Hoy entre 20:00 y 23:59
+                            ->orWhereTime('end_time', '>=', $now); // Mañana entre 00:00 y 08:00
+                    });
             })
             ->first();
 
