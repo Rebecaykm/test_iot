@@ -3,7 +3,8 @@
         <div class="min-h-screen flex flex-col items-center pt-6 sm:pt-0">
             <div class="py-12">
 
-                <livewire:production-table :work-center="'totam'" :interval="'1 second'" :real-time="true" />
+                <livewire:production-table :work-center="'reiciendis'" />
+
 
             </div>
         </div>

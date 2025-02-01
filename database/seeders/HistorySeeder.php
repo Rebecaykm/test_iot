@@ -48,7 +48,7 @@ class HistorySeeder extends Seeder
             }
 
             // Reiniciar la hora de inicio para el próximo `part_number`
-            $startTime = Carbon::createFromTime(20, 0);
+            $startTime = Carbon::createFromTime(6, 0);
         }
     }
 }

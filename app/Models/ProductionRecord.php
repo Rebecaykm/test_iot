@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,7 +24,7 @@ class ProductionRecord extends Model
     ];
 
     /**
-     *
+     * Relación con Shift
      */
     public function shift(): BelongsTo
     {
@@ -31,7 +32,7 @@ class ProductionRecord extends Model
     }
 
     /**
-     *
+     * Relación con Status
      */
     public function status(): BelongsTo
     {
@@ -39,10 +40,39 @@ class ProductionRecord extends Model
     }
 
     /**
-     *
+     * Relación con PartNumber
      */
     public function partNumber(): BelongsTo
     {
         return $this->belongsTo(PartNumber::class, 'part_number_id');
+    }
+
+    /**
+     * Obtener los registros de producción por WorkCenter
+     */
+    public static function getWorkCenterProductionRecord(String $workCenter, int $shiftId): Collection
+    {
+        return ProductionRecord::query()
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->where('work_centers.name', 'LIKE', $workCenter)
+            ->where('shifts.id', '=', $shiftId)
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('shifts.start_time', 'asc')
+            ->select([
+                'production_records.id AS production_id',
+                'work_centers.number AS work_number',
+                'work_centers.name AS work_name',
+                'part_numbers.number AS part_number',
+                'part_numbers.name AS part_name',
+                'production_records.planned_date AS planned_date',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'shifts.abbreviation AS shift_name',
+                'statuses.name AS status_name'
+            ])
+            ->get();
     }
 }

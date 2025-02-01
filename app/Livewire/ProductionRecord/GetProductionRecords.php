@@ -24,7 +24,7 @@ class GetProductionRecords extends Component
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-            ->where('planned_date', $now->format('Y-m-d'))
+            // ->where('planned_date', $now->format('Y-m-d'))
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
             ->select([
