@@ -3,7 +3,7 @@
     <div x-data="charts()" x-init="initializeCharts()" class="py-12 w-full max-w-7xl">
         <div id="charts-container" class="grid grid-cols-1 sm:grid-cols-2 gap-8">
             @foreach ($chartData as $chart)
-                <div class="bg-white shadow-lg rounded-lg overflow-hidden" wire:ignore>
+                <div class="bg-white shadow-lg rounded-lg overflow-hidden">
                     <div class="p-6">
                         <div class="chart-wrapper mb-5">
                             <h3 class="text-center text-2xl font-semibold text-gray-800 uppercase">
@@ -19,23 +19,21 @@
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            {{-- <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script> --}}
 
         <script>
             function charts() {
                 return {
                     charts: @json($chartData),
-                    realTime: @json($realTime),
                     initializeCharts() {
                         this.charts.forEach(chart => {
                             const ctx = document.getElementById(chart.chart_id);
 
                             if (ctx) {
-                                const chartInstance = new Chart(ctx, {
+                                new Chart(ctx, {
                                     type: 'bar',
                                     data: {
                                         labels: chart.labels,
-                                        datasets: chart.datasets,
+                                        datasets: chart.datasets
                                     },
                                     options: {
                                         responsive: true,
@@ -57,19 +55,6 @@
                                         }
                                     }
                                 });
-
-                                // Actualización en tiempo real
-                                if (this.realTime) {
-                                    setInterval(() => {
-                                        $wire.dispatchSelf('refreshGraph');
-
-                                        chartInstance.data.labels = $wire.entangle('labels').live.initialValue;
-                                        chartInstance.data.datasets[0].data = $wire.entangle('data').live
-                                            .initialValue;
-
-                                        chartInstance.update();
-                                    }, 1000); // Cada segundo
-                                }
                             } else {
                                 console.error('Canvas not found for chart:', chart.chart_id);
                             }
@@ -79,6 +64,5 @@
             }
         </script>
     </div>
-
 
 </div>

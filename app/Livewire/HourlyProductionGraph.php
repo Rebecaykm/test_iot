@@ -50,6 +50,7 @@ class HourlyProductionGraph extends Component
             ->orderBy('work_centers.number', 'asc')
             ->orderBy('histories.created_at', 'asc')
             ->select(
+                'production_records.id AS production_id',
                 'work_centers.number AS work_number',
                 'work_centers.name AS work_name',
                 'part_numbers.id AS part_id',
@@ -67,31 +68,31 @@ class HourlyProductionGraph extends Component
         foreach ($historyRecords as $record) {
             $dateTime = Carbon::parse($record->created_at)->format('Y-m-d H:00');
 
-            if (!isset($groupedData[$record->work_name])) {
-                $groupedData[$record->work_name] = [];
+            if (!isset($groupedData[$record->production_id][$record->work_name])) {
+                $groupedData[$record->production_id][$record->work_name] = [];
             }
 
-            if (!isset($groupedData[$record->work_name][$record->part_number])) {
-                $groupedData[$record->work_name][$record->part_number] = [
+            if (!isset($groupedData[$record->production_id][$record->work_name][$record->part_number])) {
+                $groupedData[$record->production_id][$record->work_name][$record->part_number] = [
                     'planned_quantity' => $record->planned_quantity,
                     'production_per_hour' => []
                 ];
             }
 
-            if (!isset($groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime])) {
-                $groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime] = [];
+            if (!isset($groupedData[$record->production_id][$record->work_name][$record->part_number]['production_per_hour'][$dateTime])) {
+                $groupedData[$record->production_id][$record->work_name][$record->part_number]['production_per_hour'][$dateTime] = [];
             }
 
-            if (!isset($groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number])) {
-                $groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number] = $record->quantity;
+            if (!isset($groupedData[$record->production_id][$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number])) {
+                $groupedData[$record->production_id][$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number] = $record->quantity;
             } else {
-                $groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number] = max(
-                    $groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number],
+                $groupedData[$record->production_id][$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number] = max(
+                    $groupedData[$record->production_id][$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number],
                     $record->quantity
                 );
             }
         }
-
+        dd($groupedData);
         $hours = $startDateTime->diffInHours($endDateTime);
 
         // Convertir $groupedData al formato esperado por Chart.js
