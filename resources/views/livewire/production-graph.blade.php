@@ -1,27 +1,25 @@
 <div>
-
-    <div x-data="charts()" x-init="initializeCharts()">
+    <div x-data="charts">
         <div class="grid grid-cols-1 gap-4">
             @foreach ($chartData as $chart)
-                <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-                    <div class="p-6">
-                        <div class="chart-wrapper mb-5">
-                            <div class="w-full h-96">
-                                <canvas id="{{ $chart['chart_id'] }}" class="w-full h-full"></canvas>
-                            </div>
+            <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+                <div class="p-6">
+                    <div class="chart-wrapper mb-5">
+                        <div class="w-full h-96">
+                            <canvas wire:ignore id="{{ $chart['chart_id'] }}" class="w-full h-full"></canvas>
                         </div>
                     </div>
                 </div>
+            </div>
             @endforeach
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
         <script>
-            function charts() {
+            Alpine.data('charts', () => {
                 return {
-                    charts: @json($chartData),
-                    initializeCharts() {
+                    init() {
                         this.charts.forEach(chart => {
                             const ctx = document.getElementById(chart.chart_id);
 
@@ -45,9 +43,14 @@
                                             }
                                         },
                                         scales: {
+                                            x: {
+                                                stacked: true,
+                                            },
                                             y: {
-                                                beginAtZero: true,
-                                                // stacked: true
+                                                stacked: false,
+                                                ticks: {
+                                                    beginAtZero: true,
+                                                },
                                             }
                                         }
                                     }
@@ -58,8 +61,7 @@
                         });
                     }
                 }
-            }
+            });
         </script>
     </div>
-
 </div>

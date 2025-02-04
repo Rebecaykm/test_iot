@@ -6,24 +6,19 @@ use App\Models\History;
 use App\Models\Shift;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class ProductionGraph extends Component
 {
-    public string|null $chartId = null;
+
     public $chartData = [];
-    public array $labels = [];
-    public array $data = [];
 
     public $workCenter;
     public $shift;
     public $startDateTime;
     public $endDateTime;
 
-    public function __construct()
-    {
-        $this->chartId = Str::ulid();
-    }
 
     public function mount($workCenter): void
     {
@@ -32,6 +27,7 @@ class ProductionGraph extends Component
         $this->refreshGraph();
     }
 
+    #[On('refresh-graph')]
     public function refreshGraph()
     {
         $now = Carbon::now();
@@ -79,22 +75,18 @@ class ProductionGraph extends Component
 
         $hours = $this->startDateTime->diffInHours($this->endDateTime);
 
-        // Preparar datos para Chart.js
         $plannedPerHour = round($groupedData['planned_quantity'] / $hours, 3);
         $plannedData = [];
         $accumulatedPlanned = 0;
 
-        // Generar los valores de la cantidad planeada acumulada
         foreach ($groupedData['production_per_hour'] as $hour => $production) {
             $accumulatedPlanned += $plannedPerHour;
             $plannedData[] = $accumulatedPlanned;
         }
 
-        // Los datos de producción por hora ya están en el arreglo, los obtenemos directamente
         $productionData = array_values($groupedData['production_per_hour']);
         $labels = array_keys($groupedData['production_per_hour']);
 
-        // Ahora preparamos la estructura para Chart.js
         $this->chartData[] = [
             'work_name' => $groupedData['work_center_name'],
             'labels' => $labels,
@@ -102,18 +94,16 @@ class ProductionGraph extends Component
                 [
                     'label' => 'Cantidad Planeada Por Hora',
                     'data' => $plannedData,
-                    'backgroundColor' => 'rgba(255, 159, 64, 0.2)',
-                    'borderColor' => 'rgb(255, 159, 64)',
-                    'borderWidth' => 2,
-                    // 'stack' => 'combined'
+                    'backgroundColor' => 'rgba(255, 99, 132, 0.2)',
+                    'borderColor' => 'rgb(255, 99, 132)',
+                    'borderWidth' => 2
                 ],
                 [
                     'label' => 'Cantidad Producida por Hora',
                     'data' => $productionData,
                     'backgroundColor' => 'rgba(75, 192, 192, 0.2)',
                     'borderColor' => 'rgb(75, 192, 192)',
-                    'borderWidth' => 2,
-                    // 'stack' => 'combined'
+                    'borderWidth' => 2
                 ],
             ],
             'chart_id' => (string) Str::ulid(),
