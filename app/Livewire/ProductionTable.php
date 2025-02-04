@@ -30,11 +30,11 @@ class ProductionTable extends Component
 
         $this->shift = Shift::getShift($now);
 
-        $this->fetchChartData();
+        $this->fetchTableData();
     }
 
     // Método para obtener los datos agrupados
-    public function fetchChartData(): void
+    public function fetchTableData(): void
     {
         $productionRecords = ProductionRecord::getWorkCenterProductionRecord($this->workCenter, $this->shift->id);
 

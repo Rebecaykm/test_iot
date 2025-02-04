@@ -5,6 +5,7 @@
 
                 <livewire:production-table :work-center="'reiciendis'" />
 
+                <livewire:production-graph :work-center="'reiciendis'" />
 
             </div>
         </div>

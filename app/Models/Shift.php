@@ -54,19 +54,19 @@ class Shift extends Model
 
         if ($shift->abbreviation === 'N') {
             if ($now->greaterThan(Carbon::today())) {
-                $startDate = $startTime->subDay();
+                $startDateTime = $startTime->subDay();
             } else {
-                $startDate = $startTime;
+                $startDateTime = $startTime;
             }
-            $endDate = $startTime->copy()->addDay()->setTimeFromTimeString($shift->end_time);
+            $endDateTime = $startTime->copy()->addDay()->setTimeFromTimeString($shift->end_time);
         } else {
-            $startDate = $startTime;
-            $endDate = $now->copy()->setTimeFromTimeString($shift->end_time);
+            $startDateTime = $startTime;
+            $endDateTime = $now->copy()->setTimeFromTimeString($shift->end_time);
         }
 
         return (object) [
-            'startDate' => $startDate,
-            'endDate' => $endDate
+            'startDateTime' => $startDateTime,
+            'endDateTime' => $endDateTime
         ];
     }
 }
