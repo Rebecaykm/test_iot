@@ -35,7 +35,7 @@ class History extends Model
             ->join('work_centers', 'work_centers.id', '=', 'part_numbers.work_center_id')
             ->join('production_records', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('shifts', 'shifts.id', '=', 'production_records.shift_id')
-            ->where('shifts.id', '=', $shift->id)
+            // ->where('shifts.id', '=', $shift->id)
             ->where('work_centers.name', 'LIKE', $workCenter)
             ->whereBetween('histories.created_at', [$startDateTime, $endDateTime])
             ->orderBy('work_centers.number', 'asc')

@@ -57,10 +57,11 @@ class ProductionRecord extends Model
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->where('shifts.id', $shiftId)
             ->where('work_centers.name', 'LIKE', $workCenter)
-            ->where('shifts.id', '=', $shiftId)
-            ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('production_records.production_end', 'desc')
             ->select([
                 'production_records.id AS production_id',
                 'work_centers.number AS work_number',
