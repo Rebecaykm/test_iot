@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use DateTime;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -50,13 +51,14 @@ class ProductionRecord extends Model
     /**
      * Obtener los registros de producción por WorkCenter
      */
-    public static function getWorkCenterProductionRecord(String $workCenter, int $shiftId): Collection
+    public static function getWorkCenterProductionRecord(String $workCenter, int $shiftId, $now): Collection
     {
         return ProductionRecord::query()
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->where('production_records.planned_date', $now->toDateString())
             ->where('shifts.id', $shiftId)
             ->where('work_centers.name', 'LIKE', $workCenter)
             ->orderBy('shifts.start_time', 'asc')

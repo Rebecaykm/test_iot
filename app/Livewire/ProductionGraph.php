@@ -84,6 +84,23 @@ class ProductionGraph extends Component
             );
         }
 
+        foreach ($historyData as $productionId => &$workCenters) {
+            foreach ($workCenters as $workName => &$parts) {
+                foreach ($parts as $partNumber => &$data) {
+                    for ($hour = $this->startDateTime->copy(); $hour < $this->endDateTime; $hour->addHour()) {
+                        $formattedHour = $hour->format('Y-m-d H:00');
+
+                        if (!isset($data['production_per_hour'][$formattedHour])) {
+                            $data['production_per_hour'][$formattedHour] = 0;
+                        }
+                    }
+                    ksort($data['production_per_hour']);
+                }
+            }
+        }
+
+        unset($workCenters, $parts, $data);
+
         $groupedData = [
             'work_center_name' => '',
             'planned_quantity' => 0,
@@ -101,7 +118,7 @@ class ProductionGraph extends Component
                 }
             }
         }
-
+        dd($historyData);
         $hours = $this->startDateTime->diffInHours($this->endDateTime);
 
         $plannedPerHour = round($groupedData['planned_quantity'] / $hours, 3);
