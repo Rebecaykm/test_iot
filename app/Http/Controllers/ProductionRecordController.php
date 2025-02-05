@@ -3,15 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\History;
-use App\Models\PartNumber;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use JeroenNoten\LaravelAdminLte\View\Components\Widget\Card;
-
-use function Laravel\Prompts\select;
+use Illuminate\Support\Str;
 
 class ProductionRecordController extends Controller
 {
@@ -127,6 +123,7 @@ class ProductionRecordController extends Controller
         // }
 
         // return view('chart',  ['groupedData', $groupedData]);
+
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
@@ -180,26 +177,40 @@ class ProductionRecordController extends Controller
     /**
      *
      */
-    public function showPlanAndProduction()
+    public function getProductionPlan() {}
+
+    /**
+     *
+     */
+    public function getProductionRecords()
     {
+        $now = Carbon::now();
+
+        $shift = Shift::query()
+            ->where(function ($query) use ($now) {
+                $query->whereTime('start_time', '<=', $now->format('H:i'))
+                    ->whereTime('end_time', '>', $now->format('H:i'));
+            })
+            ->orWhere(function ($query) use ($now) {
+                $query->whereTime('start_time', '<=', $now->format('H:i'))
+                    ->whereTime('end_time', '>=', $now->format('H:i'));
+            })
+            ->first();
+
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-            // ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->where('planned_date', $now->format('Y-m-d'))
             ->orderBy('production_records.planned_date', 'asc')
-            ->orderBy('shifts.start', 'asc')
-            ->get([
-                // 'production_records.id AS id',
-                // 'work_centers.number AS work_center_number',
+            ->orderBy('shifts.start_time', 'asc')
+            ->select([
                 'work_centers.name AS work_center_name',
                 'part_numbers.number AS part_number',
-                // 'part_numbers.name AS part_name',
                 'production_records.planned_quantity AS planned_quantity',
                 'production_records.produced_quantity AS produced_quantity',
                 'production_records.planned_date AS planned_date',
                 'shifts.abbreviation AS shift_name',
-                // 'statuses.name AS status_name'
-            ]);
+            ])->get();
 
         $groupedByWorkCenter = $productionRecords->groupBy('work_center_name')
             ->map(function ($workCenterGroup) {
@@ -208,7 +219,6 @@ class ProductionRecordController extends Controller
                         return $dateGroup->groupBy('shift_name')
                             ->map(function ($shiftGroup) {
                                 return $shiftGroup->map(function ($record) {
-                                    // Guardamos la información que quieres en un formato adecuado
                                     return [
                                         'part_number' => $record->part_number,
                                         'planned_quantity' => $record->planned_quantity,
@@ -220,96 +230,143 @@ class ProductionRecordController extends Controller
                     });
             });
 
-        return view('production-records.show-plan-production', compact('groupedByWorkCenter'));
+        return view('production-records.get-production-records', compact('groupedByWorkCenter'));
     }
 
     /**
      *
      */
-    public function getHourlyProductionRecord()
+    public function getHourlyProductionGraph()
     {
         $now = Carbon::now();
 
-        $startDate = $now->copy()->subHours(8)->startOfHour()->format('Y-m-d H:i:s');
-        $endDate = $now->copy()->addHours(8)->startOfHour()->format('Y-m-d H:i:s');
+        $shift = Shift::query()
+            ->where(function ($query) use ($now) {
+                // Turno diurno: 08:00 - 20:00
+                $query->where('name', 'Diurno') // Asegúrate de que esto coincida con el nombre del turno en tu tabla
+                    ->whereTime('start_time', '<=', $now)
+                    ->whereTime('end_time', '>', $now);
+            })
+            ->orWhere(function ($query) use ($now) {
+                // Turno nocturno: 20:00 - 08:00
+                $query->where('name', 'Nocturno')
+                    ->where(function ($nestedQuery) use ($now) {
+                        $nestedQuery->whereTime('start_time', '<=', $now) // Hoy entre 20:00 y 23:59
+                            ->orWhereTime('end_time', '>=', $now); // Mañana entre 00:00 y 08:00
+                    });
+            })
+            ->first();
+
+        $startDateTime = $now->copy()->setTimeFromTimeString($shift->start_time);
+
+        if ($shift->abbreviation === 'N') {
+            $endDateTime = $now->copy()->addDay()->setTimeFromTimeString($shift->end_time);
+        } else {
+            $endDateTime = $now->copy()->setTimeFromTimeString($shift->end_time);
+        }
 
         $historyRecords = History::join('part_numbers', 'part_numbers.id', '=', 'histories.part_number_id')
             ->join('work_centers', 'work_centers.id', '=', 'part_numbers.work_center_id')
-            ->whereBetween('histories.created_at', [$startDate, $endDate])
+            ->join('production_records', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('shifts', 'shifts.id', '=', 'production_records.shift_id')
+            ->where('shifts.id', '=', $shift->id)
+            ->whereBetween('histories.created_at', [$startDateTime, $endDateTime])
+            ->orderBy('work_centers.number', 'asc')
+            ->orderBy('histories.created_at', 'asc')
             ->select(
                 'work_centers.number AS work_number',
                 'work_centers.name AS work_name',
+                'part_numbers.id AS part_id',
                 'part_numbers.number AS part_number',
                 'part_numbers.name AS part_name',
+                'production_records.planned_quantity AS planned_quantity',
+                'shifts.abbreviation',
                 'histories.created_at',
                 'histories.quantity'
             )
             ->get();
 
-        // Iniciar el arreglo para agrupar los datos
         $groupedData = [];
 
-        // Iterar sobre los registros obtenidos
         foreach ($historyRecords as $record) {
-            // Formatear la fecha y hora combinadas
             $dateTime = Carbon::parse($record->created_at)->format('Y-m-d H:00');
 
-            // Agrupar por work_name
             if (!isset($groupedData[$record->work_name])) {
                 $groupedData[$record->work_name] = [];
             }
 
-            // Agrupar por fecha y hora combinadas
-            if (!isset($groupedData[$record->work_name][$dateTime])) {
-                $groupedData[$record->work_name][$dateTime] = [];
+            if (!isset($groupedData[$record->work_name][$record->part_number])) {
+                $groupedData[$record->work_name][$record->part_number] = [
+                    'planned_quantity' => $record->planned_quantity,
+                    'production_per_hour' => []
+                ];
             }
 
-            // Agrupar los part_numbers y almacenar el valor máximo de quantity
-            if (!isset($groupedData[$record->work_name][$dateTime][$record->part_number])) {
-                $groupedData[$record->work_name][$dateTime][$record->part_number] = $record->quantity;
+            if (!isset($groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime])) {
+                $groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime] = [];
+            }
+
+            if (!isset($groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number])) {
+                $groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number] = $record->quantity;
             } else {
-                // Tomar el valor máximo de quantity
-                $groupedData[$record->work_name][$dateTime][$record->part_number] = max(
-                    $groupedData[$record->work_name][$dateTime][$record->part_number],
+                $groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number] = max(
+                    $groupedData[$record->work_name][$record->part_number]['production_per_hour'][$dateTime][$record->part_number],
                     $record->quantity
                 );
             }
         }
 
-        // Convertir el arreglo a un formato más adecuado para Chart.js
+        $hours = $startDateTime->diffInHours($endDateTime);
+
+        // Convertir $groupedData al formato esperado por Chart.js
         $chartData = [];
 
-        foreach ($groupedData as $workName => $records) {
-            $labels = array_keys($records);  // Las fechas como etiquetas
-            $datasets = [];
+        foreach ($groupedData as $workName => $parts) {
+            foreach ($parts as $partNumber => $data) {
+                $labels = array_keys($data['production_per_hour']);
 
-            // Agrupar los part_numbers por cada work_name
-            foreach ($records as $dateTime => $parts) {
-                foreach ($parts as $partNumber => $quantity) {
-                    // Si el dataset para este `partNumber` no existe, lo creamos
-                    if (!isset($datasets[$partNumber])) {
-                        $datasets[$partNumber] = [
-                            'label' => $partNumber,
-                            'data' => [],
-                            'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
-                            'borderColor' => 'rgba(54, 162, 235, 1)',
-                            'borderWidth' => 1,
-                        ];
-                    }
+                $plannedPerHour = round($data['planned_quantity'] / $hours, 3);
+                $plannedData = [];
+                $accumulatedPlanned = 0;
 
-                    // Añadir la cantidad al dataset correspondiente
-                    $datasets[$partNumber]['data'][] = $quantity;
+                foreach ($labels as $label) {
+                    $accumulatedPlanned += $plannedPerHour;
+                    $plannedData[] = $accumulatedPlanned;
                 }
-            }
 
-            $chartData[$workName] = [
-                'labels' => $labels,
-                'datasets' => array_values($datasets),  // Convertir los datasets a un array
-            ];
+                $productionData = [];
+                foreach ($data['production_per_hour'] as $hourData) {
+                    $productionData[] = array_sum($hourData);
+                }
+
+                $chartData[] = [
+                    'work_name' => $workName,
+                    'part_number' => $partNumber,
+                    'labels' => $labels,
+                    'datasets' => [
+                        [
+                            'label' => 'Cantidad Planeada Por Hora',
+                            'data' => $plannedData,
+                            'backgroundColor' => 'rgba(255, 159, 64, 0.2)',
+                            'borderColor' => 'rgb(255, 159, 64)',
+                            'borderWidth' => 2,
+                            'stack' => 'combined'
+                        ],
+                        [
+                            'label' => 'Cantidad Producida por Hora',
+                            'data' => $productionData,
+                            'backgroundColor' => 'rgba(75, 192, 192, 0.2)',
+                            'borderColor' => 'rgb(75, 192, 192)',
+                            'borderWidth' => 2,
+                            'stack' => 'combined'
+                        ]
+                    ],
+                    'chart_id' => Str::ulid()
+                ];
+            }
         }
 
-        // Enviar el JSON de datos a la vista
-        return view('production-records.hourly-production-record', [
+        return view('chart_test', [
             'chartData' => $chartData
         ]);
     }

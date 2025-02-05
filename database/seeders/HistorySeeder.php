@@ -16,16 +16,16 @@ class HistorySeeder extends Seeder
     public function run(): void
     {
         // Seleccionar 5 part_numbers aleatorios
-        $partNumbers = PartNumber::inRandomOrder()->take(5)->get();
+        $partNumbers = PartNumber::inRandomOrder()->take(10)->get();
 
         // Definir la hora de inicio
         $startTime = Carbon::createFromTime(6, 0); // 06:00 AM
 
         // Número total de registros
-        $totalRecords = 100;
+        $totalRecords = 200;
 
         // Calcular registros por part_number
-        $recordsPerPartNumber = $totalRecords / $partNumbers->count(); // 10 por cada part_number
+        $recordsPerPartNumber = $totalRecords / $partNumbers->count(); // 20 por cada part_number
 
         foreach ($partNumbers as $partNumber) {
             // Cantidad inicial
