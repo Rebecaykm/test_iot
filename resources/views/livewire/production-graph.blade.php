@@ -1,67 +1,68 @@
 <div>
     <div x-data="charts">
         <div class="grid grid-cols-1 gap-4">
-            @foreach ($chartData as $chart)
             <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-                <div class="p-6">
-                    <div class="chart-wrapper mb-5">
-                        <div class="w-full h-96">
-                            <canvas wire:ignore id="{{ $chart['chart_id'] }}" class="w-full h-full"></canvas>
-                        </div>
+                <div class="p-6 flex flex-col h-full">
+                    <div class="chart-wrapper mb-5 flex-1">
+                        <canvas wire:ignore id="{{ $chartId }}" class="w-full h-full"></canvas>
                     </div>
                 </div>
             </div>
-            @endforeach
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+        @script
         <script>
             Alpine.data('charts', () => {
                 return {
                     init() {
-                        this.charts.forEach(chart => {
-                            const ctx = document.getElementById(chart.chart_id);
+                        const ctx = document.getElementById(@json($chartId));
 
-                            if (ctx) {
-                                new Chart(ctx, {
-                                    type: 'bar',
-                                    data: {
-                                        labels: chart.labels,
-                                        datasets: chart.datasets
+                        var chart = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: $wire.entangle("labels").live.initialValue,
+                                datasets: $wire.entangle("datasets").live.initialValue,
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'top',
                                     },
-                                    options: {
-                                        responsive: true,
-                                        maintainAspectRatio: false,
-                                        plugins: {
-                                            legend: {
-                                                position: 'top',
-                                            },
-                                            title: {
-                                                display: true,
-                                                text: `Production per Hour: ${chart.work_name}`
-                                            }
-                                        },
-                                        scales: {
-                                            x: {
-                                                stacked: true,
-                                            },
-                                            y: {
-                                                stacked: false,
-                                                ticks: {
-                                                    beginAtZero: true,
-                                                },
-                                            }
-                                        }
+                                    title: {
+                                        display: true,
+                                        text: 'Producción por Hora: ' + $wire.entangle("workCenter").live.initialValue
                                     }
-                                });
-                            } else {
-                                console.error('Canvas not found for chart:', chart.chart_id);
+                                },
+                                scales: {
+                                    x: {
+                                        stacked: true,
+                                    },
+                                    y: {
+                                        stacked: false,
+                                        ticks: {
+                                            beginAtZero: true,
+                                        },
+                                    }
+                                }
                             }
                         });
+
+                        if (@json($realTime)) {
+                            setInterval(() => {
+                                $wire.dispatchSelf("refresh-graph");
+                                chart.data.labels = $wire.entangle("labels").live.initialValue;
+                                chart.data.datasets = $wire.entangle("datasets").live.initialValue;
+                                chart.update();
+                            }, 1000);
+                        }
                     }
                 }
             });
         </script>
+        @endscript
     </div>
 </div>
