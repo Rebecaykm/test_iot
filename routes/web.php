@@ -38,6 +38,10 @@ Route::get('hourly-production-graph', function () {
 // Route::get('production-records', [ProductionRecordController::class, 'getProductionRecords'])->name('production-records.production-records');
 // Route::get('hourly-production-graph', [ProductionRecordController::class, 'getHourlyProductionGraph'])->name('production-records.hourly-production-graph');
 
-Route::get('test', function () {
-    return view('test');
-})->name('test');
+Route::get('production-dashboard', function () {
+    return view('production-dashboard');
+})->name('production-dashboard');
+
+Route::get('production-plan-summary', function () {
+    return view('production-plan-summary');
+});

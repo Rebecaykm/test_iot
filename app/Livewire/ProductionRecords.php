@@ -4,23 +4,47 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\ProductionRecord;
+use App\Models\Shift;
+use Carbon\Carbon;
 
 class ProductionRecords extends Component
 {
+    public $line;
+    public $now;
+    public $shift;
+
     public $groupedByWorkCenter;
 
-    // Este método solo se ejecuta al inicio
-    public function mount()
+    public function mount($line): void
     {
-        $this->getProductionRecords();
+        $this->line = $line;
+
+        $this->refreshProductionRecords();
     }
 
-    // Este método se encargará de traer los registros de producción
-    public function getProductionRecords()
+    public function refreshProductionRecords()
     {
+        $this->now = Carbon::now();
+
+        $this->shift = Shift::getShift($this->now);
+
+        $this->fetchProductionRecords();
+    }
+
+    public function fetchProductionRecords()
+    {
+        $yesterday = $this->now->copy()->subDay()->toDateString();
+        $today = $this->now->copy()->toDateString();
+
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('lines', 'work_centers.line_id', '=', 'lines.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->where('statuses.id', 7)
+            ->where('lines.name', $this->line)
+            ->whereBetween('production_records.planned_date', [$yesterday, $today])
+            ->orderBy('work_centers.name', 'asc')
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
             ->select([
@@ -33,7 +57,6 @@ class ProductionRecords extends Component
             ])
             ->get();
 
-        // Agrupar los registros por WorkCenter, PlannedDate y Shift
         $this->groupedByWorkCenter = $productionRecords->groupBy('work_center_name')
             ->map(function ($workCenterGroup) {
                 return $workCenterGroup->groupBy('planned_date')
@@ -45,18 +68,12 @@ class ProductionRecords extends Component
                                         'part_number' => $record->part_number,
                                         'planned_quantity' => $record->planned_quantity,
                                         'produced_quantity' => $record->produced_quantity,
-                                        'difference' => $record->planned_quantity - $record->produced_quantity
+                                        'difference' => $record->produced_quantity - $record->planned_quantity
                                     ];
                                 });
                             });
                     });
             });
-    }
-
-    // Este método será llamado por el `wire:poll`
-    public function pollUpdate()
-    {
-        $this->getProductionRecords();
     }
 
     public function render()

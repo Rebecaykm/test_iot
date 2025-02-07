@@ -3,11 +3,7 @@
         <div class="min-h-screen flex flex-col items-center pt-6 sm:pt-0">
             <div class="w-full max-w-7xl px-6 lg:px-8">
                 <div class="grid grid-cols-1 gap-4">
-
-                    <livewire:production-table :work-center="'MK05'" />
-                    <livewire:production-graph :work-center="'MK05'" :real-time="true" />
-
-
+                    <livewire:production-records :line="'INDEX'" />
                 </div>
             </div>
         </div>

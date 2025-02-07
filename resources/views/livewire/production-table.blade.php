@@ -1,4 +1,4 @@
-<div wire:poll.30s="refreshTable">
+<div wire:poll.1s="refreshTable">
 
     <div class="grid grid-cols-1 gap-4">
         @foreach ($data as $workCenter => $dates)
@@ -29,18 +29,18 @@
                             <table class="min-w-full table-auto border border-gray-300">
                                 <thead class="bg-gray-100">
                                     <tr
-                                        class="text-xs font-semibold uppercase tracking-wide text-gray-600 border-b">
+                                        class="font-semibold uppercase tracking-wide text-gray-600 border-b">
                                         <th class="px-4 py-3">{{ __('Número de Parte') }}</th>
                                         <th class="px-4 py-3 text-center">{{ __('Cantidad Planeada') }}</th>
                                         <th class="px-4 py-3 text-center">{{ __('Cantidad Producida') }}</th>
                                         <th class="px-4 py-3 text-center">{{ __('Diferencia') }}</th>
-                                        <th class="px-4 py-3 text-center">{{ __('Estado') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y">
                                     @foreach ($records as $record)
                                         <tr class="text-xs text-gray-700 hover:bg-gray-100">
-                                            <td class="px-4 py-3 text-sm border">{{ $record['part_number'] }}
+                                            <td class="px-4 py-3 text-sm border">
+                                                {{ $record['part_number'] }}
                                             </td>
                                             <td class="px-4 py-3 text-sm text-center border">
                                                 {{ $record['planned_quantity'] }}
@@ -51,7 +51,7 @@
                                             <td class="px-4 py-3 text-sm text-center border">
                                                 @if ($record['planned_quantity'] > $record['produced_quantity'])
                                                     <span
-                                                        class="px-2 py-1 text-xs font-semibold leading-tight text-orange-700 bg-orange-100 rounded-full">
+                                                        class="px-2 py-1 text-xs font-semibold leading-tight text-red-700 bg-red-100 rounded-full">
                                                         {{ $record['difference'] }}
                                                     </span>
                                                 @elseif ($record['planned_quantity'] < $record['produced_quantity'])
@@ -61,19 +61,6 @@
                                                 @else
                                                     <span class="px-2 py-1 text-xs font-semibold leading-tight text-gray-700 bg-gray-100 rounded-full">
                                                             {{ $record['difference'] }}
-                                                    </span>
-                                                @endif
-                                            </td>
-                                            <td class="px-4 py-3 text-center border uppercase">
-                                                @if ($record['status_name'] == 'Completado')
-                                                    <span
-                                                        class="px-2 py-1 text-xs font-semibold leading-tight text-green-700 bg-green-100 rounded-full">
-                                                        {{ $record['status_name'] }}
-                                                    </span>
-                                                @else
-                                                    <span
-                                                        class="px-2 py-1 text-xs font-semibold leading-tight text-orange-700 bg-orange-100 rounded-full">
-                                                        {{ $record['status_name'] }}
                                                     </span>
                                                 @endif
                                             </td>

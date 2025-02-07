@@ -51,8 +51,7 @@ class ProductionTable extends Component
                                         'part_number' => $record->part_number,
                                         'planned_quantity' => $record->planned_quantity,
                                         'produced_quantity' => $record->produced_quantity,
-                                        'difference' => $record->planned_quantity - $record->produced_quantity,
-                                        'status_name' => $record->status_name
+                                        'difference' => $record->produced_quantity - $record->planned_quantity,
                                     ];
                                 });
                             });

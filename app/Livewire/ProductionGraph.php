@@ -118,7 +118,7 @@ class ProductionGraph extends Component
                 }
             }
         }
-        dd($historyData);
+
         $hours = $this->startDateTime->diffInHours($this->endDateTime);
 
         $plannedPerHour = round($groupedData['planned_quantity'] / $hours, 3);
