@@ -38,7 +38,8 @@ class ProductionGraph extends Component
     #[On('refresh-graph')]
     public function refreshGraph()
     {
-        $now = Carbon::now();
+        // $now = Carbon::now();
+        $now = Carbon::parse('2025-02-19 12:00:00');
 
         $this->shift = Shift::getShift($now);
         $range = Shift::getShiftDateTimeRange($this->shift, $now);

@@ -1,57 +1,106 @@
-@extends('adminlte::page')
+<x-guest-layout>
+    <div class="pt-4 bg-gray-100 dark:bg-gray-900">
+        <div class="min-h-screen flex flex-col items-center pt-6 sm:pt-0">
+            <div class="w-full sm:max-w-2xl mt-6 p-6 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg prose dark:prose-invert">
 
-@section('title', 'Dashboard')
+                <div>
+                    <canvas id="myChart"></canvas>
+                </div>
 
-@section('content_header')
-    <h1>Dashboard</h1>
-@stop
-
-@section('content')
-    <div class="card">
-        <div class="card-header">
-            <h3>Gráfico de Barras - Ejemplo Básico</h3>
-        </div>
-        <div class="card-body">
-            <canvas id="myChart"></canvas>
+            </div>
         </div>
     </div>
-@stop
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
-@section('css')
-    {{-- Aquí puedes agregar tus estilos adicionales si es necesario --}}
-    <style>
-        .card {
-            margin-top: 20px;
-        }
-    </style>
-@stop
-
-@section('js')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Crear los datos del gráfico
-            const ctx = document.getElementById('myChart').getContext('2d');
-            const myChart = new Chart(ctx, {
-                type: 'bar', // Tipo de gráfico (barra)
-                data: {
-                    labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo'], // Etiquetas (ejes X)
-                    datasets: [{
-                        label: 'Ventas',
-                        data: [12, 19, 3, 5, 2], // Datos (ejes Y)
-                        backgroundColor: 'rgba(0, 123, 255, 0.2)', // Color de las barras
-                        borderColor: 'rgba(0, 123, 255, 1)', // Color del borde de las barras
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true, // Hace que el gráfico sea responsivo
-                    scales: {
-                        y: {
-                            beginAtZero: true // Inicia el eje Y desde 0
+        var cycleTime = 1; // Tiempo por ciclo (en segundos)
+        var plan = 120; // Cantidad total de piezas a procesar
+        var real = 0; // Piezas procesadas en tiempo real
+
+        // Cálculo del tiempo total necesario (en minutos)
+        var totalTime = (cycleTime * plan) / 60;
+
+        var currentDate = new Date(); // Hora actual
+
+        // Hora de inicio
+        var startHours = currentDate.getHours();
+        var startMinutes = currentDate.getMinutes();
+        var startSeconds = currentDate.getSeconds();
+
+        // Sumar el tiempo total al objeto Date
+        currentDate.setMinutes(currentDate.getMinutes() + totalTime);
+
+        // Hora de fin
+        var endHours = currentDate.getHours();
+        var endMinutes = currentDate.getMinutes();
+        var endSeconds = currentDate.getSeconds();
+
+        // Formato de hora con minutos y segundos
+        var startformattedTime = startHours + ':' + (startMinutes < 10 ? '0' + startMinutes : startMinutes) + ':' + (startSeconds < 10 ? '0' + startSeconds : startSeconds);
+        var endFormattedTime = endHours + ':' + (endMinutes < 10 ? '0' + endMinutes : endMinutes) + ':' + (endSeconds < 10 ? '0' + endSeconds : endSeconds);
+
+        const ctx = document.getElementById('myChart');
+
+        // Guardamos el objeto Chart para poder acceder a él más tarde
+        var myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['BDTS'],
+                datasets: [{
+                    label: 'Plan',
+                    data: [plan],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgb(54, 162, 235)',
+                    borderWidth: 2
+                }, {
+                    label: 'Real',
+                    data: [real],
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgb(75, 192, 192)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                // responsive: true,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value, index, values) {
+                                if (value === 0) {
+                                    return startformattedTime;
+                                }
+                                if (value === plan) {
+                                    return endFormattedTime;
+                                }
+                                return;
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            maxRotation: 90,
+                            minRotation: 90,
                         }
                     }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Chart.js Horizontal Bar Chart'
+                    }
                 }
-            });
+            }
         });
+
+        // Intervalo para actualizar el valor de "Real" cada segundo
+        setInterval(function() {
+            real++;
+            myChart.data.datasets[1].data = [real]; // Actualizamos directamente el valor de "Real"
+            myChart.update(); // Actualizamos la gráfica
+        }, 1000);
     </script>
-@stop
+</x-guest-layout>

@@ -45,3 +45,7 @@ Route::get('production-dashboard', function () {
 Route::get('production-plan-summary', function () {
     return view('production-plan-summary');
 });
+
+Route::get('chart', function () {
+    return view('chart');
+});

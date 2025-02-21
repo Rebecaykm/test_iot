@@ -12,10 +12,7 @@
                         </h4>
                     </div>
 
-
                     <livewire:production-table :work-center="'MK05'" />
-                    <livewire:production-graph :work-center="'MK05'" :real-time="true" />
-
 
                 </div>
             </div>

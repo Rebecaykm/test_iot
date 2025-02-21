@@ -1,5 +1,6 @@
 <div wire:poll.1s="refreshTable">
 
+    <!-- <div class="grid grid-cols-1 md:grid-cols-2 gap-4"> -->
     <div class="grid grid-cols-1 gap-4">
         @foreach ($data as $workCenter => $dates)
             @foreach ($dates as $plannedDate => $shifts)
