@@ -49,3 +49,5 @@ Route::get('production-plan-summary', function () {
 Route::get('chart', function () {
     return view('chart');
 });
+
+Route::get('testeo', [ProductionRecordController::class, 'index']);

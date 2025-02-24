@@ -3,6 +3,13 @@
         <div class="min-h-screen flex flex-col items-center pt-6 sm:pt-0">
             <div class="w-full sm:max-w-2xl mt-6 p-6 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg prose dark:prose-invert">
 
+                <div class="flex justify-end items-center uppercase">
+                    <h4 class="text-lg font-semibold">
+                        <span id="clock" class="bg-gray-600 text-white py-2 px-3 rounded-full">
+                        </span>
+                    </h4>
+                </div>
+
                 <div>
                     <canvas id="myChart"></canvas>
                 </div>
@@ -61,17 +68,28 @@
                         ticks: {
                             callback: function(value, index, values) {
                                 if (value === 0) {
-                                    return startFormattedTime;  // La hora de inicio está fija
+                                    return startFormattedTime; // La hora de inicio está fija
                                 }
+
+                                if (value < 1) {
+                                    return ''; // No mostrar nada si el valor es menor a 1
+                                }
+
+                                if (!Number.isInteger(value)) {
+                                    return '';
+                                }
+
                                 // Calculamos los segundos transcurridos
-                                var secondsPassed = value * cycleTime;  // Segundos transcurridos
+                                var secondsPassed = value * cycleTime; // Segundos transcurridos
                                 var timePassed = new Date(currentDate.getTime() + (secondsPassed * 1000)); // Sumamos los segundos al tiempo de inicio
                                 var hours = timePassed.getHours();
                                 var minutes = timePassed.getMinutes();
                                 var seconds = timePassed.getSeconds();
-                                return hours + ':' + (minutes < 10 ? '0' + minutes : minutes) + ':' + (seconds < 10 ? '0' + seconds : seconds);
+
+                                return value + ' / ' + hours + ':' + (minutes < 10 ? '0' + minutes : minutes) + ':' + (seconds < 10 ? '0' + seconds : seconds);
                             }
                         }
+
                     },
                     y: {
                         beginAtZero: true,
@@ -110,5 +128,18 @@
                 myChart.update(); // Actualizamos la gráfica
             }
         }, cycleTime * 1000); // El ciclo de crecimiento de la barra "Plan"
+
+        // Reloj en tiempo real
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, "0");
+            const minutes = String(now.getMinutes()).padStart(2, "0");
+            const seconds = String(now.getSeconds()).padStart(2, "0");
+
+            const timeString = `${hours}:${minutes}:${seconds}`;
+            document.getElementById("clock").innerText = timeString;
+        }
+
+        setInterval(updateClock, 1000);
     </script>
 </x-guest-layout>

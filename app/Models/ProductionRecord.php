@@ -49,6 +49,22 @@ class ProductionRecord extends Model
     }
 
     /**
+     *
+     */
+    public static function store($partNumberId, $plannedQuantity, $plannedDate, $shiftId)
+    {
+        $status = Status::where('name', 'LIKE', 'Pendiente')->first();
+
+        return ProductionRecord::create([
+            'part_number_id' => $partNumberId,
+            'planned_quantity' => $plannedQuantity,
+            'planned_date' => $plannedDate,
+            'shift_id' => $shiftId,
+            'status_id' => $status->id
+        ]);
+    }
+
+    /**
      * Obtener los registros de producción por WorkCenter
      */
     public static function getWorkCenterProductionRecord(String $workCenter, int $shiftId, $now): Collection
