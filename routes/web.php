@@ -51,3 +51,7 @@ Route::get('chart', function () {
 });
 
 Route::get('testeo', [ProductionRecordController::class, 'index']);
+
+Route::get('testo', function () {
+    return view('chart_test');
+});

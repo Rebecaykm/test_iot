@@ -34,7 +34,6 @@
                                         <th class="px-4 py-3">{{ __('Número de Parte') }}</th>
                                         <th class="px-4 py-3 text-center">{{ __('Cantidad Planeada') }}</th>
                                         <th class="px-4 py-3 text-center">{{ __('Cantidad Producida') }}</th>
-                                        <th class="px-4 py-3 text-center">{{ __('Diferencia') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y">
@@ -48,22 +47,6 @@
                                             </td>
                                             <td class="px-4 py-3 text-sm text-center border">
                                                 {{ $record['produced_quantity'] }}
-                                            </td>
-                                            <td class="px-4 py-3 text-sm text-center border">
-                                                @if ($record['planned_quantity'] > $record['produced_quantity'])
-                                                    <span
-                                                        class="px-2 py-1 text-xs font-semibold leading-tight text-red-700 bg-red-100 rounded-full">
-                                                        {{ $record['difference'] }}
-                                                    </span>
-                                                @elseif ($record['planned_quantity'] < $record['produced_quantity'])
-                                                    <span class="px-2 py-1 text-xs font-semibold leading-tight text-green-700 bg-green-100 rounded-full">
-                                                        {{ $record['difference'] }}
-                                                    </span>
-                                                @else
-                                                    <span class="px-2 py-1 text-xs font-semibold leading-tight text-gray-700 bg-gray-100 rounded-full">
-                                                            {{ $record['difference'] }}
-                                                    </span>
-                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach

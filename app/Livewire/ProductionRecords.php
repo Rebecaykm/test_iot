@@ -42,7 +42,7 @@ class ProductionRecords extends Component
             ->join('lines', 'work_centers.line_id', '=', 'lines.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
-            ->where('statuses.id', 3)
+            ->where('statuses.id', 7)
             ->where('lines.name', $this->line)
             ->whereBetween('production_records.planned_date', [$yesterday, $today])
             ->orderBy('work_centers.name', 'asc')
