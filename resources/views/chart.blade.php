@@ -11,7 +11,7 @@
                 </div>
 
                 <div>
-                    <canvas id="myChart"></canvas>
+                    <canvas wire:ignore id="myChart"></canvas>
                 </div>
 
             </div>

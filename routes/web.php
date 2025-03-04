@@ -50,7 +50,7 @@ Route::get('chart', function () {
     return view('chart');
 });
 
-Route::get('testeo', [ProductionRecordController::class, 'index']);
+Route::get('plan-test', [ProductionRecordController::class, 'index']);
 
 Route::get('testo', function () {
     return view('chart_test');
