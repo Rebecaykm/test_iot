@@ -13,17 +13,19 @@ use Livewire\Component;
 class ProductionGraph extends Component
 {
     public string|null $chartId = null;
-    public $productionRecords;
     public array $labels = [];
     public array $datasets = [];
+
+    public $plannedData;
+    public $producedData;
+    public $productionRate;
+
 
     public bool $realTime = false;
     public $workCenter;
 
     public $now;
     public $shift;
-    public $startDateTime;
-    public $endDateTime;
 
     public function __construct()
     {
@@ -51,7 +53,12 @@ class ProductionGraph extends Component
 
     public function fetchGraphData(): void
     {
-        $this->productionRecords = ProductionRecord::getWorkCenterProductionRecord($this->workCenter, $this->shift->id, $this->now);
+        $productionRecords = ProductionRecord::getWorkCenterProductionRecord($this->workCenter, $this->shift->id, $this->now);
+
+        $this->labels = $productionRecords->pluck('part_number')->toArray();
+        $this->plannedData =  $productionRecords->pluck('planned_quantity')->toArray();
+        $this->producedData = $productionRecords->pluck('produced_quantity')->toArray();
+        $this->productionRate = $productionRecords->pluck('production_rate')->toArray();
     }
 
     public function render()

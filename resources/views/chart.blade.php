@@ -22,8 +22,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
     <script>
-        var cycleTime = 1;
-        var plan = 30;
+        var productionRate = 1;
+        var plannedData = 30;
         var real = 0;
 
         var currentDate = new Date();
@@ -74,8 +74,8 @@
                                     return '';
                                 }
 
-                                if (value <= plan) {
-                                    var secondsPassed = value * cycleTime;
+                                if (value <= plannedData) {
+                                    var secondsPassed = value * productionRate;
                                     var timePassed = new Date(currentDate.getTime() + (secondsPassed * 1000));
                                     var hours = timePassed.getHours();
                                     var minutes = timePassed.getMinutes();
@@ -125,15 +125,15 @@
         var planProgress = 0;
 
         setInterval(function() {
-            if (planProgress < plan) {
+            if (planProgress < plannedData) {
                 planProgress++;
-                var planProgressValue = (planProgress / plan) * 100; // Porcentaje de avance de "Plan"
+                var planProgressValue = (planProgress / plannedData) * 100; // Porcentaje de avance de "Plan"
 
                 // Actualizamos la barra "Plan"
                 myChart.data.datasets[0].data = [planProgress];
                 myChart.update(); // Actualizamos la gráfica
             }
-        }, cycleTime * 1000);
+        }, productionRate * 1000);
 
         // Reloj en tiempo real
         function updateClock() {
