@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
 
 class ProductionRecord extends Model
 {
@@ -55,13 +56,17 @@ class ProductionRecord extends Model
     {
         $status = Status::where('name', 'LIKE', 'Pendiente')->first();
 
-        return ProductionRecord::create([
-            'part_number_id' => $partNumberId,
-            'planned_quantity' => $plannedQuantity,
-            'planned_date' => $plannedDate,
-            'shift_id' => $shiftId,
-            'status_id' => $status->id
-        ]);
+        $productionPlan = ProductionRecord::query()->where([['part_number_id', $partNumberId], ['planned_quantity', $plannedQuantity], ['planned_date', $plannedDate], ['shift_id', $shiftId]]);
+
+        if ($productionPlan === null) {
+            return ProductionRecord::create([
+                'part_number_id' => $partNumberId,
+                'planned_quantity' => $plannedQuantity,
+                'planned_date' => $plannedDate,
+                'shift_id' => $shiftId,
+                'status_id' => $status->id
+            ]);
+        }
     }
 
     /**

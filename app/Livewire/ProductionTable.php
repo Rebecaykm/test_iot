@@ -25,7 +25,7 @@ class ProductionTable extends Component
         $this->refreshTable();
     }
 
-    // Método para refrescar los datos
+    #[On('refresh-table')]
     public function refreshTable()
     {
         $this->now = Carbon::now();

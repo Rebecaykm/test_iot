@@ -70,8 +70,8 @@
                                     x: {
                                         beginAtZero: true,
                                         ticks: {
-                                            display: false,
-                                        }
+                                            display: true,
+                                        },
                                         // ticks: {
                                         //     callback: function(value, index, values) {
                                         //         if (value === 0) {

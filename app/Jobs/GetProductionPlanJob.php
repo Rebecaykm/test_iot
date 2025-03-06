@@ -30,8 +30,9 @@ class GetProductionPlanJob implements ShouldQueue
     public function handle(): void
     {
         $today = Carbon::today();
-        $startDate = $today->startOfWeek()->format('Ymd');
-        $endDate = $today->endOfWeek()->format('Ymd');
+
+        $startDate = $today->copy()->format('Ymd');
+        $endDate = $today->copy()->format('Ymd');
 
         $partNumbers = PartNumber::query()
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
@@ -51,7 +52,6 @@ class GetProductionPlanJob implements ShouldQueue
             ->get();
 
         foreach ($productionPlans as $productionPlan) {
-            Log::alert($productionPlan->PART_NUMBER);
             StoreProductionPlanJob::dispatch(
                 $productionPlan->PART_NUMBER,
                 $productionPlan->planned_quantity,
