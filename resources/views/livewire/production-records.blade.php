@@ -1,10 +1,10 @@
-<div wire:poll.1s="pollUpdate">
+<div>
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             @foreach ($groupedByWorkCenter as $workCenterName => $dates)
                 @foreach ($dates as $plannedDate => $shifts)
                     @foreach ($shifts as $shiftName => $records)
-                    <div class="bg-white shadow-sm rounded-lg mb-4">
+                    <div class="bg-white shadow-sm rounded-lg">
                         <div class="text-white p-4 rounded-t-lg">
                             <div class="flex justify-between items-center">
                                 <h4 class="text-lg font-semibold">
@@ -20,44 +20,56 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="p-4">
-                            <!-- Contenedor responsivo -->
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full table-auto border border-gray-300">
-                                    <thead class="bg-gray-100">
-                                        <tr class="text-xs font-semibold uppercase tracking-wide text-gray-600 border-b">
-                                            <th class="px-4 py-3">{{ __('Número de Parte') }}</th>
-                                            <th class="px-4 py-3 text-center">{{ __('Cantidad Planeada') }}</th>
-                                            <th class="px-4 py-3 text-center">{{ __('Cantidad Producida') }}</th>
-                                            <th class="px-4 py-3 text-center">{{ __('Diferencia') }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y">
-                                        @foreach ($records as $record)
-                                        <tr class="text-xs text-gray-700 hover:bg-gray-100">
-                                            <td class="px-4 py-3 border">{{ $record['part_number'] }}</td>
-                                            <td class="px-4 py-3 text-center border">{{ $record['planned_quantity'] }}</td>
-                                            <td class="px-4 py-3 text-center border">{{ $record['produced_quantity'] }}</td>
-                                            <td class="px-4 py-3 text-center border">
-                                                @if ($record['planned_quantity'] > $record['produced_quantity'])
-                                                    <span class="px-2 py-1 font-semibold leading-tight text-orange-700 bg-orange-100 rounded-full">
-                                                        {{ $record['difference'] }}
-                                                    </span>
-                                                @elseif ($record['planned_quantity'] < $record['produced_quantity'])
-                                                    <span class="px-2 py-1 font-semibold leading-tight text-green-700 bg-green-100 rounded-full">
-                                                        {{ $record['difference'] }}
-                                                    </span>
-                                                @else
-                                                    <span class="px-2 py-1 font-semibold leading-tight text-gray-700 bg-gray-100 rounded-full">
-                                                        {{ $record['difference'] }}
-                                                    </span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            @foreach ($records as $record)
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full table-auto border border-gray-300">
+                                        <thead class="bg-gray-100">
+                                            <tr class="text-lg font-semibold uppercase tracking-wide text-gray-600 border-b">
+                                                <th class="px-4 py-3" colspan="2">{{ $record['part_number'] }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y">
+                                            <tr class="text-gray-700 hover:bg-gray-100">
+                                                <td class="px-4 py-3 text-sm text-center border">
+                                                    <div class="flex flex-col items-center">
+                                                        <span class="text-xs text-gray-400">{{ __('Plan') }}</span>
+                                                        <span class="font-semibold mt-1">{{ $record['planned_quantity'] }}</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="text-gray-700 hover:bg-gray-100">
+                                                <td class="px-4 py-3 text-sm text-center border">
+                                                    <div class="flex flex-col items-center">
+                                                        <span class="text-xs text-gray-400">{{ __('Real') }}</span>
+                                                        <span class="font-semibold text-md text-md mt-1">{{ $record['produced_quantity'] }}</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr class="text-gray-700 hover:bg-gray-100">
+                                                <td colspan="2" class="px-4 py-3 text-center border">
+                                                    <div class="flex flex-col items-center">
+                                                        <span class="text-xs text-gray-400">{{ __('Diferencia') }}</span>
+                                                        @if ($record['planned_quantity'] > $record['produced_quantity'])
+                                                            <span class="px-2 py-1 font-semibold text-md leading-tight text-red-700 bg-red-100 rounded-full">
+                                                                {{ $record['difference'] }}
+                                                            </span>
+                                                        @elseif ($record['planned_quantity'] < $record['produced_quantity'])
+                                                            <span class="px-2 py-1 font-semibold text-md leading-tight text-green-700 bg-green-100 rounded-full">
+                                                                {{ $record['difference'] }}
+                                                            </span>
+                                                        @else
+                                                            <span class="px-2 py-1 font-semibold text-md leading-tight text-gray-700 bg-gray-100 rounded-full">
+                                                                {{ $record['difference'] }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                     @endforeach

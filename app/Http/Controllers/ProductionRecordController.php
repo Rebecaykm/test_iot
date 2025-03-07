@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GetProductionPlanJob;
 use App\Models\History;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
@@ -16,7 +17,7 @@ class ProductionRecordController extends Controller
      */
     public function index()
     {
-        //
+        GetProductionPlanJob::dispatch();
     }
 
     /**

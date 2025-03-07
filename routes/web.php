@@ -28,16 +28,17 @@ Route::get('home', function () {
     return view('home');
 })->name('home');
 
+// Route::get('hourly-production-graph', function () {
+//     return view('production-records.hourly-production-graph');
+// });
+
 Route::get('get-production-records', function () {
     return view('production-records.get-production-records');
 });
+Route::get('production-dashboard', function () {
+    return view('production-dashboard');
+})->name('production-dashboard');
 
-Route::get('hourly-production-graph', function () {
-    return view('production-records.hourly-production-graph');
+Route::get('production-plan-summary', function () {
+    return view('production-plan-summary');
 });
-// Route::get('production-records', [ProductionRecordController::class, 'getProductionRecords'])->name('production-records.production-records');
-// Route::get('hourly-production-graph', [ProductionRecordController::class, 'getHourlyProductionGraph'])->name('production-records.hourly-production-graph');
-
-Route::get('test', function () {
-    return view('test');
-})->name('test');

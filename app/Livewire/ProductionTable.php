@@ -12,6 +12,8 @@ class ProductionTable extends Component
 {
     public $workCenter;
     public $shift;
+    public $now;
+
     public $startDate;
     public $endDate;
     public $data;
@@ -23,12 +25,12 @@ class ProductionTable extends Component
         $this->refreshTable();
     }
 
-    // Método para refrescar los datos
+    #[On('refresh-table')]
     public function refreshTable()
     {
-        $now = Carbon::now();
+        $this->now = Carbon::now();
 
-        $this->shift = Shift::getShift($now);
+        $this->shift = Shift::getShift($this->now);
 
         $this->fetchTableData();
     }
@@ -36,7 +38,7 @@ class ProductionTable extends Component
     // Método para obtener los datos agrupados
     public function fetchTableData(): void
     {
-        $productionRecords = ProductionRecord::getWorkCenterProductionRecord($this->workCenter, $this->shift->id);
+        $productionRecords = ProductionRecord::getWorkCenterProductionRecord($this->workCenter, $this->shift->id, $this->now);
 
         $this->data = $productionRecords->groupBy('work_name')
             ->map(function ($workCenterGroup) {
@@ -49,8 +51,6 @@ class ProductionTable extends Component
                                         'part_number' => $record->part_number,
                                         'planned_quantity' => $record->planned_quantity,
                                         'produced_quantity' => $record->produced_quantity,
-                                        'difference' => $record->planned_quantity - $record->produced_quantity,
-                                        'status_name' => $record->status_name
                                     ];
                                 });
                             });
