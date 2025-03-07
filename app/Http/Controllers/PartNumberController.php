@@ -17,14 +17,6 @@ class PartNumberController extends Controller
 
 
         return view('part-numbers.index', ['partNumbers' => $partNumbers]);
-        // GetPartNumberJob::dispatch();
-    }
-
-    public function test() {
-        $partNumbers = PartNumber::query()->where('is_obsolete', false)->orderBy('created_at', 'desc')->paginate(10);
-
-
-        return view('test', ['partNumbers' => $partNumbers]);
     }
 
     /**

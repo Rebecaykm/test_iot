@@ -1,5 +1,4 @@
 <div wire:poll.1s="pollUpdate">
-    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             @foreach ($groupedByWorkCenter as $workCenterName => $dates)
                 @foreach ($dates as $plannedDate => $shifts)
@@ -64,5 +63,5 @@
                 @endforeach
             @endforeach
         </div>
-    </div>
+
 </div>

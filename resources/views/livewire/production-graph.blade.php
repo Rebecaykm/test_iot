@@ -24,8 +24,9 @@
                         // var startSeconds = currentDate.getSeconds();
                         // var startFormattedTime = startHours + ':' + (startMinutes < 10 ? '0' + startMinutes : startMinutes) + ':' + (startSeconds < 10 ? '0' + startSeconds : startSeconds);
 
-                        let productionRate = $wire.entangle("productionRate").live.initialValue;
                         let plannedData = $wire.entangle("plannedData").live.initialValue;
+                        let productionRate = $wire.entangle("productionRate").live.initialValue;
+                        let productionStart = $wire.entangle("productionStart").live.initialValue;
 
                         let planProgress = new Array(plannedData.length).fill(0);
 
@@ -122,31 +123,38 @@
                             }
                         });
 
-                        // Real
                         if (@json($realTime)) {
+                            // Real
                             setInterval(() => {
                                 $wire.dispatchSelf("refresh-graph");
                                 chart.data.labels = $wire.entangle("labels").live.initialValue;
                                 chart.data.datasets[1].data = $wire.entangle("producedData").live.initialValue;
                                 chart.update();
                             }, 1000);
-                        }
 
-                        // Plan
-                        for (let i = 0; i < plannedData.length; i++) {
-                            let currentPlannedData = plannedData[i];
-                            let currentProductionRate = (3600 / productionRate[i]);
 
+                            // Plan
                             setInterval(function() {
-                                if (planProgress[i] < currentPlannedData) {
-                                    planProgress[i]++;
-                                    var planProgressValue = (planProgress[i] / currentPlannedData) * 100;
+                                let currentDate = new Date(); // Una sola vez fuera del bucle.
 
-                                    chart.data.datasets[0].data[i] = planProgress[i];
-                                    chart.update();
+                                for (let i = 0; i < plannedData.length; i++) {
+                                    let currentProductionRate = Math.round(3600 / productionRate[i]);
+
+                                    let currentProductionStart = new Date(productionStart[i]);
+                                    let timeDifference = Math.round((currentDate - currentProductionStart) / 1000);
+
+                                    let currentQuantity = Math.round(timeDifference / currentProductionRate);
+
+                                    if (planProgress[i] < plannedData[i]) {
+                                        planProgress[i] = Math.min(currentQuantity, plannedData[i]);
+                                        chart.data.datasets[0].data[i] = planProgress[i];
+                                        chart.update();
+                                    }
                                 }
-                            }, currentProductionRate * 1000);
+
+                            }, 1000);
                         }
+
                     }
                 }
             });

@@ -14,11 +14,10 @@ class ProductionGraph extends Component
 {
     public string|null $chartId = null;
     public array $labels = [];
-    public array $datasets = [];
-
-    public $plannedData;
-    public $producedData;
-    public $productionRate;
+    public array $plannedData = [];
+    public array $producedData = [];
+    public array $productionRate = [];
+    public array $productionStart = [];
 
 
     public bool $realTime = false;
@@ -59,6 +58,7 @@ class ProductionGraph extends Component
         $this->plannedData =  $productionRecords->pluck('planned_quantity')->toArray();
         $this->producedData = $productionRecords->pluck('produced_quantity')->toArray();
         $this->productionRate = $productionRecords->pluck('production_rate')->toArray();
+        $this->productionStart = $productionRecords->pluck('production_start')->toArray();
     }
 
     public function render()

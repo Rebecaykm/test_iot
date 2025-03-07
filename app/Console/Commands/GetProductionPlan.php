@@ -12,21 +12,21 @@ class GetProductionPlan extends Command
      *
      * @var string
      */
-    protected $signature = 'plan:run';
+    protected $signature = 'iot:production-plan';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Gets today\'s production plan and inserts it into the system\'s database.';
+    protected $description = 'Fetches the daily production plan from Infor and inserts it into the system\'s database.';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        info("Process running at ". now());
+        info("Process GetProductionPlanJob is running at " . now());
 
         GetProductionPlanJob::dispatch();
     }

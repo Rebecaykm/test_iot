@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('part_number_id')->nullable()->constrained('part_numbers');
             $table->integer('quantity')->nullable();
+            $table->double('production_per_cycle')->nullable();
             $table->integer('sequence')->nullable();
             $table->timestamps();
         });
