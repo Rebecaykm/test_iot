@@ -56,7 +56,7 @@ class ProductionRecord extends Model
     {
         $status = Status::where('name', 'LIKE', 'Pendiente')->first();
 
-        $productionPlan = ProductionRecord::query()->where([['part_number_id', $partNumberId], ['planned_quantity', $plannedQuantity], ['planned_date', $plannedDate], ['shift_id', $shiftId]]);
+        $productionPlan = ProductionRecord::query()->where([['part_number_id', $partNumberId], ['planned_quantity', $plannedQuantity], ['planned_date', $plannedDate], ['shift_id', $shiftId]])->first();
 
         if ($productionPlan === null) {
             return ProductionRecord::create([
