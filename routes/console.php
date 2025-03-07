@@ -8,5 +8,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote')->hourly();
 
+Schedule::command('iot:work-center')->cron('0 0 * * *');
 Schedule::command('iot:part-number')->cron('0 0 * * *');
 Schedule::command('iot:production-plan')->dailyAt('07:30');
