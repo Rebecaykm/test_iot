@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('name')->nullable();
             $table->double('production_rate')->nullable();
             $table->integer('efficiency')->nullable()->default(90);
+            $table->foreignId('item_class_id')->nullable()->constrained('item_classes');
             $table->foreignId('work_center_id')->nullable()->constrained('work_centers');
             $table->boolean('is_obsolete')->default(false);
             $table->timestamps();

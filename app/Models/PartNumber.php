@@ -15,9 +15,19 @@ class PartNumber extends Model
         'number',
         'name',
         'production_rate',
+        'efficiency',
+        'item_class_id',
         'work_center_id',
         'is_obsolete'
     ];
+
+    /**
+     *
+     */
+    public function itemClass(): BelongsTo
+    {
+        return $this->belongsTo(ItemClass::class);
+    }
 
     /**
      *
