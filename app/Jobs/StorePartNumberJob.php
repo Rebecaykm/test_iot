@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\ItemClass;
 use App\Models\PartNumber;
 use App\Models\Project;
 use App\Models\WorkCenter;
@@ -16,16 +17,18 @@ class StorePartNumberJob implements ShouldQueue
 
     protected $partNumber;
     protected $partName;
+    protected $itemClass;
     protected $project;
     protected $isObsolete;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($partNumber, $partName, $project, $isObsolete)
+    public function __construct($partNumber, $partName, $itemClass, $project, $isObsolete)
     {
         $this->partNumber =  $partNumber;
         $this->partName =  $partName;
+        $this->itemClass =  $itemClass;
         $this->project =  $project;
         $this->isObsolete = $isObsolete;
     }
@@ -36,17 +39,20 @@ class StorePartNumberJob implements ShouldQueue
     public function handle(): void
     {
         $partNumber = PartNumber::query()->where([['number', $this->partNumber], ['name', $this->partName]])->first();
+        $itemClass = ItemClass::query()->where('name', $this->itemClass)->first();
 
         if ($partNumber !== null) {
             $partNumber->update([
                 'number' => $this->partNumber,
                 'name' => $this->partName,
+                'item_class_id' => $itemClass->id,
                 'is_obsolete' => ($this->isObsolete == "OBSOLETE  ") ? true : false,
             ]);
         } else {
             $partNumber = PartNumber::create([
                 'number' => $this->partNumber,
                 'name' => $this->partName,
+                'item_class_id' => $itemClass->id,
                 'is_obsolete' => ($this->isObsolete == "OBSOLETE  ") ? true : false,
             ]);
         }
