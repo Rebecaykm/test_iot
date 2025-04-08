@@ -32,15 +32,15 @@ class Shift extends Model
         return Shift::query()
             ->where(function ($query) use ($now) {
                 $query->where('abbreviation', 'D') // Turno diurno
-                    ->whereTime('start_time', '<=', $now)
+                ->whereTime('start_time', '<=', $now)
                     ->whereTime('end_time', '>', $now);
             })
             ->orWhere(function ($query) use ($now) {
                 $query->where('abbreviation', 'N') // Turno nocturno
-                    ->where(function ($nestedQuery) use ($now) {
-                        $nestedQuery->whereTime('start_time', '<=', $now)
-                            ->orWhereTime('end_time', '>=', $now);
-                    });
+                ->where(function ($nestedQuery) use ($now) {
+                    $nestedQuery->whereTime('start_time', '<=', $now)
+                        ->orWhereTime('end_time', '>=', $now);
+                });
             })
             ->first();
     }
@@ -64,9 +64,28 @@ class Shift extends Model
             $endDateTime = $now->copy()->setTimeFromTimeString($shift->end_time);
         }
 
-        return (object) [
+        return (object)[
+            'shift' => $shift->abbreviation,
             'startDateTime' => $startDateTime,
             'endDateTime' => $endDateTime
         ];
+    }
+
+    /**
+     *
+     */
+    public static function findPreviousShift(Shift $currentShift)
+    {
+        $shifts = Shift::orderBy('end_time', 'desc')->get();
+
+        $previousShift = null;
+        foreach ($shifts as $shift) {
+            if ($shift->end_time <= $currentShift->start_time && $shift->id !== $currentShift->id) {
+                $previousShift = $shift;
+                break;
+            }
+        }
+
+        return $previousShift;
     }
 }

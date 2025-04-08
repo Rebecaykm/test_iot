@@ -1,7 +1,8 @@
 <x-guest-layout>
-    <div class="pt-4 bg-gray-100 dark:bg-gray-900">
-        <div class="min-h-screen flex flex-col items-center pt-6 sm:pt-0">
-            <div class="w-full sm:max-w-2xl mt-6 p-6 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg prose dark:prose-invert">
+    <div class="grid grid-cols-1 gap-4">
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <div class="p-6 flex flex-col h-full">
+                <div class="chart-wrapper mb-5 flex-1">
 
                 <canvas id="myChart" width="400" height="400"></canvas>
 
@@ -14,44 +15,44 @@
     <script>
         var ctx = document.getElementById('myChart').getContext('2d');
         var myChart = new Chart(ctx, {
-            type: 'bar', // Tipo de gráfico (puede ser 'bar', 'line', 'pie', etc.)
-            plugins: [ChartDataLabels], // Habilitamos el plugin
+            type: 'bar',
+            plugins: [ChartDataLabels],
             data: {
-                labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo'], // Etiquetas de los datos
+                labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo'],
                 datasets: [{
-                    label: 'Ventas del 2025', // Nombre de la serie
-                    data: [12, 19, 3, 5, 2], // Datos de las barras
+                    label: 'Ventas del 2025',
+                    data: [12, 19, 3, 5, 2],
                     backgroundColor: [
                         'rgba(255, 99, 132, 0.2)',
                         'rgba(54, 162, 235, 0.2)',
                         'rgba(255, 206, 86, 0.2)',
                         'rgba(75, 192, 192, 0.2)',
                         'rgba(153, 102, 255, 0.2)',
-                    ], // Colores de fondo de las barras
+                    ],
                     borderColor: [
                         'rgba(255, 99, 132, 1)',
                         'rgba(54, 162, 235, 1)',
                         'rgba(255, 206, 86, 1)',
                         'rgba(75, 192, 192, 1)',
                         'rgba(153, 102, 255, 1)',
-                    ], // Colores de borde de las barras
-                    borderWidth: 1 // Grosor del borde
+                    ],
+                    borderWidth: 1
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
                     datalabels: {
-                        anchor: 'end', // Esto coloca la etiqueta al final de la barra
+                        anchor: 'end',
                         // clamp:true,
-                        align: 'end', // Esto coloca la etiqueta al inicio de la barra, en la parte superior
+                        align: 'end',
                         font: {
                             weight: 'bold',
                             size: 14
                         },
-                        color: 'black', // Color de la fuente
+                        color: 'black',
                         position: 'top',
-                        offset: 10, // Esto agrega un desplazamiento de 10 píxeles hacia arriba
+                        offset: 10,
                     }
                 },
                 scales: {

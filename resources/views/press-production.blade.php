@@ -6,9 +6,9 @@
 
                     @include('clock')
 
-                    <livewire:production-table :work-center="'MK05'" />
+                    <livewire:production-table :work-center="$workCenter" />
 
-                    <livewire:production-graph :work-center="'MK05'" :real-time="'true'" />
+                    <livewire:press-production-graph :work-center="$workCenter" :real-time="'true'" />
 
                 </div>
             </div>

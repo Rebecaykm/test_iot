@@ -35,10 +35,21 @@ Route::get('home', function () {
 Route::get('get-production-records', function () {
     return view('production-records.get-production-records');
 });
+
 Route::get('production-dashboard', function () {
     return view('production-dashboard');
 })->name('production-dashboard');
 
 Route::get('production-plan-summary', function () {
     return view('production-plan-summary');
+});
+
+// Press Routes
+Route::get('press-production/{workCenter}', function ($workCenter) {
+    return view('press-production', ['workCenter' => $workCenter]);
+})->name('press-production');
+
+// Test
+Route::get('test', function () {
+    return view('chart_test');
 });

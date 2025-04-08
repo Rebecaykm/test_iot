@@ -39,7 +39,7 @@ class StorePartNumberJob implements ShouldQueue
     public function handle(): void
     {
         $partNumber = PartNumber::query()->where([['number', $this->partNumber], ['name', $this->partName]])->first();
-        $itemClass = ItemClass::query()->where('name', $this->itemClass)->first();
+        $itemClass = ItemClass::query()->where('abbreviation', $this->itemClass)->first();
 
         if ($partNumber !== null) {
             $partNumber->update([
