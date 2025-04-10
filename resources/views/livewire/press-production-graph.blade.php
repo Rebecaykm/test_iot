@@ -68,7 +68,7 @@
                                             // Para el dataset "Plan", se alineará arriba (bottom)
                                             // Para el dataset "Real", se alineará abajo (top)
                                             if (context.datasetIndex === 0) {
-                                                return 'bottom'; // Plan, etiquetas arriba
+                                                return 'top'; // Plan, etiquetas arriba
                                             } else {
                                                 return 'bottom'; // Real, etiquetas abajo
                                             }
@@ -78,7 +78,7 @@
                                             if (context.datasetIndex === 0) {
                                                 return 0; // Plan, desplazado 10 píxeles hacia abajo
                                             } else {
-                                                return -20; // Real, desplazado 10 píxeles hacia arriba
+                                                return 0; // Real, desplazado 10 píxeles hacia arriba
                                             }
                                         }
                                     }
