@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProductionRecordController;
+use App\Http\Controllers\VisualAidController;
 use App\Http\Controllers\WorkCenterController;
 use App\Models\ProductionRecord;
 use Illuminate\Support\Facades\Route;
@@ -22,7 +23,11 @@ Route::middleware([
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('work-centers', WorkCenterController::class);
     Route::resource('production-records', ProductionRecordController::class);
+    Route::resource('visual-aids', VisualAidController::class);
 });
+
+Route::get('show-visual-aids/{work_center}', [VisualAidController::class, 'showVisualAidForCurrentPart'])
+    ->name('visual-aids.current-part');
 
 Route::get('home', function () {
     return view('home');
