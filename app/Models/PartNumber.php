@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PartNumber extends Model
 {
@@ -67,5 +68,21 @@ class PartNumber extends Model
     public function productionRecords(): HasMany
     {
         return $this->hasMany(ProductionRecord::class, 'part_number_id');
+    }
+
+    /**
+     *
+     */
+    public function visualAids(): HasMany
+    {
+        return $this->hasMany(VisualAid::class, 'part_number_id');
+    }
+
+    /**
+     *
+     */
+    public function activeImage(): HasOne
+    {
+        return $this->hasOne(VisualAid::class)->where('is_active', true);
     }
 }

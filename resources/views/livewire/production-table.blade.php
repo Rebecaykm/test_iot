@@ -30,7 +30,7 @@
                                 <thead class="bg-gray-100">
                                     <tr
                                         class="font-semibold uppercase tracking-wide text-gray-600 border-b">
-                                        <th class="px-4 py-3">{{ __('Número de Parte') }}</th>
+                                        <th class="px-4 py-3 text-left">{{ __('Número de Parte') }}</th>
                                         <th class="px-4 py-3 text-center">{{ __('Cantidad Planeada') }}</th>
                                         <th class="px-4 py-3 text-center">{{ __('Cantidad Producida') }}</th>
                                     </tr>
