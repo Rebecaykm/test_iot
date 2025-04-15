@@ -16,7 +16,11 @@ class WorkCenter extends Model
         'name',
         'ip',
         'tag_id',
-        'line_id'
+        'line_id',
+        'position_x',
+        'position_y',
+        'width',
+        'height'
     ];
 
     /**

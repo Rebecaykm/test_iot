@@ -4,7 +4,6 @@ use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProductionRecordController;
 use App\Http\Controllers\VisualAidController;
 use App\Http\Controllers\WorkCenterController;
-use App\Models\ProductionRecord;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -54,7 +53,8 @@ Route::get('press-production/{workCenter}', function ($workCenter) {
     return view('press-production', ['workCenter' => $workCenter]);
 })->name('press-production');
 
+
 // Test
 Route::get('test', function () {
-    return view('chart_test');
+    return view('chart');
 });
