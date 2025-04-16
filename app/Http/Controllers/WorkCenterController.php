@@ -18,10 +18,23 @@ class WorkCenterController extends Controller
      */
     public function index(Request $request)
     {
-        // $search =
-        $workCenters = WorkCenter::query()->orderBy('created_at', 'desc')->paginate(10);
+        $search = $request->input('search');
 
-        return view('work-centers.index', ['workCenters' => $workCenters]);
+        $workCenters = WorkCenter::query()
+            ->with(['line', 'line.area']) // Carga las relaciones necesarias
+            ->when($search, function($query) use ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('number', 'like', "%{$search}%")
+                      ->orWhere('name', 'like', "%{$search}%")
+                      ->orWhereHas('line', function($q) use ($search) {
+                          $q->where('name', 'like', "%{$search}%");
+                      });
+                });
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return view('work-centers.index')->with('workCenters', $workCenters);
     }
 
     /**

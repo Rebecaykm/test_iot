@@ -30,7 +30,7 @@
                     <h3 class="card-title m-0">Lista de Líneas</h3>
                     <div class="ml-auto"> <!-- Clase ml-auto añadida aquí -->
                         <a href="{{ route('lines.create') }}" class="btn btn-primary">
-                            <i class="fas fa-plus mr-1"></i> Nueva Línea
+                            <i class="fas fa-plus mr-1"></i> Agregar Línea
                         </a>
                     </div>
                 </div>

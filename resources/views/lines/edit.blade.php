@@ -1,10 +1,10 @@
 @extends('adminlte::page')
 
-@section('title', 'Crear Línea')
+@section('title', 'Editar Línea')
 
 @section('content_header')
 <div class="d-flex justify-content-between align-items-center">
-    <h1 class="m-0 text-dark"></i>Crear Línea</h1>
+    <h1 class="m-0 text-dark"></i>Editar Línea</h1>
     <a href="{{ route('lines.index') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left mr-2"></i> Volver
     </a>
@@ -22,8 +22,9 @@
                     </h3>
                 </div>
 
-                <form action="{{ route('lines.store') }}" method="POST">
+                <form action="{{ route('lines.update', $line->id) }}" method="POST">
                     @csrf
+                    @method('PUT')
 
                     <div class="card-body">
                         <div class="row">
@@ -31,7 +32,7 @@
                                 <div class="form-group">
                                     <label for="name" class="font-weight-bold">Nombre <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control @error('name') is-invalid @enderror"
-                                        id="name" name="name" value="{{ old('name') }}"
+                                        id="name" name="name" value="{{ old('name', $line->name) }}"
                                         placeholder="Ej: Línea de Ensamblaje Principal" required>
                                     @error('name')
                                     <span class="invalid-feedback" role="alert">
@@ -48,7 +49,7 @@
                                         id="area_id" name="area_id">
                                         <option value="">Seleccione un área...</option>
                                         @foreach($areas as $area)
-                                        <option value="{{ $area->id }}" {{ old('area_id') == $area->id ? 'selected' : '' }}>
+                                        <option value="{{ $area->id }}" {{ old('area_id', $line->area_id) == $area->id ? 'selected' : '' }}>
                                             {{ $area->name }}
                                         </option>
                                         @endforeach
@@ -79,7 +80,7 @@
                                             '#E6E6FA'=> 'Púrpura',
                                             '#FFD1DC' => 'Rosa'
                                         ] as $hex => $name)
-                                        <option value="{{ $hex }}" {{ old('color') == $hex ? 'selected' : '' }} style="background-color: {{ $hex }};">
+                                        <option value="{{ $hex }}" {{ old('color', $line->color) == $hex ? 'selected' : '' }} style="background-color: {{ $hex }};">
                                             {{ $name }}
                                         </option>
                                         @endforeach
@@ -97,7 +98,7 @@
                                     <label for="description" class="font-weight-bold">Descripción</label>
                                     <textarea class="form-control @error('description') is-invalid @enderror"
                                         id="description" name="description" rows="2"
-                                        placeholder="Descripción detallada de la línea">{{ old('description') }}</textarea>
+                                        placeholder="Descripción detallada de la línea">{{ old('description', $line->description) }}</textarea>
                                     @error('description')
                                     <span class="invalid-feedback" role="alert">
                                         <strong>{{ $message }}</strong>
@@ -119,7 +120,8 @@
                                                         name="work_centers[]"
                                                         id="wc_{{ $workCenter->id }}"
                                                         value="{{ $workCenter->id }}"
-                                                        {{ is_array(old('work_centers')) && in_array($workCenter->id, old('work_centers')) ? 'checked' : '' }}>
+                                                        {{ (is_array(old('work_centers')) && in_array($workCenter->id, old('work_centers'))) ||
+                                                           (!old('work_centers') && $workCenter->line_id == $line->id) ? 'checked' : '' }}>
                                                     <label class="form-check-label" for="wc_{{ $workCenter->id }}">
                                                         {{ $workCenter->number }} - {{ $workCenter->name }}
                                                     </label>
@@ -141,10 +143,10 @@
 
                     <div class="card-footer bg-white d-flex justify-content-end py-3">
                         <button type="reset" class="btn btn-default mr-2">
-                            <i class="fas fa-undo mr-1"></i> Limpiar
+                            <i class="fas fa-undo mr-1"></i> Restablecer
                         </button>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save mr-1"></i> Guardar Línea
+                            <i class="fas fa-save mr-1"></i> Actualizar Línea
                         </button>
                     </div>
                 </form>
@@ -159,18 +161,13 @@
     .card-header {
         border-bottom: 1px solid rgba(0, 0, 0, .125);
     }
-
     .required-field::after {
         content: " *";
         color: #dc3545;
     }
-
-    /* Estilo para mostrar el color en las opciones del select */
     select option {
         padding: 5px;
     }
-
-    /* Estilo para el contenedor de estaciones */
     .stations-container {
         max-height: 300px;
         overflow-y: auto;
@@ -179,8 +176,4 @@
         padding: 10px;
     }
 </style>
-@stop
-
-@section('js')
-<!-- Eliminado todo el JavaScript de validación y Select2 -->
 @stop
