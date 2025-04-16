@@ -19,6 +19,7 @@ Route::middleware([
         return view('home');
     })->name('home');
 
+    Route::resource('lines', LineController::class);
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('work-centers', WorkCenterController::class);
     Route::resource('production-records', ProductionRecordController::class);
@@ -56,5 +57,5 @@ Route::get('press-production/{workCenter}', function ($workCenter) {
 
 // Test
 Route::get('test', function () {
-    return view('chart');
+    return view('chart_test');
 });

@@ -63,7 +63,7 @@ return [
     |
     */
 
-    'logo' => '<b>Admin</b>LTE',
+    'logo' => 'YKM',
     'logo_img' => 'vendor/adminlte/dist/img/AdminLTELogo.png',
     'logo_img_class' => 'brand-image img-circle elevation-3',
     'logo_img_xl' => null,
@@ -110,7 +110,7 @@ return [
     */
 
     'preloader' => [
-        'enabled' => true,
+        'enabled' => false,
         'mode' => 'fullscreen',
         'img' => [
             'path' => 'vendor/adminlte/dist/img/AdminLTELogo.png',
@@ -319,14 +319,19 @@ return [
         ['header' => 'CONFIGURACIONES'],
 
         [
+            'text' => 'Lineas',
+            'route' => 'lines.index',
+            'icon' => 'fas fa-fw fa-network-wired'
+        ],
+        [
             'text' => 'Estaciones',
             'route' => 'work-centers.index',
-            'icon' => 'fas fa-landmark'
+            'icon' => 'fas fa-fw fa-landmark'
         ],
         [
             'text' => 'Número de Parte',
             'route' => 'part-numbers.index',
-            'icon' => 'fas fa-shapes'
+            'icon' => 'fas fa-fw fa-shapes'
         ],
 
         //
