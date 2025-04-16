@@ -116,7 +116,7 @@
                         <!-- Botón de guardar -->
                         <div class="card-footer d-flex justify-content-end">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-plus mr-2"></i> Guardar Cambios
+                                <i class="fas fa-plus mr-2"></i> Guardar
                             </button>
                         </div>
                     </form>
@@ -127,7 +127,7 @@
         <!-- Sección de imágenes asociadas -->
         <div class="row mt-4">
             <div class="col-md-12">
-                <div class="card card-secondary">
+                <div class="card card-primary card-outline">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h3 class="card-title m-0">Imágenes asociadas</h3>
                         <div class="ml-auto">
