@@ -54,6 +54,12 @@ class WorkCenterMap extends Component
         $this->zoomLevel = max($this->zoomLevel - 0.1, 0.3);
     }
 
+    public function resetView()
+    {
+        $this->zoomLevel = 1;
+        $this->dispatch('resetViewPosition');
+    }
+
     public function render()
     {
         return view('livewire.work-center-map');
