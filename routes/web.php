@@ -24,6 +24,10 @@ Route::middleware([
     Route::resource('work-centers', WorkCenterController::class);
     Route::resource('production-records', ProductionRecordController::class);
     Route::resource('visual-aids', VisualAidController::class);
+
+    Route::get('work-center-map', function () {
+        return view('work-centers.work-center-map');
+    })->name('work-center.map');
 });
 
 Route::get('show-visual-aids/{work_center}', [VisualAidController::class, 'showVisualAidForCurrentPart'])
@@ -57,5 +61,5 @@ Route::get('press-production/{workCenter}', function ($workCenter) {
 
 // Test
 Route::get('test', function () {
-    return view('chart_test');
+    return view('chart');
 });
