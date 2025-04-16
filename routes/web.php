@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LineController;
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProductionRecordController;
 use App\Http\Controllers\VisualAidController;
@@ -19,8 +20,9 @@ Route::middleware([
         return view('home');
     })->name('home');
 
-    Route::resource('part-numbers', PartNumberController::class);
+    Route::resource('lines', LineController::class);
     Route::resource('work-centers', WorkCenterController::class);
+    Route::resource('part-numbers', PartNumberController::class);
     Route::resource('production-records', ProductionRecordController::class);
     Route::resource('visual-aids', VisualAidController::class);
 });
