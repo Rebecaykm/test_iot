@@ -1,10 +1,11 @@
 <?php
 
+use App\Http\Controllers\AreaController;
+use App\Http\Controllers\LineController;
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProductionRecordController;
 use App\Http\Controllers\VisualAidController;
 use App\Http\Controllers\WorkCenterController;
-use App\Models\ProductionRecord;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -20,10 +21,17 @@ Route::middleware([
         return view('home');
     })->name('home');
 
+    Route::resource('areas', AreaController::class);
+    Route::resource('lines', LineController::class);
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('work-centers', WorkCenterController::class);
+    Route::resource('part-numbers', PartNumberController::class);
     Route::resource('production-records', ProductionRecordController::class);
     Route::resource('visual-aids', VisualAidController::class);
+
+    Route::get('work-center-map', function () {
+        return view('work-centers.work-center-map');
+    })->name('work-center.map');
 });
 
 Route::get('show-visual-aids/{work_center}', [VisualAidController::class, 'showVisualAidForCurrentPart'])
@@ -54,7 +62,8 @@ Route::get('press-production/{workCenter}', function ($workCenter) {
     return view('press-production', ['workCenter' => $workCenter]);
 })->name('press-production');
 
+
 // Test
 Route::get('test', function () {
-    return view('chart_test');
+    return view('chart');
 });

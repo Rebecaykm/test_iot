@@ -17,6 +17,10 @@ return new class extends Migration
             $table->string('name')->nullable();
             $table->string('ip')->nullable();
             $table->foreignId('line_id')->nullable()->constrained('lines');
+            $table->double('position_x')->nullable();
+            $table->double('position_y')->nullable();
+            $table->double('width')->default(120);
+            $table->double('height')->default(60);
             $table->timestamps();
         });
     }

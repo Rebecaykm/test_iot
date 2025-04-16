@@ -10,6 +10,7 @@ class Line extends Model
 {
     protected $fillable = [
         'name',
+        'color',
         'description',
         'area_id'
     ];

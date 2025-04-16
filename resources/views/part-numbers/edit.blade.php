@@ -33,7 +33,7 @@
                                         <label for="work_center_id">Estación</label>
                                         <input type="text" class="form-control"
                                                id="work_center_id" name="work_center_id"
-                                               value="{{ old('work_center_id', $partNumber->workCenter->name) }}"
+                                               value="{{ old('work_center_id', optional($partNumber->workCenter)->name ?? 'No asignada') }}"
                                                readonly>
                                     </div>
                                 </div>
@@ -78,12 +78,12 @@
                                         <!-- w-100 para ancho completo -->
                                         <div class="d-flex align-items-center justify-content-center h-100">
                                             <!-- Flex para centrar vertical y horizontalmente -->
-                                            <span
-                                                class="badge rounded-pill bg-primary w-100 py-2">{{ number_format(60 / $partNumber->production_rate, 2) }}</span>
+                                            <span class="badge rounded-pill bg-primary w-100 py-2">
+                                                {{ $partNumber->production_rate != 0 ? number_format(60 / $partNumber->production_rate, 2) : '0.0' }}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
-
 
                                 <!-- Campo Estado -->
                                 <div class="col-md-4">
@@ -114,9 +114,9 @@
                         </div>
 
                         <!-- Botón de guardar -->
-                        <div class="card-footer">
+                        <div class="card-footer d-flex justify-content-end">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Guardar Cambios
+                                <i class="fas fa-plus mr-2"></i> Guardar Cambios
                             </button>
                         </div>
                     </form>
@@ -133,7 +133,7 @@
                         <div class="ml-auto">
                             <a href="{{ route('visual-aids.create', ['part_number' => $partNumber->id]) }}"
                                class="btn btn-primary btn-sm">
-                                <i class="fas fa-plus"></i> Agregar Imagen
+                                <i class="fas fa-plus mr-2"></i> Agregar Imagen
                             </a>
                         </div>
                     </div>

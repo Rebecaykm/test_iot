@@ -1,25 +1,19 @@
 @extends('adminlte::page')
 
-@section('title', 'Estaciones de Trabajo')
+@section('title', 'Líneas')
 
 @section('content_header')
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="m-0 text-dark">{{ __('Estaciones de Trabajo') }}</h1>
+    <h1 class="m-0 text-dark">{{ __('Líneas') }}</h1>
     <div class="col-md-4">
-        <form action="{{ route('work-centers.index') }}" method="GET">
+        <form action="{{ route('lines.index') }}" method="GET">
             <div class="input-group">
-                <input type="text" name="search" class="form-control"
-                    placeholder="Buscar..."
+                <input type="text" name="search" class="form-control" placeholder="Buscar..."
                     value="{{ request('search') }}">
                 <div class="input-group-append">
                     <button class="btn btn-primary" type="submit">
                         <i class="fas fa-search"></i>
                     </button>
-                    @if(request()->has('search'))
-                    <a href="{{ route('work-centers.index') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times"></i>
-                    </a>
-                    @endif
                 </div>
             </div>
         </form>
@@ -33,9 +27,11 @@
         <div class="col-md-12">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                    <h3 class="card-title m-0">Lista de Estaciones</h3>
-                    <div>
-                        <!-- Botones de acción si los necesitas -->
+                    <h3 class="card-title m-0">Lista de Líneas</h3>
+                    <div class="ml-auto"> <!-- Clase ml-auto añadida aquí -->
+                        <a href="{{ route('lines.create') }}" class="btn btn-primary">
+                            <i class="fas fa-plus mr-1"></i> Agregar Línea
+                        </a>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -44,55 +40,72 @@
                             <thead class="bg-light">
                                 <tr>
                                     <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Línea') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Número') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
+                                    <th class="py-3 text-secondary fw-normal">{{ __('Descripción') }}</th>
+                                    <th class="py-3 text-secondary fw-normal">{{ __('Área') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Creación') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Actualización') }}</th>
+                                    <th class="py-3 text-secondary fw-normal text-center">{{ __('Acciones') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($workCenters as $workCenter)
+                                @foreach ($lines as $line)
                                 <tr class="border-top">
-                                    <td class="ps-4 px-3">
-                                        @if ($workCenter->line)
+                                    <td class="ps-4 py-3 fw-medium">{{ $line->name }}</td>
+                                    <td class="py-3">{{ $line->description ?? '' }}</td>
+                                    <td class="py-3">
+                                        @if ($line->area_id && isset($line->area->name))
                                         <span class="badge rounded-pill bg-primary text-white px-3 py-2">
-                                            {{ $workCenter->line->name }}
+                                            {{ $line->area->name }}
                                         </span>
                                         @else
                                         <span class="badge rounded-pill bg-secondary px-3 py-2">
-                                            {{ __('Sin Línea') }}
+                                            {{ __('Sin Área') }}
                                         </span>
                                         @endif
                                     </td>
-                                    <td class="py-3 fw-medium">{{ $workCenter->number }}</td>
-                                    <td class="py-3">{{ $workCenter->name }}</td>
-                                    <td class="py-3 text-muted">{{ $workCenter->created_at->format('d-m-Y H:i') }}</td>
-                                    <td class="py-3 text-muted">{{ $workCenter->updated_at->format('d-m-Y H:i') }}</td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="6" class="text-center py-4">
-                                        @if(request()->has('search'))
-                                        No se encontraron estaciones que coincidan con "{{ request('search') }}"
-                                        @else
-                                        No hay estaciones de trabajo registradas
-                                        @endif
+                                    <td class="py-3 text-muted">
+                                        {{ optional($line->created_at)->format('d-m-Y H:i') ?? '' }}
+                                    </td>
+                                    <td class="py-3 text-muted">
+                                        {{ optional($line->updated_at)->format('d-m-Y H:i') ?? '' }}
+                                    </td>
+                                    <td class="py-3 text-center">
+                                        <div class="btn-group" role="group" aria-label="Acciones">
+                                            <!-- Botón Editar -->
+                                            <a href="{{ route('lines.edit', $line->id) }}"
+                                                class="btn btn-sm btn-primary d-flex align-items-center"
+                                                title="Editar">
+                                                <i class="fas fa-edit mr-1"></i>
+                                                <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
+                                            </a>
+                                            <!-- Botón Eliminar -->
+                                            <form action="{{ route('lines.destroy', $line->id) }}"
+                                                method="POST"
+                                                style="display: inline-block;"
+                                                onsubmit="return confirm('¿Estás seguro de eliminar esta línea?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger d-flex align-items-center">
+                                                    <i class="fas fa-trash mr-1"></i>
+                                                    <span class="d-none d-sm-inline">{{ __('Eliminar') }}</span>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
                 </div>
                 <div class="card-footer bg-white py-3 d-flex justify-content-end">
-                    {{ $workCenters->appends(['search' => request('search')])->links() }}
+                    {{ $lines->links() }}
                 </div>
             </div>
         </div>
     </div>
 </div>
 @stop
-
 
 @section('css')
 <style>
