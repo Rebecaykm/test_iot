@@ -21,10 +21,15 @@ Route::middleware([
     })->name('home');
 
     Route::resource('lines', LineController::class);
+    Route::resource('part-numbers', PartNumberController::class);
     Route::resource('work-centers', WorkCenterController::class);
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('production-records', ProductionRecordController::class);
     Route::resource('visual-aids', VisualAidController::class);
+
+    Route::get('work-center-map', function () {
+        return view('work-centers.work-center-map');
+    })->name('work-center.map');
 });
 
 Route::get('show-visual-aids/{work_center}', [VisualAidController::class, 'showVisualAidForCurrentPart'])

@@ -3,6 +3,7 @@
 namespace App\Livewire\ProductionRecord;
 
 use App\Models\ProductionRecord;
+use App\Models\Shift;
 use Carbon\Carbon;
 use Livewire\Component;
 
@@ -20,20 +21,27 @@ class GetProductionRecords extends Component
     public function getProductionRecords()
     {
         $now = Carbon::now();
+        $currentShift = Shift::getShift($now);
+        $dateTimeRange = Shift::getShiftDateTimeRange($currentShift, $now);
 
-        $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+        $productionRecords = ProductionRecord::query()
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-            // ->where('planned_date', $now->format('Y-m-d'))
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->where('production_records.planned_date', $dateTimeRange->startDateTime->format('Y-m-d'))
+            ->where('shifts.abbreviation', $currentShift->abbreviation)
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
             ->select([
                 'work_centers.name AS work_center_name',
                 'part_numbers.number AS part_number',
-                'production_records.planned_quantity AS planned_quantity',
-                'production_records.produced_quantity AS produced_quantity',
                 'production_records.planned_date AS planned_date',
                 'shifts.abbreviation AS shift_name',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'production_records.scrap_quantity AS scrap_quantity',
+                'statuses.name AS status_name',
             ])
             ->get();
 
