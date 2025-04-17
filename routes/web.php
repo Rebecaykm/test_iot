@@ -59,11 +59,20 @@ Route::get('production-plan-summary', function () {
 
 // Press Routes
 Route::get('press-production/{workCenter}', function ($workCenter) {
-    return view('press-production', ['workCenter' => $workCenter]);
+    return view('press-production',[
+            'workCenter' => $workCenter
+        ]);
 })->name('press-production');
 
 
-// Test
-Route::get('test', function () {
-    return view('chart');
-});
+// Guest Routes
+Route::get('guest/work-center-map', function () {
+    return view('work-center-map-view');
+})->name('guest.work-center-map');
+
+Route::get('guest/production-records/{workCenterId}', function ($workCenterId) {
+    return view('guest.production-record-view', [
+        'workCenterId' => $workCenterId,
+    ]);
+})->name('guest.production-records');
+

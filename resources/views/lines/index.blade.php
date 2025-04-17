@@ -48,7 +48,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($lines as $line)
+                                @forelse ($lines as $line)
                                 <tr class="border-top">
                                     <td class="ps-4 py-3 fw-medium">{{ $line->name }}</td>
                                     <td class="py-3">{{ $line->description ?? '' }}</td>
@@ -93,7 +93,17 @@
                                         </div>
                                     </td>
                                 </tr>
-                                @endforeach
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            @if(request()->has('search'))
+                                                No se encontraron líneas que coincidan con "{{ request('search') }}"
+                                            @else
+                                                No hay líneas registradas
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>

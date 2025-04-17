@@ -103,7 +103,7 @@ class ProductionRecord extends Model
             ->get();
     }
 
-    public static function getPressProductionRecord(String $workCenter, int $shiftId, $now): Collection
+    public static function getProductionRecords(String $workCenter, int $shiftId, $now): Collection
     {
         return ProductionRecord::query()
             ->select([
@@ -117,17 +117,16 @@ class ProductionRecord extends Model
                 'production_records.planned_quantity AS planned_quantity',
                 'production_records.produced_quantity AS produced_quantity',
                 'shifts.abbreviation AS shift_name',
-//                'statuses.name AS status_name',
+                'statuses.name AS status_name',
                 'production_records.production_start AS production_start'
             ])
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-//            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->where('production_records.planned_date', $now->toDateString())
             ->where('shifts.id', $shiftId)
             ->where('work_centers.name', 'LIKE', $workCenter)
-            // ->where('statuses.id', 7)
             ->orderBy('shifts.start_time', 'asc')
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('production_records.production_end', 'desc')

@@ -56,7 +56,7 @@
                         <div class="absolute bg-white rounded shadow cursor-pointer border-l-4 flex flex-col p-2"
                             style="left: {{ $x }}px; top: {{ $y }}px; width: 120px; height: 80px; border-left-color: {{ $color }};"
                             wire:key="workcenter-{{ $workCenter->id }}"
-                            ondblclick="window.location.href='{{ route('work-centers.show', $workCenter->id) }}'">
+                            ondblclick="window.location.href='{{ route('guest.production-records', $workCenter->id) }}'">
 
                             <div class="font-bold truncate">{{ $workCenter->name }}</div>
                             <div class="text-gray-500 text-xs">{{ $workCenter->number }}</div>
