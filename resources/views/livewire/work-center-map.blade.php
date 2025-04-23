@@ -73,7 +73,7 @@
                                     z-index: 1;
                                 "
                                 data-id="{{ $workCenter->id }}" wire:key="workcenter-{{ $workCenter->id }}"
-                                ondblclick="window.location.href = '/work-centers/{{ $workCenter->id }}'">
+                                ondblclick="window.location.href = ''">
 
                                 <div class="p-2 h-100 d-flex flex-column justify-content-between">
                                     <div>

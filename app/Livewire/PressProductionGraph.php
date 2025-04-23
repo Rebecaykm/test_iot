@@ -222,13 +222,13 @@ class PressProductionGraph extends Component
         $currentHoursDifference = Carbon::parse($current->timeRange->startDateTime)
             ->diffInHours($current->timeRange->endDateTime);
 
-        $previousProductionRecords = ProductionRecord::getPressProductionRecord(
+        $previousProductionRecords = ProductionRecord::getProductionRecords(
             $this->workCenter,
             $previous->model->id,
             $previous->timeRange->startDateTime
         );
 
-        $currentProductionRecords = ProductionRecord::getPressProductionRecord(
+        $currentProductionRecords = ProductionRecord::getProductionRecords(
             $this->workCenter,
             $current->model->id,
             $this->now

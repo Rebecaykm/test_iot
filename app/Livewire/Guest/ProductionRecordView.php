@@ -6,6 +6,7 @@ use App\Models\ProductionRecord;
 use App\Models\Shift;
 use App\Models\WorkCenter;
 use Carbon\Carbon;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class ProductionRecordView extends Component

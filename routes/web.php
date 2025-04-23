@@ -45,23 +45,28 @@ Route::get('home', function () {
 //     return view('production-records.hourly-production-graph');
 // });
 
-Route::get('get-production-records', function () {
-    return view('production-records.get-production-records');
-});
+// Revisar
+// Route::get('get-production-records', function () {
+//     return view('production-records.get-production-records');
+// });
 
-Route::get('production-dashboard', function () {
-    return view('production-dashboard');
+Route::get('production-dashboard/{workCenter}', function ($workCenter) {
+    return view('production-dashboard', [
+        'workCenter' => $workCenter
+    ]);
 })->name('production-dashboard');
 
-Route::get('production-plan-summary', function () {
-    return view('production-plan-summary');
-});
+
+// Revisar
+// Route::get('production-plan-summary', function () {
+//     return view('production-plan-summary');
+// });
 
 // Press Routes
 Route::get('press-production/{workCenter}', function ($workCenter) {
-    return view('press-production',[
-            'workCenter' => $workCenter
-        ]);
+    return view('press-production', [
+        'workCenter' => $workCenter
+    ]);
 })->name('press-production');
 
 
@@ -75,4 +80,3 @@ Route::get('guest/production-records/{workCenterId}', function ($workCenterId) {
         'workCenterId' => $workCenterId,
     ]);
 })->name('guest.production-records');
-
