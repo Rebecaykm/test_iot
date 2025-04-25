@@ -13,6 +13,8 @@ use Livewire\Component;
 class ProductionGraph extends Component
 {
     public string|null $chartId = null;
+    public bool $hasData = false;
+
     public array $labels = [];
     public array $plannedData = [];
     public array $producedData = [];
@@ -59,6 +61,8 @@ class ProductionGraph extends Component
         $this->producedData = $productionRecords->pluck('produced_quantity')->toArray();
         $this->productionRate = $productionRecords->pluck('production_rate')->toArray();
         $this->productionStart = $productionRecords->pluck('production_start')->toArray();
+
+        $this->hasData = !empty($this->labels);
     }
 
     public function render()

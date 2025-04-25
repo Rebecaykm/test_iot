@@ -207,7 +207,7 @@
             init() {
                 setInterval(() => {
                     $wire.dispatchSelf("refresh")
-                }, 30000)
+                }, 1000)
             }
         }
     })
