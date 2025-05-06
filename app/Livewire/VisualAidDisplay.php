@@ -7,6 +7,7 @@ use App\Models\ProductionRecord;
 use App\Models\Shift;
 use App\Models\WorkCenter;
 use Carbon\Carbon;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class VisualAidDisplay extends Component
@@ -20,11 +21,7 @@ class VisualAidDisplay extends Component
     public function mount($work_center)
     {
         $this->workCenter = $work_center;
-        $this->loadVisualAid();
-
-        // Actualizar cada minuto
-        $this->currentTime = now();
-        $this->dispatch('startTimer'); // Cambiado de dispatchBrowserEvent a dispatch
+        $this->refreshTime();
     }
 
     public function loadVisualAid()
@@ -61,6 +58,7 @@ class VisualAidDisplay extends Component
         }
     }
 
+    #[On('refresh')]
     public function refreshTime()
     {
         $this->currentTime = now();

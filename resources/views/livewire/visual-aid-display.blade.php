@@ -1,51 +1,57 @@
 <div>
-    <div class="fixed inset-0 bg-gray-900 overflow-hidden" wire:poll.60s="refreshTime">
-        <!-- Contenedor principal centrado -->
-        <div class="h-screen flex flex-col items-center justify-center p-4">
-            <!-- Encabezado con número de parte -->
-            <div class="text-center mb-8 animate-pulse">
-                <h1 class="text-4xl font-bold mb-2">
-                    🛠️ AYUDA VISUAL OPERATIVA
-                </h1>
-                @if($visualAid)
-                    <div class="bg-indigo-600 inline-block px-6 py-3 rounded-full shadow-lg">
-                        <p class="text-3xl text-white font-extrabold">
-                            NÚMERO DE PARTE: <span class="text-yellow-300">{{ $visualAid->partNumber->number }}</span>
-                        </p>
-                    </div>
-                @endif
-            </div>
-
-            <!-- Imagen a pantalla completa -->
-            <div class="flex-1 w-full flex items-center justify-center">
-                @if($visualAid)
+    <div x-data="display" class="h-screen bg-white flex items-center justify-center p-4">
+        <div class="w-full h-full flex items-center justify-center">
+            @if($visualAid)
+                <div class="relative w-full h-full max-w-[90vw] max-h-[90vh]">
                     <img
                         src="{{ asset('storage/' . $visualAid->path) }}"
                         alt="{{ $visualAid->alt_text ?? 'Imagen de referencia' }}"
-                        class="object-contain max-w-full max-h-[80vh] border-4 border-white rounded-lg shadow-2xl"
+                        class="w-full h-full object-contain border-4 border-gray-200 rounded-lg shadow-lg"
                     >
-                @else
-                    <div class="text-center bg-red-500 p-8 rounded-xl">
-                        <p class="text-2xl font-bold">⚠️ NO HAY AYUDA VISUAL DISPONIBLE</p>
-                    </div>
-                @endif
-            </div>
-
-            <!-- Footer -->
-            <div class="mt-4 text-opacity-70 text-sm">
-                {{ $workCenter ?? 'Centro de trabajo' }} • {{ $currentTime->format('d/m/Y H:i') }}
-            </div>
+                </div>
+            @else
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <svg class="w-24 h-24 text-gray-600 opacity-75" fill="none" stroke="currentColor"
+                         viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p class="text-gray-800 text-2xl font-bold text-center">
+                        No se encontró ayuda visual disponible
+                    </p>
+                    <p class="text-gray-500 text-center">
+                        Por favor intenta más tarde o contacta al soporte
+                    </p>
+                </div>
+            @endif
         </div>
     </div>
+    @script
+    <script>
+        Alpine.data('display', () => {
+            return {
+                lastUpdate: null,
+                init() {
+                    this.startAutoRefresh();
+                },
+                startAutoRefresh() {
+                    setInterval(() => {
+                        this.checkForUpdates();
+                    }, 10000);
+                },
+                checkForUpdates() {
+                    let currentTime = new Date().getTime();
 
-    @push('scripts')
-        <script>
-            document.addEventListener('livewire:load', function() {
-                // Actualizar cada minuto (60,000 ms)
-                setInterval(() => {
-                    Livewire.emit('refreshComponent');
-                }, 60000);
-            });
-        </script>
-    @endpush
+                    if (!this.lastUpdate || (currentTime - this.lastUpdate) > 1000) {
+                        this.refreshTable();
+                        this.lastUpdate = currentTime;
+                    }
+                },
+                refreshTable() {
+                    $wire.dispatchSelf("refresh");
+                }
+            }
+        });
+    </script>
+    @endscript
 </div>
