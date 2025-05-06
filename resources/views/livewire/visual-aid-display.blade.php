@@ -6,7 +6,7 @@
                     <img
                         src="{{ asset('storage/' . $visualAid->path) }}"
                         alt="{{ $visualAid->alt_text ?? 'Imagen de referencia' }}"
-                        class="w-full h-full object-contain border-4 border-gray-200 rounded-lg shadow-lg"
+                        class="w-full h-full object-contain border-1 border-gray-200 rounded-lg shadow-lg"
                     >
                 </div>
             @else
@@ -30,25 +30,14 @@
     <script>
         Alpine.data('display', () => {
             return {
-                lastUpdate: null,
                 init() {
-                    this.startAutoRefresh();
-                },
-                startAutoRefresh() {
                     setInterval(() => {
-                        this.checkForUpdates();
+                        try {
+                            $wire.dispatchSelf("refresh");
+                        } catch (error) {
+                            console.error('Refresh error:', error);
+                        }
                     }, 10000);
-                },
-                checkForUpdates() {
-                    let currentTime = new Date().getTime();
-
-                    if (!this.lastUpdate || (currentTime - this.lastUpdate) > 1000) {
-                        this.refreshTable();
-                        this.lastUpdate = currentTime;
-                    }
-                },
-                refreshTable() {
-                    $wire.dispatchSelf("refresh");
                 }
             }
         });
