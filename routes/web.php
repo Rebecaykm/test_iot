@@ -4,6 +4,7 @@ use App\Http\Controllers\AreaController;
 use App\Http\Controllers\LineController;
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProductionRecordController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisualAidController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,7 @@ Route::middleware([
         return view('home');
     })->name('home');
 
+    Route::resource('users', UserController::class);
     Route::resource('areas', AreaController::class);
     Route::resource('lines', LineController::class);
     Route::resource('part-numbers', PartNumberController::class);

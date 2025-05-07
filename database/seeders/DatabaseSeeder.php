@@ -19,10 +19,10 @@ class DatabaseSeeder extends Seeder
             AreaSeeder::class,
             ShiftSeeder::class,
             StatusSeeder::class,
-            WorkCenterSeeder::class,
-            PartNumberSeeder::class,
-            ProductionRecordSeeder::class,
-            HistorySeeder::class
+//            WorkCenterSeeder::class,
+//            PartNumberSeeder::class,
+//            ProductionRecordSeeder::class,
+//            HistorySeeder::class
         ]);
     }
 }

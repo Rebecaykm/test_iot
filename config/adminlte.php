@@ -321,31 +321,41 @@ return [
         [
             'text' => 'Mapa de Estaciones',
             'route' => 'work-center.map',
-            'icon' => 'fas fa-fw fa-location-arrow'
+            'icon' => 'fas fa-fw fa-location-arrow',
+            'can' => 'ver mapa de estaciones'
         ],
         [
             'text' => 'Administración',
             'icon' => 'fas fa-fw fa-cog',
             'submenu' => [
                 [
+                    'text' => 'Usuarios',
+                    'route' => 'users.index',
+                    'icon' => 'fas fa-fw fa-user',
+                ],
+                [
                     'text' => 'Áreas',
                     'route' => 'areas.index',
-                    'icon' => 'fas fa-fw fa-industry'
+                    'icon' => 'fas fa-fw fa-industry',
+                    'can' => 'ver areas'
                 ],
                 [
                     'text' => 'Lineas',
                     'route' => 'lines.index',
-                    'icon' => 'fas fa-fw fa-pallet'
+                    'icon' => 'fas fa-fw fa-pallet',
+                    'can' => 'ver lineas'
                 ],
                 [
                     'text' => 'Estaciones',
                     'route' => 'work-centers.index',
-                    'icon' => 'fas fa-fw fa-warehouse'
+                    'icon' => 'fas fa-fw fa-warehouse',
+                    'can' => 'ver estaciones'
                 ],
                 [
                     'text' => 'Número de Parte',
                     'route' => 'part-numbers.index',
-                    'icon' => 'fas fa-fw fa-shapes'
+                    'icon' => 'fas fa-fw fa-shapes',
+                    'can' => 'ver numero de partes',
                 ]
             ]
         ],
