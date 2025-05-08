@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\GetWorkCenterJob;
+use App\Models\Line;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
+use App\Models\Tag;
 use App\Models\WorkCenter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Worker;
 
 use function Laravel\Prompts\search;
 
@@ -22,13 +25,13 @@ class WorkCenterController extends Controller
 
         $workCenters = WorkCenter::query()
             ->with(['line', 'line.area']) // Carga las relaciones necesarias
-            ->when($search, function($query) use ($search) {
-                $query->where(function($q) use ($search) {
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('number', 'like', "%{$search}%")
-                      ->orWhere('name', 'like', "%{$search}%")
-                      ->orWhereHas('line', function($q) use ($search) {
-                          $q->where('name', 'like', "%{$search}%");
-                      });
+                        ->orWhere('name', 'like', "%{$search}%")
+                        ->orWhereHas('line', function ($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%");
+                        });
                 });
             })
             ->orderBy('created_at', 'desc')
@@ -64,9 +67,11 @@ class WorkCenterController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(WorkCenter $workCenter)
     {
-        //
+        $tags = Tag::query()->where('work_center_id', $workCenter->id)->orderBy('created_at', 'desc')->get();
+
+        return view('work-centers.edit')->with('workCenter', $workCenter)->with('tags', $tags);
     }
 
     /**

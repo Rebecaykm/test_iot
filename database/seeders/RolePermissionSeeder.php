@@ -24,8 +24,8 @@ class RolePermissionSeeder extends Seeder
         }
 
         // Crear permisos
-        $modules = ['numero de partes', 'estaciones', 'lineas', 'areas'];
-        $actions = ['crear', 'ver', 'editar', 'eliminar'];
+        $modules = ['part numbers', 'work centers', 'lines', 'areas', 'users', 'roles', 'permissions'];
+        $actions = ['create', 'view', 'edit', 'delete'];
 
         foreach ($modules as $module) {
             foreach ($actions as $action) {
@@ -33,17 +33,11 @@ class RolePermissionSeeder extends Seeder
             }
         }
 
+        Permission::create(['name' => 'view work centers map']);
+
         // Asignar permisos
         $adminRole = Role::findByName('Administrador');
         $adminRole->syncPermissions(Permission::all());
-
-        $gerente = Role::findByName('Gerente');
-        $gerente->givePermissionTo([
-            'ver numero de partes',
-            'ver estaciones',
-            'ver lineas',
-            'ver areas',
-        ]);
 
         // Asignar role
         $user = User::find(1);

@@ -1,117 +1,194 @@
 @extends('adminlte::page')
 
-@section('title', 'Gestión de Usuarios')
+@section('title', 'Usuarios')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center">
-        <h1 class="mb-2">Usuarios Registrados</h1>
-        <a href="{{ route('users.create') }}" class="btn btn-primary">
-            <i class="fas fa-user-plus"></i> Nuevo Usuario
-        </a>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="m-0 text-dark">{{ __('Usuarios') }}</h1>
+        <div class="col-md-4">
+            <form action="{{ route('users.index') }}" method="GET">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" placeholder="Buscar..."
+                           value="{{ request('search') }}">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 @stop
 
 @section('content')
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover table-striped">
-                    <thead class="thead-dark">
-                    <tr>
-                        <th style="width: 40%">Usuario</th>
-                        <th>Email</th>
-                        <th style="width: 15%">Acciones</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($users as $user)
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="symbol symbol-circle symbol-50 mr-3">
-                                        <div class="symbol-label bg-primary text-white">
-                                            {{ substr($user->name, 0, 1) }}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="font-weight-600">{{ $user->name }}</div>
-                                        <div class="text-muted">
-                                                <span class="badge badge-light" style="background-color: #e8f4ff; color: #2196f3;">
-                                                    {{ $user->roles->first()->name ?? 'Sin rol' }}
-                                                </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>{{ $user->email }}</td>
-                            <td>
-                                <a href="{{ route('users.edit', $user) }}"
-                                   class="btn btn-sm btn-outline-primary"
-                                   title="Editar">
-                                    <i class="fas fa-edit"></i>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                        <h3 class="card-title m-0">Lista de Usuarios</h3>
+                        @can('create users')
+                            <div class="ml-auto"> <!-- Clase ml-auto añadida aquí -->
+                                <a href="{{ route('users.create') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus mr-1"></i> Agregar Usuario
                                 </a>
-                                <form action="{{ route('users.destroy', $user) }}"
-                                      method="POST"
-                                      style="display: inline-block;"
-                                      onsubmit="return confirm('¿Estás seguro?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                            class="btn btn-sm btn-outline-danger"
-                                            title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="3" class="text-center">No hay usuarios registrados</td>
-                        </tr>
-                    @endforelse
-                    </tbody>
-                </table>
+                            </div>
+                        @endcan
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
+                                    <th class="py-3 text-secondary fw-normal">{{ __('Rol') }}</th>
+                                    <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Creación') }}</th>
+                                    <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Actualización') }}</th>
+                                    <th class="py-3 text-secondary fw-normal text-center">{{ __('Acciones') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @forelse ($users as $user)
+                                    <tr class="border-top">
+                                        <td class="ps-4 py-3 fw-medium">{{ $user->name }}</td>
+                                        <td class="py-3">
+                                            @if ($user->roles)
+                                                <span class="badge rounded-pill bg-primary text-white px-3 py-2">
+                                                    {{ $user->roles->first()->name ?? '' }}
+                                                </span>
+                                            @else
+                                                <span class="badge rounded-pill bg-secondary px-3 py-2">
+                                                    {{ __('Sin Rol') }}
+                                                </span>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 text-muted">
+                                            {{ optional($user->created_at)->format('d-m-Y H:i') ?? '' }}
+                                        </td>
+                                        <td class="py-3 text-muted">
+                                            {{ optional($user->updated_at)->format('d-m-Y H:i') ?? '' }}
+                                        </td>
+                                        <td class="py-3 text-center">
+                                            <div class="btn-group" role="group" aria-label="Acciones">
+                                                <!-- Botón Editar -->
+                                                @can('edit users')
+                                                    <a href="{{ route('users.edit', $user->id) }}"
+                                                       class="btn btn-sm btn-primary d-flex align-items-center"
+                                                       title="Editar">
+                                                        <i class="fas fa-edit mr-1"></i>
+                                                        <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
+                                                    </a>
+                                                @endcan
+                                                <!-- Botón Eliminar -->
+                                                @can('delete users')
+                                                    <form action="{{ route('users.destroy', $user->id) }}"
+                                                          method="POST"
+                                                          style="display: inline-block;"
+                                                          onsubmit="return confirm('¿Estás seguro de eliminar este user?')">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit"
+                                                                class="btn btn-sm btn-danger d-flex align-items-center">
+                                                            <i class="fas fa-trash mr-1"></i>
+                                                            <span class="d-none d-sm-inline">{{ __('Eliminar') }}</span>
+                                                        </button>
+                                                    </form>
+                                                @endcan
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">
+                                            @if(request()->has('search'))
+                                                No se encontraron líneas que coincidan con "{{ request('search') }}"
+                                            @else
+                                                No hay usuarios registradas
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white py-3 d-flex justify-content-end">
+                        {{ $users->links() }}
+                    </div>
+                </div>
             </div>
         </div>
-
-        @if($users->hasPages())
-            <div class="card-footer">
-                {{ $users->links() }}
-            </div>
-        @endif
     </div>
 @stop
 
 @section('css')
     <style>
-        .symbol {
+        /* Estilos para la paginación */
+        .pagination {
+            margin-bottom: 0;
+        }
+
+        .page-item.active .page-link {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+
+        /* Estilos para badges */
+        .badge {
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        /* Estilos para botones de acción */
+        .btn-group {
+            white-space: nowrap;
+        }
+
+        .btn-group .btn {
+            margin-right: 0.3rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
             display: inline-flex;
             align-items: center;
             justify-content: center;
         }
 
-        .symbol.symbol-50 {
-            width: 40px;
-            height: 40px;
+        .btn-group .btn:last-child {
+            margin-right: 0;
         }
 
-        .symbol-label {
-            border-radius: 50%;
-            font-weight: 600;
-            font-size: 1.2rem;
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
         }
 
-        .badge-light {
-            padding: 0.35em 0.65em;
-            font-size: 0.75em;
-            border-radius: 12px;
-            font-weight: 500;
+        .btn-sm i {
+            font-size: 0.8rem;
         }
 
-        .table-hover tbody tr:hover {
-            background-color: #f5f6fa;
-            transform: translateX(2px);
-            transition: all 0.3s ease;
+        /* Responsive para móviles */
+        @media (max-width: 576px) {
+            .btn-group .btn span {
+                display: none;
+            }
+
+            .btn-sm i {
+                margin-right: 0 !important;
+            }
+        }
+
+        /* Estilos para el buscador */
+        .input-group {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+
+        .form-control {
+            border-radius: 0.25rem 0 0 0.25rem;
+        }
+
+        .input-group-append .btn {
+            border-radius: 0 0.25rem 0.25rem 0;
         }
     </style>
 @stop

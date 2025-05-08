@@ -1,12 +1,12 @@
 @extends('adminlte::page')
 
-@section('title', 'Áreas')
+@section('title', 'Roles')
 
 @section('content_header')
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="m-0 text-dark">{{ __('Áreas') }}</h1>
+        <h1 class="m-0 text-dark">{{ __('Roles') }}</h1>
         <div class="col-md-4">
-            <form action="{{ route('areas.index') }}" method="GET">
+            <form action="{{ route('roles.index') }}" method="GET">
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="Buscar..."
                            value="{{ request('search') }}">
@@ -27,11 +27,11 @@
             <div class="col-md-12">
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                        <h3 class="card-title m-0">Lista de Áreas</h3>
-                        @can('create areas')
-                            <div class="ml-auto"> <!-- Clase ml-auto añadida aquí -->
-                                <a href="{{ route('areas.create') }}" class="btn btn-primary">
-                                    <i class="fas fa-plus mr-1"></i> Agregar Área
+                        <h3 class="card-title m-0">Lista de Roles</h3>
+                        @can('create roles')
+                            <div class="ml-auto">
+                                <a href="{{ route('roles.create') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus mr-1"></i> Agregar Rol
                                 </a>
                             </div>
                         @endcan
@@ -41,43 +41,49 @@
                             <table class="table align-middle mb-0">
                                 <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Código') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Descripción') }}</th>
+                                    <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
+                                    <th class="py-3 text-secondary fw-normal">{{ __('Permisos') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Creación') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Actualización') }}</th>
                                     <th class="py-3 text-secondary fw-normal text-center">{{ __('Acciones') }}</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                @forelse ($areas as $area)
+                                @forelse ($roles as $role)
                                     <tr class="border-top">
-                                        <td class="py-3">{{ $area->code ?? '' }}</td>
-                                        <td class="py-3">{{ $area->name ?? '' }}</td>
-                                        <td class="py-3">{{ $area->description ?? '' }}</td>
-                                        <td class="py-3 text-muted">
-                                            {{ optional($area->created_at)->format('d-m-Y H:i') ?? '' }}
+                                        <td class="ps-4 py-3 fw-medium">{{ $role->name }}</td>
+                                        <td class="py-3">
+                                            @foreach($role->permissions->take(2) as $permission)
+                                                <span class="badge rounded-pill bg-primary text-white px-3 py-2 mb-1">
+                                                    {{ $permission->name }}
+                                                </span>
+                                            @endforeach
+                                            @if($role->permissions->count() > 2)
+                                                <span class="badge rounded-pill bg-secondary px-3 py-2">
+                                                    +{{ $role->permissions->count() - 2 }} más
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="py-3 text-muted">
-                                            {{ optional($area->updated_at)->format('d-m-Y H:i') ?? '' }}
+                                            {{ $role->created_at->format('d-m-Y H:i') }}
                                         </td>
                                         <td class="py-3 text-center">
                                             <div class="btn-group" role="group" aria-label="Acciones">
-                                                <!-- Botón Editar -->
-                                                @can('edit areas')
-                                                    <a href="{{ route('areas.edit', $area->id) }}"
+                                                @can('edit roles')
+                                                    <!-- Botón Editar -->
+                                                    <a href="{{ route('roles.edit', $role->id) }}"
                                                        class="btn btn-sm btn-primary d-flex align-items-center"
                                                        title="Editar">
                                                         <i class="fas fa-edit mr-1"></i>
                                                         <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
                                                     </a>
                                                 @endcan
-                                                <!-- Botón Eliminar -->
-                                                @can('delete areas')
-                                                    <form action="{{ route('areas.destroy', $area->id) }}"
+
+                                                @can('delete roles')
+                                                    <!-- Botón Eliminar -->
+                                                    <form action="{{ route('roles.destroy', $role->id) }}"
                                                           method="POST"
                                                           style="display: inline-block;"
-                                                          onsubmit="return confirm('¿Estás seguro de eliminar esta línea?')">
+                                                          onsubmit="return confirm('¿Estás seguro de eliminar este rol?')">
                                                         @csrf
                                                         @method('DELETE')
                                                         <button type="submit"
@@ -92,8 +98,12 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted py-4">
-                                            No hay areas por mostrar.
+                                        <td colspan="4" class="text-center py-4">
+                                            @if(request()->has('search'))
+                                                No se encontraron roles que coincidan con "{{ request('search') }}"
+                                            @else
+                                                No hay roles registrados
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforelse
@@ -102,7 +112,7 @@
                         </div>
                     </div>
                     <div class="card-footer bg-white py-3 d-flex justify-content-end">
-                        {{ $areas->links() }}
+                        {{ $roles->links() }}
                     </div>
                 </div>
             </div>
