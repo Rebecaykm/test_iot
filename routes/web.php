@@ -4,12 +4,16 @@ use App\Http\Controllers\AreaController;
 use App\Http\Controllers\LineController;
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProductionRecordController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\TagController;
+use App\Http\Controllers\TagTypeController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisualAidController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('work-center-map-view');
 });
 
 Route::middleware([
@@ -21,13 +25,19 @@ Route::middleware([
         return view('home');
     })->name('home');
 
+    Route::resource('users', UserController::class);
+    Route::resource('roles', RoleController::class);
+    // Route::resource('permissions', PermissionController::class)->except(['show']);
+    Route::resource('roles', RoleController::class);
     Route::resource('areas', AreaController::class);
     Route::resource('lines', LineController::class);
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('work-centers', WorkCenterController::class);
+    Route::resource('tags', TagController::class);
     Route::resource('part-numbers', PartNumberController::class);
-    Route::resource('production-records', ProductionRecordController::class);
+    Route::resource('tag-types', TagTypeController::class);
     Route::resource('visual-aids', VisualAidController::class);
+    Route::resource('production-records', ProductionRecordController::class);
 
     Route::get('work-center-map', function () {
         return view('work-centers.work-center-map');

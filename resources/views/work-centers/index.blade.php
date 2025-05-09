@@ -48,6 +48,7 @@
                                     <th class="py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Creación') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Actualización') }}</th>
+                                    <th class="py-3 text-secondary fw-normal">{{ __('Acciones') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -68,6 +69,19 @@
                                     <td class="py-3">{{ $workCenter->name }}</td>
                                     <td class="py-3 text-muted">{{ $workCenter->created_at->format('d-m-Y H:i') }}</td>
                                     <td class="py-3 text-muted">{{ $workCenter->updated_at->format('d-m-Y H:i') }}</td>
+                                    <td class="py-3">
+                                        <div class="btn-group" role="group" aria-label="Acciones">
+                                            <!-- Botón Editar -->
+                                            @can('edit work centers')
+                                                <a href="{{ route('work-centers.edit', $workCenter->id) }}"
+                                                    class="btn btn-sm btn-primary d-flex align-items-center"
+                                                    title="Editar">
+                                                    <i class="fas fa-edit mr-1"></i>
+                                                    <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
+                                                </a>
+                                            @endcan
+                                        </div>
+                                    </td>
                                 </tr>
                                 @empty
                                 <tr>

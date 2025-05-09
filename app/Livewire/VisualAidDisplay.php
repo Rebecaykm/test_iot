@@ -7,6 +7,7 @@ use App\Models\ProductionRecord;
 use App\Models\Shift;
 use App\Models\WorkCenter;
 use Carbon\Carbon;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class VisualAidDisplay extends Component
@@ -20,18 +21,20 @@ class VisualAidDisplay extends Component
     public function mount($work_center)
     {
         $this->workCenter = $work_center;
-        $this->loadVisualAid();
+        $this->refresh();
+    }
 
-        // Actualizar cada minuto
-        $this->currentTime = now();
-        $this->dispatch('startTimer'); // Cambiado de dispatchBrowserEvent a dispatch
+    #[On('refresh')]
+    public function refresh()
+    {
+        $this->currentTime = Carbon::now();
+        $this->loadVisualAid();
     }
 
     public function loadVisualAid()
     {
         try {
-            $now = Carbon::now();
-            $currentShift = Shift::getShift($now);
+            $currentShift = Shift::getShift($this->currentTime);
 
             $workCenter = WorkCenter::query()
                 ->where('name', $this->workCenter)
@@ -40,7 +43,7 @@ class VisualAidDisplay extends Component
             $currentPartNumber = ProductionRecord::getWorkCenterProductionRecord(
                 $workCenter->name,
                 $currentShift->id,
-                $now
+                $this->currentTime
             )->first();
 
             if (!$currentPartNumber) {
@@ -51,7 +54,7 @@ class VisualAidDisplay extends Component
             $partNumber = PartNumber::query()
                 ->where('number', $currentPartNumber->part_number)
                 ->first();
-
+            
             $this->visualAid = $partNumber?->visualAids()
                 ->where('is_active', true)
                 ->first();
@@ -59,12 +62,6 @@ class VisualAidDisplay extends Component
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             abort(404, "Estación no encontrado");
         }
-    }
-
-    public function refreshTime()
-    {
-        $this->currentTime = now();
-        $this->loadVisualAid();
     }
 
     public function render()

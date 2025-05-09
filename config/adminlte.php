@@ -310,18 +310,30 @@ return [
             'topnav_right' => true,
         ],
 
+        // ['header' => 'PANEL DE CONTROL'],
+
         // Sidebar items:
-        // [
-        //     'type' => 'sidebar-menu-search',
-        //     'text' => 'search',
-        // ],
-
-        ['header' => 'PANEL DE CONTROL'],
-
         [
-            'text' => 'Mapa de Estaciones',
-            'route' => 'work-center.map',
-            'icon' => 'fas fa-fw fa-location-arrow'
+            'type' => 'sidebar-menu-search',
+            'text' => 'Buscar',
+        ],
+        [
+            'text' => 'Identidades y Accesos',
+            'icon' => 'fas fa-fw fa-shield-alt',
+            'submenu' => [
+                [
+                    'text' => 'Usuarios',
+                    'route' => 'users.index',
+                    'icon' => 'fas fa-fw fa-user',
+                    'can' => 'view users'
+                ],
+                [
+                    'text' => 'Roles',
+                    'route' => 'roles.index',
+                    'icon' => 'fas fa-fw fa-id-card',
+                    'can' => 'view roles'
+                ],
+            ]
         ],
         [
             'text' => 'Administración',
@@ -330,22 +342,38 @@ return [
                 [
                     'text' => 'Áreas',
                     'route' => 'areas.index',
-                    'icon' => 'fas fa-fw fa-industry'
+                    'icon' => 'fas fa-fw fa-industry',
+                    'can' => 'view areas'
                 ],
                 [
                     'text' => 'Lineas',
                     'route' => 'lines.index',
-                    'icon' => 'fas fa-fw fa-pallet'
+                    'icon' => 'fas fa-fw fa-pallet',
+                    'can' => 'view lines'
                 ],
                 [
                     'text' => 'Estaciones',
                     'route' => 'work-centers.index',
-                    'icon' => 'fas fa-fw fa-warehouse'
+                    'icon' => 'fas fa-fw fa-warehouse',
+                    'can' => 'view work centers'
+                ],
+                [
+                    'text' => 'Mapa de Estaciones',
+                    'route' => 'work-center.map',
+                    'icon' => 'fas fa-fw fa-map-pin',
+                    'can' => 'view work centers map'
                 ],
                 [
                     'text' => 'Número de Parte',
                     'route' => 'part-numbers.index',
-                    'icon' => 'fas fa-fw fa-shapes'
+                    'icon' => 'fas fa-fw fa-shapes',
+                    'can' => 'view part numbers',
+                ],
+                [
+                    'text' => 'Tipo de Tags',
+                    'route' => 'tag-types.index',
+                    'icon' => 'fas fa-fw fa-hashtag',
+                    'can' => 'view tag types'
                 ]
             ]
         ],

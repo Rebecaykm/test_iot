@@ -66,7 +66,7 @@
                                         <label for="item_class_id">Clase</label>
                                         <input type="text" class="form-control"
                                                id="item_class_id" name="item_class_id"
-                                               value="{{ old('item_class_id', $partNumber->itemClass->abbreviation) }}"
+                                               value="{{ old('item_class_id', optional($partNumber->itemClass)->abbreviation) ?? '' }}"
                                                readonly>
                                     </div>
                                 </div>

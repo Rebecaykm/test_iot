@@ -134,7 +134,7 @@
 
 
                             // Plan
-                            setInterval(function() {
+                            setInterval(function () {
                                 let currentDate = new Date(); // Una sola vez fuera del bucle.
 
                                 for (let i = 0; i < plannedData.length; i++) {

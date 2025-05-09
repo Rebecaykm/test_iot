@@ -13,6 +13,7 @@ class Tag extends Model
         'long',
         'value',
         'description',
+        'work_center_id',
         'tag_type_id',
     ];
 
@@ -27,8 +28,8 @@ class Tag extends Model
     /**
      *
      */
-    public function workCenters(): HasMany
+    public function workCenter(): BelongsTo
     {
-        return $this->hasMany(WorkCenter::class, 'tag_id');
+        return $this->belongsTo(WorkCenter::class, 'work_center_id');
     }
 }

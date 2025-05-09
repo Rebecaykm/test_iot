@@ -13,6 +13,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "livewire/livewire": "^3.0",
+        "spatie/laravel-permission": "^6.17",
         "yoramdelangen/laravel-pdo-odbc": "^1.2"
     },
     "require-dev": {
