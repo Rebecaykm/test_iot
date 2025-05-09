@@ -43,8 +43,8 @@
                                 <tr>
                                     <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Descripción') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Creado') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Actualizado') }}</th>
+                                    <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Creación') }}</th>
+                                    <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Actualización') }}</th>
                                     <th class="py-3 text-secondary fw-normal text-center">{{ __('Acciones') }}</th>
                                 </tr>
                                 </thead>
@@ -107,4 +107,75 @@
             </div>
         </div>
     </div>
+@stop
+
+@section('css')
+    <style>
+        /* Estilos para la paginación */
+        .pagination {
+            margin-bottom: 0;
+        }
+
+        .page-item.active .page-link {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+
+        /* Estilos para badges */
+        .badge {
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        /* Estilos para botones de acción */
+        .btn-group {
+            white-space: nowrap;
+        }
+
+        .btn-group .btn {
+            margin-right: 0.3rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-group .btn:last-child {
+            margin-right: 0;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .btn-sm i {
+            font-size: 0.8rem;
+        }
+
+        /* Responsive para móviles */
+        @media (max-width: 576px) {
+            .btn-group .btn span {
+                display: none;
+            }
+
+            .btn-sm i {
+                margin-right: 0 !important;
+            }
+        }
+
+        /* Estilos para el buscador */
+        .input-group {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+
+        .form-control {
+            border-radius: 0.25rem 0 0 0.25rem;
+        }
+
+        .input-group-append .btn {
+            border-radius: 0 0.25rem 0.25rem 0;
+        }
+    </style>
 @stop

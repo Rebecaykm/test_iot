@@ -61,7 +61,7 @@
                                         <td class="py-3 text-muted">
                                             {{ optional($area->updated_at)->format('d-m-Y H:i') ?? '' }}
                                         </td>
-                                        <td class="py-3 text-center">
+                                        <td class="py-3">
                                             <div class="btn-group" role="group" aria-label="Acciones">
                                                 <!-- Botón Editar -->
                                                 @can('edit areas')

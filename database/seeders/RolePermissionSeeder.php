@@ -15,7 +15,6 @@ class RolePermissionSeeder extends Seeder
      */
     public function run(): void
     {
-
         // Crear roles
         $roles = ['Administrador', 'Gerente', 'Lider', 'Soporte', 'Operador'];
 

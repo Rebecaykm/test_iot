@@ -13,7 +13,7 @@ use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('work-center-map-view');
 });
 
 Route::middleware([
