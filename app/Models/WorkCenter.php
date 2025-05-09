@@ -26,9 +26,9 @@ class WorkCenter extends Model
     /**
      *
      */
-    public function tag(): BelongsTo
+    public function tags()
     {
-        return $this->belongsTo(Tag::class, 'tag_id');
+        return $this->hasMany(Tag::class, 'work_center_id'); // FK en tags
     }
 
     /**

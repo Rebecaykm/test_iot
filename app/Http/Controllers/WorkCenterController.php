@@ -77,9 +77,20 @@ class WorkCenterController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, WorkCenter $workCenter)
     {
-        //
+        // Validar solo el campo IP
+        $validated = $request->validate([
+            'ip' => 'required|string|max:45|unique:work_centers,ip,' . $workCenter->id
+        ]);
+
+        // Actualizar solo el campo IP
+        $workCenter->update([
+            'ip' => $validated['ip']
+        ]);
+
+        return redirect()->route('work-centers.edit', $workCenter->id)
+            ->with('success', 'Dirección IP actualizada exitosamente');
     }
 
     /**

@@ -368,6 +368,12 @@ return [
                     'route' => 'part-numbers.index',
                     'icon' => 'fas fa-fw fa-shapes',
                     'can' => 'view part numbers',
+                ],
+                [
+                    'text' => 'Tipo de Tags',
+                    'route' => 'tag-types.index',
+                    'icon' => 'fas fa-fw fa-hashtag',
+                    'can' => 'view tag types'
                 ]
             ]
         ],

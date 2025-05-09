@@ -29,7 +29,7 @@
 
                         <div class="card-body">
                             <div class="row">
-                              <div class="col-md-6">
+                                <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="number">Número</label>
                                         <input type="text" class="form-control"
@@ -54,14 +54,15 @@
                                         <label for="name">Línea</label>
                                         <input type="text" class="form-control"
                                                id="linea" name="línea"
-                                               value="{{ old('name', $workCenter->line->name) }}"
+                                               value="{{ old('name', $workCenter->line?->name) ?? '' }}"
                                                readonly>
                                     </div>
                                 </div>
 
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="ip" class="font-weight-bold">IP <span class="text-danger">*</span></label>
+                                        <label for="ip" class="font-weight-bold">IP <span
+                                                class="text-danger">*</span></label>
                                         <input type="text" class="form-control @error('ip') is-invalid @enderror"
                                                id="ip" name="ip" value="{{ old('ip', $workCenter->ip) }}"
                                                placeholder="Ej: 127.0.0.1" required>
@@ -81,7 +82,7 @@
                                 <i class="fas fa-undo mr-1"></i> Limpiar
                             </button>
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save mr-1"></i> Actualizar Usuario
+                                <i class="fas fa-save mr-1"></i> Actualizar Estación
                             </button>
                         </div>
 
@@ -96,12 +97,14 @@
                 <div class="card card-primary card-outline">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h3 class="card-title m-0">Listado de Tags</h3>
-                        <div class="ml-auto">
-                            <a href="{{ route('tags.create', ['work_center' => $workCenter->id]) }}"
-                               class="btn btn-primary btn-sm">
-                                <i class="fas fa-plus mr-2"></i> Agregar Tag
-                            </a>
-                        </div>
+                        @can('view tags')
+                            <div class="ml-auto">
+                                <a href="{{ route('tags.create', ['work_center' => $workCenter->id]) }}"
+                                   class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus mr-2"></i> Agregar Tag
+                                </a>
+                            </div>
+                        @endcan
                     </div>
 
                     <div class="card-body p-0">
@@ -111,6 +114,7 @@
                                 <tr>
                                     <th class="ps-4 py-3 text-secondary fw-normal">Dirección</th>
                                     <th class="ps-4 py-3 text-secondary fw-normal">Longitud</th>
+                                    <th class="ps-4 py-3 text-secondary fw-normal">Tipo de Tag</th>
                                     <th class="ps-4 py-3 text-secondary fw-normal">Descripción</th>
                                     <th class="ps-4 py-3 text-secondary fw-normal">Acciones</th>
                                 </tr>
@@ -120,11 +124,16 @@
                                     <tr class="border-top">
                                         <td>{{ $tag->address ?? '-' }}</td>
                                         <td>{{ $tag->long ?? '-' }}</td>
+                                        <td>
+                                            <span class="badge rounded-pill bg-primary text-white px-3 py-2 mb-1">
+                                                {{ $tag->tagType->name }}
+                                            </span>
+                                        </td>
                                         <td>{{ $tag->description ?? '-' }}</td>
-                                         <td class="py-3 text-center">
+                                        <td class="py-3 text-center">
                                             <div class="btn-group" role="group" aria-label="Acciones">
                                                 <!-- Botón Editar -->
-                                                @can('edit users')
+                                                @can('edit tags')
                                                     <a href="{{ route('tags.edit', $tag->id) }}"
                                                        class="btn btn-sm btn-primary d-flex align-items-center"
                                                        title="Editar">
@@ -133,10 +142,9 @@
                                                     </a>
                                                 @endcan
                                                 <!-- Botón Eliminar -->
-                                                @can('delete users')
+                                                @can('delete tags')
                                                     <form action="{{ route('tags.destroy', $tag->id) }}"
                                                           method="POST"
-                                                          style="display: inline-block;"
                                                           onsubmit="return confirm('¿Estás seguro de eliminar este user?')">
                                                         @csrf
                                                         @method('DELETE')
@@ -152,7 +160,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="text-center text-muted py-4">
+                                        <td colspan="5" class="text-center text-muted py-4">
                                             No hay tags asociadas por mostrar.
                                         </td>
                                     </tr>

@@ -6,6 +6,7 @@ use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProductionRecordController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\TagTypeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisualAidController;
 use App\Http\Controllers\WorkCenterController;
@@ -34,6 +35,7 @@ Route::middleware([
     Route::resource('work-centers', WorkCenterController::class);
     Route::resource('tags', TagController::class);
     Route::resource('part-numbers', PartNumberController::class);
+    Route::resource('tag-types', TagTypeController::class);
     Route::resource('visual-aids', VisualAidController::class);
     Route::resource('production-records', ProductionRecordController::class);
 

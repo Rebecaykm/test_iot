@@ -24,7 +24,7 @@ class RolePermissionSeeder extends Seeder
         }
 
         // Crear permisos
-        $modules = ['part numbers', 'work centers', 'lines', 'areas', 'users', 'roles', 'permissions'];
+        $modules = ['part numbers', 'work centers', 'lines', 'areas', 'users', 'roles', 'permissions', 'tag types', 'tags'];
         $actions = ['create', 'view', 'edit', 'delete'];
 
         foreach ($modules as $module) {
