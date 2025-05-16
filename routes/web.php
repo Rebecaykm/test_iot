@@ -1,10 +1,14 @@
 <?php
 
 use App\Http\Controllers\AreaController;
+use App\Http\Controllers\ClientController;
 use App\Http\Controllers\LineController;
 use App\Http\Controllers\PartNumberController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProductionRecordController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\StatusController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagTypeController;
 use App\Http\Controllers\UserController;
@@ -36,6 +40,10 @@ Route::middleware([
     Route::resource('tags', TagController::class);
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('tag-types', TagTypeController::class);
+    Route::resource('statuses', StatusController::class)->except('show');
+    Route::resource('shifts', ShiftController::class)->except('show');
+    Route::resource('clients', ClientController::class)->except('show');
+    Route::resource('projects', ProjectController::class)->except('show');
     Route::resource('visual-aids', VisualAidController::class);
     Route::resource('production-records', ProductionRecordController::class);
 
