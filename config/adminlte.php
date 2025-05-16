@@ -263,7 +263,7 @@ return [
     'register_url' => 'register',
     'password_reset_url' => 'password/reset',
     'password_email_url' => 'password/email',
-    'profile_url' => false,
+    'profile_url' => true,
     'disable_darkmode_routes' => false,
 
     /*
@@ -305,10 +305,10 @@ return [
         //     'text' => 'search',
         //     'topnav_right' => true,
         // ],
-        [
-            'type' => 'fullscreen-widget',
-            'topnav_right' => true,
-        ],
+//        [
+//            'type' => 'fullscreen-widget',
+//            'topnav_right' => true,
+//        ],
 
         // ['header' => 'PANEL DE CONTROL'],
 
@@ -339,6 +339,18 @@ return [
             'text' => 'Administración',
             'icon' => 'fas fa-fw fa-cog',
             'submenu' => [
+                [
+                    'text' => 'Clientes',
+                    'route' => 'clients.index',
+                    'icon' => 'fas fa-fw fa-handshake',
+                    'can' => 'view tag types'
+                ],
+                [
+                    'text' => 'Proyectos',
+                    'route' => 'projects.index',
+                    'icon' => 'fas fa-fw fa-project-diagram',
+                    'can' => 'view tag types'
+                ],
                 [
                     'text' => 'Áreas',
                     'route' => 'areas.index',
@@ -372,9 +384,21 @@ return [
                 [
                     'text' => 'Tipo de Tags',
                     'route' => 'tag-types.index',
-                    'icon' => 'fas fa-fw fa-hashtag',
+                    'icon' => 'fas fa-fw fa-tasks',
                     'can' => 'view tag types'
-                ]
+                ],
+                [
+                    'text' => 'Estados',
+                    'route' => 'statuses.index',
+                    'icon' => 'fas fa-fw fa-compass',
+                    'can' => 'view tag types'
+                ],
+                [
+                    'text' => 'Turnos',
+                    'route' => 'shifts.index',
+                    'icon' => 'fas fa-fw fa-clock',
+                    'can' => 'view tag types'
+                ],
             ]
         ],
 
