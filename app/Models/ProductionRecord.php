@@ -22,7 +22,10 @@ class ProductionRecord extends Model
         'production_start',
         'production_end',
         'shift_id',
-        'status_id'
+        'status_id',
+        'shop_order_number',
+        'synced_to_infor',
+        'synced_at'
     ];
 
     /**
@@ -52,7 +55,13 @@ class ProductionRecord extends Model
     /**
      *
      */
-    public static function store($partNumberId, $plannedQuantity, $plannedDate, $shiftId)
+    public static function store(
+        $partNumberId,
+        $plannedQuantity,
+        $plannedDate,
+        $shiftId = null,
+        $shopOrderNumber = null,
+    )
     {
         $status = Status::where('name', 'LIKE', 'Pendiente')->first();
 
@@ -64,7 +73,9 @@ class ProductionRecord extends Model
                 'planned_quantity' => $plannedQuantity,
                 'planned_date' => $plannedDate,
                 'shift_id' => $shiftId,
-                'status_id' => $status->id
+                'status_id' => $status->id,
+                'shop_order_number' => $shopOrderNumber,
+                'synced_to_infor' => false,
             ]);
         }
     }
@@ -72,7 +83,7 @@ class ProductionRecord extends Model
     /**
      * Obtener los registros de producción por WorkCenter
      */
-    public static function getWorkCenterProductionRecord(String $workCenter, int $shiftId, $now): Collection
+    public static function getWorkCenterProductionRecord(string $workCenter, int $shiftId, $now): Collection
     {
         return ProductionRecord::query()
             ->select([
@@ -103,7 +114,7 @@ class ProductionRecord extends Model
             ->get();
     }
 
-    public static function getProductionRecords(String $workCenter, int $shiftId, $now): Collection
+    public static function getProductionRecords(string $workCenter, int $shiftId, $now): Collection
     {
         return ProductionRecord::query()
             ->select([

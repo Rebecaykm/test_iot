@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkCenter extends Model
@@ -28,7 +29,7 @@ class WorkCenter extends Model
      */
     public function tags()
     {
-        return $this->hasMany(Tag::class, 'work_center_id'); // FK en tags
+        return $this->hasMany(Tag::class, 'work_center_id');
     }
 
     /**
@@ -61,5 +62,13 @@ class WorkCenter extends Model
     public function lineStoppageRecord(): HasMany
     {
         return $this->hasMany(LineStoppageRecord::class, 'work_center_id');
+    }
+
+    /**
+     *
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class);
     }
 }

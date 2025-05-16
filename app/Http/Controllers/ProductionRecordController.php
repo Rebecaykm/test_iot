@@ -8,6 +8,7 @@ use App\Models\ProductionRecord;
 use App\Models\Shift;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class ProductionRecordController extends Controller
@@ -15,9 +16,47 @@ class ProductionRecordController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        GetProductionPlanJob::dispatch();
+        $search = $request->input('search');
+        $workCentersArray = Auth::user()->workCenters->pluck('name')->toArray();
+
+        $productionRecords = ProductionRecord::query()
+            ->select([
+                'production_records.id AS production_id',
+                'lines.color AS line_color',
+                'work_centers.number AS work_number',
+                'work_centers.name AS work_name',
+                'part_numbers.number AS part_number',
+                'part_numbers.name AS part_name',
+                'production_records.planned_date AS planned_date',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'production_records.scrap_quantity AS scrap_quantity',
+                'shifts.abbreviation AS shift_name',
+                'statuses.name AS status_name',
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->whereIn('work_centers.name', $workCentersArray)
+            ->whereBetween('production_records.planned_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
+            ->when($search, function ($query, $search) {
+                return $query->where(function($q) use ($search) {
+                    $q->where('part_numbers.number', 'like', "%{$search}%")
+                        ->orWhere('part_numbers.name', 'like', "%{$search}%")
+                        ->orWhere('work_centers.name', 'like', "%{$search}%")
+                        ->orWhere('shifts.abbreviation', 'like', "%{$search}%")
+                        ->orWhere('statuses.name', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('shifts.start_time', 'asc')
+            ->paginate(10);
+
+        return view('production-records.index', compact('productionRecords'));
     }
 
     /**

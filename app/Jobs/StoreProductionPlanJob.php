@@ -13,6 +13,7 @@ class StoreProductionPlanJob implements ShouldQueue
 {
     use Queueable;
 
+    protected $shop_order_number;
     protected $part_number;
     protected $planned_quantity;
     protected $planned_date;
@@ -21,8 +22,9 @@ class StoreProductionPlanJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct($part_number, $planned_quantity, $planned_date, $planned_shift)
+    public function __construct($shop_order_number, $part_number, $planned_quantity, $planned_date, $planned_shift)
     {
+        $this->shop_order_number = $shop_order_number;
         $this->part_number = $part_number;
         $this->planned_quantity = $planned_quantity;
         $this->planned_date = $planned_date;
@@ -48,6 +50,21 @@ class StoreProductionPlanJob implements ShouldQueue
             return;
         }
 
-        ProductionRecord::store($partNumber->id, intval($this->planned_quantity), $this->planned_date, $shift->id);
+        $existingRecord = ProductionRecord::where([
+            'part_number_id' => $partNumber->id,
+            'planned_date' => $this->planned_date,
+            'shift_id' => $shift->id,
+            'shop_order_number' => $this->shop_order_number
+        ])->first();
+
+        if ($existingRecord) {
+            Log::info("Se ha encontrado un registro de producción duplicado. Número de Orden: " . $this->shop_order_number .
+                ", Part: " . $this->part_number .
+                ", Date: " . $this->planned_date .
+                ", Shift: " . $this->planned_shift);
+            return;
+        }
+
+        ProductionRecord::store($partNumber->id, intval($this->planned_quantity), $this->planned_date, $shift->id, $this->shop_order_number);
     }
 }
