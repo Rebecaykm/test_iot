@@ -69,16 +69,20 @@
                                         id="color" name="color" required>
                                         <option value="">Seleccione un color...</option>
                                         @foreach([
-                                            '#D3D3D3' => 'Gris',
-                                            '#FFB6C1' => 'Rojo',
-                                            '#FFD8B1' => 'Naranja',
-                                            '#FFFACD' => 'Amarillo',
-                                            '#98FB98' => 'Verde',
-                                            '#AFEEEE' => 'Teal',
-                                            '#ADD8E6' => 'Azul',
-                                            '#C3CDE6' => 'Índigo',
-                                            '#E6E6FA'=> 'Púrpura',
-                                            '#FFD1DC' => 'Rosa'
+                                            '#c0392b' => 'Rojo Alizarina',
+                                            '#e74c3c' => 'Rojo Cinnabar',
+                                            '#9b59b6' => 'Púrpura Amatista',
+                                            '#8e44ad' => 'Violeta Studio',
+                                            '#2980b9' => 'Azul Belize Hole',
+                                            '#3498db' => 'Azul Curioso',
+                                            '#1abc9c' => 'Turquesa',
+                                            '#16a085' => 'Verde Mar',
+                                            '#27ae60' => 'Verde Nephritis',
+                                            '#2ecc71' => 'Verde Esmeralda',
+                                            '#f1c40f' => 'Amarillo Girasol',
+                                            '#f39c12' => 'Naranja',
+                                            '#e67e22' => 'Naranja Zanahoria',
+                                            '#d35400' => 'Calabaza',
                                         ] as $hex => $name)
                                         <option value="{{ $hex }}" {{ old('color', $line->color) == $hex ? 'selected' : '' }} style="background-color: {{ $hex }};">
                                             {{ $name }}

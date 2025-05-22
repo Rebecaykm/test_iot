@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\GetProductionPlanJob;
 use App\Models\History;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
+use App\Models\YF013;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ProductionRecordController extends Controller
@@ -15,9 +17,49 @@ class ProductionRecordController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        GetProductionPlanJob::dispatch();
+        $search = $request->input('search');
+        $workCentersArray = Auth::user()->workCenters->pluck('name')->toArray();
+
+        $productionRecords = ProductionRecord::query()
+            ->select([
+                'production_records.id AS production_id',
+                'lines.color AS line_color',
+                'work_centers.number AS work_number',
+                'work_centers.name AS work_name',
+                'part_numbers.number AS part_number',
+                'part_numbers.name AS part_name',
+                'production_records.planned_date AS planned_date',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'production_records.scrap_quantity AS scrap_quantity',
+                'shifts.abbreviation AS shift_name',
+                'statuses.name AS status_name',
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->where('production_records.synced_to_infor', false)
+            //->where('statuses.name', 'LIKE', 'Completado')
+            ->whereIn('work_centers.name', $workCentersArray)
+            ->whereBetween('production_records.planned_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
+            ->when($search, function ($query, $search) {
+                return $query->where(function ($q) use ($search) {
+                    $q->where('part_numbers.number', 'like', "%{$search}%")
+                        ->orWhere('part_numbers.name', 'like', "%{$search}%")
+                        ->orWhere('work_centers.name', 'like', "%{$search}%")
+                        ->orWhere('shifts.abbreviation', 'like', "%{$search}%")
+                        ->orWhere('statuses.name', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('shifts.start_time', 'asc')
+            ->paginate(10);
+
+        return view('production-records.index', compact('productionRecords'));
     }
 
     /**
@@ -55,9 +97,68 @@ class ProductionRecordController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+
+
+    public function update(Request $request, ProductionRecord $productionRecord)
     {
-        //
+        $validated = $request->validate([
+            'scrap_quantity' => ['required', 'integer', 'min:0'],
+        ], [
+            'scrap_quantity.min' => 'La cantidad de scrap no puede ser negativa.',
+        ]);
+
+        $productionRecord->update([
+            'scrap_quantity' => $validated['scrap_quantity'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($productionRecord) {
+                $now = Carbon::now();
+
+                $productionStart = $productionRecord->production_start
+                    ? Carbon::parse($productionRecord->production_start)
+                    : null;
+
+                $productionEnd = $productionRecord->production_end
+                    ? Carbon::parse($productionRecord->production_end)
+                    : null;
+
+                $inserted = YF013::query()->insert([
+                    'YFWRKC' => $productionRecord->partNumber->workCenter->number ?? '',
+                    'YFWRKN' => $productionRecord->partNumber->workCenter->name ?? '',
+                    'YFRDTE' => $productionRecord->planned_date
+                        ? Carbon::parse($productionRecord->planned_date)->format('Ymd')
+                        : '',
+                    'YFSHFT' => $productionRecord->shift->abbreviation ?? '',
+                    'YFPPNO' => '', // ¿Este campo debería tener un valor?
+                    'YFPROD' => $productionRecord->partNumber->number ?? '',
+                    'YFSTIM' => $productionStart ? $productionStart->format('Hi') : '',
+                    'YFETIM' => $productionEnd ? $productionEnd->format('Hi') : '',
+                    'YFSDT' => $productionStart ? $productionStart->format('YmdHi') : '',
+                    'YFEDT' => $productionEnd ? $productionEnd->format('YmdHi') : '',
+                    'YFQPLA' => $productionRecord->planned_quantity ?? 0,
+                    'YFQPRO' => $productionRecord->produced_quantity ?? 0,
+                    'YFQSCR' => $productionRecord->scrap_quantity ?? 0,
+                    'YFSCRE' => 'RJ',
+                    'YFCRDT' => $now->format('Ymd'),
+                    'YFCRTM' => $now->format('His'),
+                    'YFCRUS' => auth()->user()->username ?? '', // Asignar usuario actual
+                ]);
+
+                if ($inserted) {
+                    $productionRecord->update([
+                        'synced_to_infor' => true,
+                        'synced_at' => $now,
+                    ]);
+                }
+            });
+
+            return redirect()->back()->with('success', 'Cantidad de scrap actualizada.');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Error al sincronizar con Infor: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -178,7 +279,9 @@ class ProductionRecordController extends Controller
     /**
      *
      */
-    public function getProductionPlan() {}
+    public function getProductionPlan()
+    {
+    }
 
     /**
      *
@@ -245,7 +348,7 @@ class ProductionRecordController extends Controller
             ->where(function ($query) use ($now) {
                 // Turno diurno: 08:00 - 20:00
                 $query->where('name', 'Diurno') // Asegúrate de que esto coincida con el nombre del turno en tu tabla
-                    ->whereTime('start_time', '<=', $now)
+                ->whereTime('start_time', '<=', $now)
                     ->whereTime('end_time', '>', $now);
             })
             ->orWhere(function ($query) use ($now) {
@@ -253,7 +356,7 @@ class ProductionRecordController extends Controller
                 $query->where('name', 'Nocturno')
                     ->where(function ($nestedQuery) use ($now) {
                         $nestedQuery->whereTime('start_time', '<=', $now) // Hoy entre 20:00 y 23:59
-                            ->orWhereTime('end_time', '>=', $now); // Mañana entre 00:00 y 08:00
+                        ->orWhereTime('end_time', '>=', $now); // Mañana entre 00:00 y 08:00
                     });
             })
             ->first();

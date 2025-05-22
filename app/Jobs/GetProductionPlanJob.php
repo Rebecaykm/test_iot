@@ -42,6 +42,7 @@ class GetProductionPlanJob implements ShouldQueue
 
         $productionPlans = FSO::query()
             ->select(
+                'SORD as shop_order_number',
                 DB::raw('TRIM(SPROD) AS part_number'),
                 'SQREQ as planned_quantity',
                 DB::raw("VARCHAR(SUBSTR(SRDTE, 1, 4) || '-' || SUBSTR(SRDTE, 5, 2) || '-' || SUBSTR(SRDTE, 7, 2)) AS planned_date"),
@@ -53,6 +54,7 @@ class GetProductionPlanJob implements ShouldQueue
 
         foreach ($productionPlans as $productionPlan) {
             StoreProductionPlanJob::dispatch(
+                $productionPlan->shop_order_number,
                 $productionPlan->PART_NUMBER,
                 $productionPlan->planned_quantity,
                 $productionPlan->PLANNED_DATE,

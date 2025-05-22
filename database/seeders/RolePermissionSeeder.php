@@ -32,7 +32,7 @@ class RolePermissionSeeder extends Seeder
             }
         }
 
-        Permission::create(['name' => 'view work centers map']);
+        Permission::firstOrCreate(['name' => 'view work centers map']);
 
         // Asignar permisos
         $adminRole = Role::findByName('Administrador');
@@ -40,6 +40,8 @@ class RolePermissionSeeder extends Seeder
 
         // Asignar role
         $user = User::find(1);
-        $user->assignRole('Administrador');
+        if (!$user->hasRole('Administrador')) {
+            $user->assignRole('Administrador');
+        }
     }
 }

@@ -8,8 +8,7 @@
         <div class="col-md-4">
             <form action="{{ route('lines.index') }}" method="GET">
                 <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="Buscar..."
-                           value="{{ request('search') }}">
+                    <input type="text" name="search" class="form-control" placeholder="Buscar..." value="{{ request('search') }}">
                     <div class="input-group-append">
                         <button class="btn btn-primary" type="submit">
                             <i class="fas fa-search"></i>
@@ -27,11 +26,11 @@
             <div class="col-md-12">
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                        <h3 class="card-title m-0">Lista de Líneas</h3>
+                        <h3 class="card-title m-0">{{ __('Lista de Líneas') }}</h3>
                         @can('create lines')
-                            <div class="ml-auto"> <!-- Clase ml-auto añadida aquí -->
+                            <div class="ml-auto">
                                 <a href="{{ route('lines.create') }}" class="btn btn-primary">
-                                    <i class="fas fa-plus mr-1"></i> Agregar Línea
+                                    <i class="fas fa-plus mr-1"></i> {{ __('Agregar Línea') }}
                                 </a>
                             </div>
                         @endcan
@@ -57,41 +56,30 @@
                                         <td class="py-3">
                                             @if ($line->area_id && isset($line->area->name))
                                                 <span class="badge rounded-pill bg-primary text-white px-3 py-2">
-                                            {{ $line->area->name }}
-                                        </span>
+                                                        {{ $line->area->name }}
+                                                    </span>
                                             @else
                                                 <span class="badge rounded-pill bg-secondary px-3 py-2">
-                                            {{ __('Sin Área') }}
-                                        </span>
+                                                        {{ __('Sin Área') }}
+                                                    </span>
                                             @endif
                                         </td>
-                                        <td class="py-3 text-muted">
-                                            {{ optional($line->created_at)->format('d-m-Y H:i') ?? '' }}
-                                        </td>
-                                        <td class="py-3 text-muted">
-                                            {{ optional($line->updated_at)->format('d-m-Y H:i') ?? '' }}
-                                        </td>
+                                        <td class="py-3 text-muted">{{ optional($line->created_at)->format('d-m-Y H:i') }}</td>
+                                        <td class="py-3 text-muted">{{ optional($line->updated_at)->format('d-m-Y H:i') }}</td>
                                         <td class="py-3 text-center">
-                                            <div class="btn-group" role="group" aria-label="Acciones">
-                                                <!-- Botón Editar -->
+                                            <div class="btn-group" role="group">
                                                 @can('edit lines')
-                                                    <a href="{{ route('lines.edit', $line->id) }}"
-                                                       class="btn btn-sm btn-primary d-flex align-items-center"
-                                                       title="Editar">
+                                                    <a href="{{ route('lines.edit', $line->id) }}" class="btn btn-sm btn-primary" title="Editar">
                                                         <i class="fas fa-edit mr-1"></i>
                                                         <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
                                                     </a>
                                                 @endcan
-                                                <!-- Botón Eliminar -->
+
                                                 @can('delete lines')
-                                                    <form action="{{ route('lines.destroy', $line->id) }}"
-                                                          method="POST"
-                                                          style="display: inline-block;"
-                                                          onsubmit="return confirm('¿Estás seguro de eliminar esta línea?')">
+                                                    <form action="{{ route('lines.destroy', $line->id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar esta línea?')" style="display:inline-block;">
                                                         @csrf
                                                         @method('DELETE')
-                                                        <button type="submit"
-                                                                class="btn btn-sm btn-danger d-flex align-items-center">
+                                                        <button type="submit" class="btn btn-sm btn-danger">
                                                             <i class="fas fa-trash mr-1"></i>
                                                             <span class="d-none d-sm-inline">{{ __('Eliminar') }}</span>
                                                         </button>
@@ -103,10 +91,10 @@
                                 @empty
                                     <tr>
                                         <td colspan="6" class="text-center py-4">
-                                            @if(request()->has('search'))
-                                                No se encontraron líneas que coincidan con "{{ request('search') }}"
+                                            @if(request('search'))
+                                                {{ __('No se encontraron líneas que coincidan con') }} "{{ request('search') }}"
                                             @else
-                                                No hay líneas registradas
+                                                {{ __('No hay líneas registradas') }}
                                             @endif
                                         </td>
                                     </tr>
@@ -115,8 +103,14 @@
                             </table>
                         </div>
                     </div>
-                    <div class="card-footer bg-white py-3 d-flex justify-content-end">
-                        {{ $lines->links() }}
+
+                    <div class="card-footer d-flex justify-content-between align-items-center">
+                        <div class="text-muted">
+                            {{ __('Mostrando') }} {{ $lines->firstItem() ?? 0 }} - {{ $lines->lastItem() ?? 0 }} {{ __('de') }} {{ $lines->total() }}
+                        </div>
+                        <div>
+                            {{ $lines->links('pagination::bootstrap-4') }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -126,7 +120,6 @@
 
 @section('css')
     <style>
-        /* Estilos para la paginación */
         .pagination {
             margin-bottom: 0;
         }
@@ -136,13 +129,11 @@
             border-color: #007bff;
         }
 
-        /* Estilos para badges */
         .badge {
             font-weight: 500;
             font-size: 0.85rem;
         }
 
-        /* Estilos para botones de acción */
         .btn-group {
             white-space: nowrap;
         }
@@ -153,23 +144,16 @@
             border-radius: 0.25rem;
             display: inline-flex;
             align-items: center;
-            justify-content: center;
         }
 
         .btn-group .btn:last-child {
             margin-right: 0;
         }
 
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-        }
-
         .btn-sm i {
             font-size: 0.8rem;
         }
 
-        /* Responsive para móviles */
         @media (max-width: 576px) {
             .btn-group .btn span {
                 display: none;
@@ -180,7 +164,6 @@
             }
         }
 
-        /* Estilos para el buscador */
         .input-group {
             box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
         }

@@ -35,14 +35,12 @@ class ProductionRecordView extends Component
         $this->now = Carbon::now();
         $this->currentShift = Shift::getShift($this->now);
 
-        // Solo actualizar datos del turno anterior si cambió el turno actual
-        if ($this->lastShiftId !== $this->currentShift->id) {
+        if ($this->lastShiftId !== $this->currentShift?->id) {
             $this->previousShift = Shift::findPreviousShift($this->currentShift);
             $this->previousProductionRecords();
-            $this->lastShiftId = $this->currentShift->id;
+            $this->lastShiftId = $this->currentShift?->id;
         }
 
-        // Siempre actualizar datos del turno actual
         $this->currentProductionRecord();
     }
 
@@ -76,27 +74,36 @@ class ProductionRecordView extends Component
         $this->currentData = $this->formatProductionData($currentProductionRecord);
     }
 
-    // Método helper para formatear los datos de producción
     protected function formatProductionData($records)
     {
-        return $records->groupBy('work_name')
-            ->map(function ($workCenterGroup) {
-                return $workCenterGroup->groupBy('planned_date')
-                    ->map(function ($dateGroup) {
-                        return $dateGroup->groupBy('shift_name')
-                            ->map(function ($shiftGroup) {
-                                return $shiftGroup->map(function ($record) {
-                                    return [
-                                        'part_number' => $record->part_number,
-                                        'planned_quantity' => $record->planned_quantity,
-                                        'produced_quantity' => $record->produced_quantity,
-                                        'difference' => $record->produced_quantity - $record->planned_quantity,
-                                        'status' => $record->status_name,
-                                    ];
-                                });
-                            });
+        return $records->groupBy('planned_date')
+            ->map(function ($dateGroup) {
+                return $dateGroup->groupBy('shift_name')
+                    ->map(function ($shiftGroup) {
+                        return $shiftGroup->map(function ($record) {
+                            return [
+                                'part_number' => $record->part_number,
+                                'planned_quantity' => $record->planned_quantity,
+                                'produced_quantity' => $record->produced_quantity,
+                                'difference' => $record->produced_quantity - $record->planned_quantity,
+                                'status' => $record->status_name,
+                                'status_class' => $this->getStatusClass($record->status_name),
+                            ];
+                        });
                     });
             });
+    }
+
+    protected function getStatusClass($status)
+    {
+        $status = preg_replace('/\s+/', ' ', mb_strtolower(trim($status), 'UTF-8'));
+
+        return match ($status) {
+            'pendiente' => 'text-red-700 bg-red-100',
+            'en progreso' => 'text-blue-700 bg-blue-100',
+            'completado' => 'text-green-700 bg-green-100',
+            default => 'text-gray-700 bg-gray-200'
+        };
     }
 
     public function render()

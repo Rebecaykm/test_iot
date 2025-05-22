@@ -63,12 +63,12 @@ return [
     |
     */
 
-    'logo' => 'YKM',
-    'logo_img' => 'vendor/adminlte/dist/img/AdminLTELogo.png',
-    'logo_img_class' => 'brand-image img-circle elevation-3',
+    'logo' => '',
+    'logo_img' => 'images/ykm.png',
+    'logo_img_class' => 'brand-image',
     'logo_img_xl' => null,
     'logo_img_xl_class' => 'brand-image-xs',
-    'logo_img_alt' => 'Admin Logo',
+    'logo_img_alt' => 'YKM Logo',
 
     /*
     |--------------------------------------------------------------------------
@@ -86,8 +86,8 @@ return [
     'auth_logo' => [
         'enabled' => false,
         'img' => [
-            'path' => 'vendor/adminlte/dist/img/AdminLTELogo.png',
-            'alt' => 'Auth Logo',
+            'path' => 'images/ykm.png',
+            'alt' => 'YKM Logo',
             'class' => '',
             'width' => 50,
             'height' => 50,
@@ -113,8 +113,8 @@ return [
         'enabled' => false,
         'mode' => 'fullscreen',
         'img' => [
-            'path' => 'vendor/adminlte/dist/img/AdminLTELogo.png',
-            'alt' => 'AdminLTE Preloader Image',
+            'path' => 'images/ykm.png',
+            'alt' => 'YKM Preloader Image',
             'effect' => 'animation__shake',
             'width' => 60,
             'height' => 60,
@@ -196,7 +196,7 @@ return [
     'classes_content_wrapper' => '',
     'classes_content_header' => '',
     'classes_content' => '',
-    'classes_sidebar' => 'sidebar-dark-primary elevation-4',
+    'classes_sidebar' => 'sidebar-light elevation-4',
     'classes_sidebar_nav' => '',
     'classes_topnav' => 'navbar-white navbar-light',
     'classes_topnav_nav' => 'navbar-expand',
@@ -263,7 +263,7 @@ return [
     'register_url' => 'register',
     'password_reset_url' => 'password/reset',
     'password_email_url' => 'password/email',
-    'profile_url' => true,
+    'profile_url' => false,
     'disable_darkmode_routes' => false,
 
     /*
@@ -312,7 +312,6 @@ return [
 
         // ['header' => 'PANEL DE CONTROL'],
 
-        // Sidebar items:
         [
             'type' => 'sidebar-menu-search',
             'text' => 'Buscar',
@@ -336,7 +335,7 @@ return [
             ]
         ],
         [
-            'text' => 'Administración',
+            'text' => 'Configuración',
             'icon' => 'fas fa-fw fa-cog',
             'submenu' => [
                 [
@@ -401,6 +400,18 @@ return [
                 ],
             ]
         ],
+        [
+            'text' => 'Control de Producción',
+            'icon' => 'fas fa-fw fa-chart-line',
+            'submenu' => [
+                [
+                    'text' => 'Registro de Producción',
+                    'route'  => 'production-records.index',
+                    'icon' => 'fas fa-fw fa-clipboard-list',
+                ],
+            ],
+        ],
+
 
 //        [
 //            'text' => 'blog',
@@ -559,7 +570,7 @@ return [
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.min.js',
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.min.js',
                 ],
             ],
         ],
@@ -569,7 +580,7 @@ return [
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdn.jsdelivr.net/npm/sweetalert2@8',
+                    'location' => '//cdn.jsdelivr.net/npm/sweetalert2@11',
                 ],
             ],
         ],

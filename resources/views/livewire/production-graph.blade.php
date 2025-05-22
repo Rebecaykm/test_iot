@@ -1,11 +1,11 @@
 <div>
-    <div x-data="chart">
-        <div class="grid grid-cols-1 gap-4">
-            <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-                <div class="p-6 flex flex-col h-full">
-                    <div class="chart-wrapper mb-5 flex-1">
-                        <canvas wire:ignore id="{{ $chartId }}" class="w-full h-full"></canvas>
-                    </div>
+    <div class="w-full h-full" x-data="chart" wire:ignore>
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden  h-full flex flex-col">
+
+            <!-- Gráfico - Ahora ocupa más espacio -->
+            <div class="flex-1 p-4">
+                <div class="chart-container h-full min-h-[400px]">
+                    <canvas id="{{ $chartId }}" class="w-full h-full"></canvas>
                 </div>
             </div>
         </div>
@@ -18,16 +18,9 @@
             Alpine.data('chart', () => {
                 return {
                     init() {
-                        // var currentDate = new Date();
-                        // var startHours = currentDate.getHours();
-                        // var startMinutes = currentDate.getMinutes();
-                        // var startSeconds = currentDate.getSeconds();
-                        // var startFormattedTime = startHours + ':' + (startMinutes < 10 ? '0' + startMinutes : startMinutes) + ':' + (startSeconds < 10 ? '0' + startSeconds : startSeconds);
-
                         let plannedData = $wire.entangle("plannedData").live.initialValue;
                         let productionRate = $wire.entangle("productionRate").live.initialValue;
                         let productionStart = $wire.entangle("productionStart").live.initialValue;
-
                         let planProgress = new Array(plannedData.length).fill(0);
 
                         const ctx = document.getElementById(@json($chartId));
@@ -35,17 +28,18 @@
                         ds = [{
                             label: 'Plan',
                             data: planProgress,
-                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                            borderColor: 'rgb(54, 162, 235)',
-                            borderWidth: 2
+                            backgroundColor: 'rgba(37, 99, 235, 0.2)', // Tailwind blue-600 con 80% opacidad
+                            borderColor: 'rgb(29, 78, 216)', // Tailwind blue-700 (para borde)
+                            borderWidth: 2,
+                            borderRadius: 8,
                         }, {
                             label: 'Real',
                             data: $wire.entangle("producedData").live.initialValue,
-                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                            borderColor: 'rgb(75, 192, 192)',
-                            borderWidth: 2
+                            backgroundColor: 'rgba(22, 163, 74, 0.2)', // Tailwind green-600 con 80% opacidad
+                            borderColor: 'rgb(21, 128, 61)', // Tailwind green-700 (para borde)
+                            borderWidth: 2,
+                            borderRadius: 8,
                         }];
-
                         var chart = new Chart(ctx, {
                             type: 'bar',
                             data: {
@@ -55,6 +49,7 @@
                             plugins: [ChartDataLabels],
                             options: {
                                 responsive: true,
+                                maintainAspectRatio: false,
                                 indexAxis: 'y',
                                 plugins: {
                                     datalabels: {
@@ -65,60 +60,41 @@
                                             weight: 'bold',
                                             size: 16
                                         }
-                                    }
+                                    },
+                                    legend: {
+                                        display: false
+                                    },
                                 },
                                 scales: {
                                     x: {
                                         beginAtZero: true,
-                                        ticks: {
-                                            display: true,
+                                        grid: {
+                                            drawBorder: false,
+                                            color: 'rgba(0, 0, 0, 0.05)'
                                         },
-                                        // ticks: {
-                                        //     callback: function(value, index, values) {
-                                        //         if (value === 0) {
-                                        //             return startFormattedTime;
-                                        //         }
-
-                                        //         if (value < 1) {
-                                        //             return '';
-                                        //         }
-
-                                        //         if (!Number.isInteger(value)) {
-                                        //             return '';
-                                        //         }
-
-                                        //         let currentPlannedData = plannedData[index % plannedData.length];
-                                        //         let currentProductionRate = productionRate[index % productionRate.length];
-
-                                        //         if (value <= currentPlannedData) {
-                                        //             var secondsPassed = value * currentProductionRate;
-
-                                        //             var timePassed = new Date(currentDate.getTime() + (secondsPassed * 1000));
-
-                                        //             var hours = timePassed.getHours();
-                                        //             var minutes = timePassed.getMinutes();
-                                        //             var seconds = timePassed.getSeconds();
-
-                                        //             return hours + ':' + (minutes < 10 ? '0' + minutes : minutes) + ':' + (seconds < 10 ? '0' + seconds : seconds);
-                                        //         }
-                                        //     }
-                                        // }
+                                        ticks: {
+                                            font: {
+                                                weight: 'bold'
+                                            }
+                                        }
                                     },
                                     y: {
                                         beginAtZero: true,
+                                        grid: {
+                                            display: false
+                                        },
                                         ticks: {
-                                            maxRotation: 90,
-                                            minRotation: 90,
+                                            font: {
+                                                weight: 'bold'
+                                            },
+                                            maxRotation: 0,
+                                            minRotation: 0,
                                         }
                                     }
                                 },
-                                layout: {
-                                    padding: {
-                                        left: 8,
-                                        right: 8,
-                                        top: 8,
-                                        bottom: 8
-                                    }
+                                animation: {
+                                    duration: 1000,
+                                    easing: 'easeOutQuart'
                                 }
                             }
                         });
@@ -132,29 +108,33 @@
                                 chart.update();
                             }, 1000);
 
-
                             // Plan
-                            setInterval(function () {
-                                let currentDate = new Date(); // Una sola vez fuera del bucle.
+                            setInterval(function() {
+                            let currentDate = new Date();
 
-                                for (let i = 0; i < plannedData.length; i++) {
+                            for (let i = 0; i < plannedData.length; i++) {
+
+                                // Verifica si la tasa de producción es 0 o no válida
+                                if (productionRate[i] == 0 || isNaN(productionRate[i])) {
+                                    chart.data.datasets[0].data[i] = plannedData[i];
+                                } else {
                                     let currentProductionRate = Math.round(3600 / productionRate[i]);
-
                                     let currentProductionStart = new Date(productionStart[i]);
                                     let timeDifference = Math.round((currentDate - currentProductionStart) / 1000);
-
                                     let currentQuantity = Math.round(timeDifference / currentProductionRate);
 
                                     if (planProgress[i] < plannedData[i]) {
                                         planProgress[i] = Math.min(currentQuantity, plannedData[i]);
-                                        chart.data.datasets[0].data[i] = planProgress[i];
-                                        chart.update();
                                     }
                                 }
 
-                            }, 1000);
-                        }
+                                // Actualizar el valor del gráfico sin importar si hubo cambio o no
+                                chart.data.datasets[0].data[i] = planProgress[i];
+                            }
+                            chart.update();
+                        }, 1000);
 
+                        }
                     }
                 }
             });

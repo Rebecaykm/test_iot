@@ -28,83 +28,90 @@
 @stop
 
 @section('content')
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                    <h3 class="card-title m-0">Lista de Estaciones</h3>
-                    <div>
-                        <!-- Botones de acción si los necesitas -->
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                        <h3 class="card-title m-0">Lista de Estaciones</h3>
+                        <div>
+                            <!-- Botones de acción si los necesitas -->
+                        </div>
                     </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table align-middle mb-0">
-                            <thead class="bg-light">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead class="bg-light">
                                 <tr>
                                     <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Línea') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Número') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Creación') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Actualización') }}</th>
+                                    <th class="py-3 text-secondary fw-normal d-none-mobile">{{ __('Fecha de Creación') }}</th>
+                                    <th class="py-3 text-secondary fw-normal d-none-mobile">{{ __('Fecha de Actualización') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Acciones') }}</th>
                                 </tr>
-                            </thead>
-                            <tbody>
+                                </thead>
+                                <tbody>
                                 @forelse ($workCenters as $workCenter)
-                                <tr class="border-top">
-                                    <td class="ps-4 px-3">
-                                        @if ($workCenter->line)
-                                        <span class="badge rounded-pill bg-primary text-white px-3 py-2">
+                                    <tr class="border-top">
+                                        <td class="ps-4 px-3">
+                                            @if ($workCenter->line)
+                                                <span class="badge rounded-pill bg-primary text-white px-3 py-2">
                                             {{ $workCenter->line->name }}
                                         </span>
-                                        @else
-                                        <span class="badge rounded-pill bg-secondary px-3 py-2">
+                                            @else
+                                                <span class="badge rounded-pill bg-secondary px-3 py-2">
                                             {{ __('Sin Línea') }}
                                         </span>
-                                        @endif
-                                    </td>
-                                    <td class="py-3 fw-medium">{{ $workCenter->number }}</td>
-                                    <td class="py-3">{{ $workCenter->name }}</td>
-                                    <td class="py-3 text-muted">{{ $workCenter->created_at->format('d-m-Y H:i') }}</td>
-                                    <td class="py-3 text-muted">{{ $workCenter->updated_at->format('d-m-Y H:i') }}</td>
-                                    <td class="py-3">
-                                        <div class="btn-group" role="group" aria-label="Acciones">
-                                            <!-- Botón Editar -->
-                                            @can('edit work centers')
-                                                <a href="{{ route('work-centers.edit', $workCenter->id) }}"
-                                                    class="btn btn-sm btn-primary d-flex align-items-center"
-                                                    title="Editar">
-                                                    <i class="fas fa-edit mr-1"></i>
-                                                    <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
-                                                </a>
-                                            @endcan
-                                        </div>
-                                    </td>
-                                </tr>
+                                            @endif
+                                        </td>
+                                        <td class="py-3 fw-medium">{{ $workCenter->number }}</td>
+                                        <td class="py-3">{{ $workCenter->name }}</td>
+                                        <td class="py-3 text-muted d-none-mobile">{{ $workCenter->created_at->format('d-m-Y H:i') }}</td>
+                                        <td class="py-3 text-muted d-none-mobile">{{ $workCenter->updated_at->format('d-m-Y H:i') }}</td>
+                                        <td class="py-3">
+                                            <div class="btn-group" role="group" aria-label="Acciones">
+                                                @can('edit work centers')
+                                                    <a href="{{ route('work-centers.edit', $workCenter->id) }}"
+                                                       class="btn btn-sm btn-primary d-flex align-items-center"
+                                                       title="Editar"
+                                                       aria-label="Editar estación de trabajo">
+                                                        <i class="fas fa-edit mr-1"></i>
+                                                        <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
+                                                    </a>
+                                                @endcan
+                                            </div>
+                                        </td>
+                                    </tr>
                                 @empty
-                                <tr>
-                                    <td colspan="6" class="text-center py-4">
-                                        @if(request()->has('search'))
-                                        No se encontraron estaciones que coincidan con "{{ request('search') }}"
-                                        @else
-                                        No hay estaciones de trabajo registradas
-                                        @endif
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            @if(request()->has('search'))
+                                                No se encontraron estaciones que coincidan con "{{ request('search') }}"
+                                            @else
+                                                No hay estaciones de trabajo registradas
+                                            @endif
+                                        </td>
+                                    </tr>
                                 @endforelse
-                            </tbody>
-                        </table>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center w-100 px-3 py-2">
+                            <div class="text-muted">
+                                MOSTRANDO {{ $workCenters->firstItem() ?? 0 }} -
+                                {{ $workCenters->lastItem() ?? 0 }} DE {{ $workCenters->total() }}
+                            </div>
+                            <div>
+                                {{ $workCenters->links('pagination::bootstrap-4') }}
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="card-footer bg-white py-3 d-flex justify-content-end">
-                    {{ $workCenters->appends(['search' => request('search')])->links() }}
                 </div>
             </div>
         </div>
     </div>
-</div>
 @stop
 
 

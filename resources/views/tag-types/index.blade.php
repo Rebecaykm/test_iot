@@ -100,8 +100,14 @@
                             </table>
                         </div>
                     </div>
-                    <div class="card-footer bg-white py-3 d-flex justify-content-end">
-                        {{ $tagTypes->links() }}
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div class="text-muted" >
+                            MOSTRANDO {{ $tagTypes->firstItem() ?? 0 }} -
+                            {{ $tagTypes->lastItem() ?? 0 }} DE {{ $tagTypes->total() }}
+                        </div>
+                        <div>
+                            {{ $tagTypes->links('pagination::bootstrap-4') }}
+                        </div>
                     </div>
                 </div>
             </div>
