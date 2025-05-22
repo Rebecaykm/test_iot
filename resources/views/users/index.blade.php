@@ -113,8 +113,14 @@
                             </table>
                         </div>
                     </div>
-                    <div class="card-footer bg-white py-3 d-flex justify-content-end">
-                        {{ $users->links() }}
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div class="text-muted" >
+                            MOSTRANDO {{ $users->firstItem() ?? 0 }} -
+                            {{ $users->lastItem() ?? 0 }} DE {{ $users->total() }}
+                        </div>
+                        <div>
+                            {{ $users->links('pagination::bootstrap-4') }}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -111,8 +111,14 @@
                             </table>
                         </div>
                     </div>
-                    <div class="card-footer bg-white py-3 d-flex justify-content-end">
-                        {{ $roles->links() }}
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div class="text-muted" >
+                            MOSTRANDO {{ $roles->firstItem() ?? 0 }} -
+                            {{ $roles->lastItem() ?? 0 }} DE {{ $roles->total() }}
+                        </div>
+                        <div>
+                            {{ $roles->links('pagination::bootstrap-4') }}
+                        </div>
                     </div>
                 </div>
             </div>

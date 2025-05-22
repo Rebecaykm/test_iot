@@ -29,7 +29,7 @@
                     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                         <h3 class="card-title m-0">Lista de Áreas</h3>
                         @can('create areas')
-                            <div class="ml-auto"> <!-- Clase ml-auto añadida aquí -->
+                            <div class="ml-auto">
                                 <a href="{{ route('areas.create') }}" class="btn btn-primary">
                                     <i class="fas fa-plus mr-1"></i> Agregar Área
                                 </a>
@@ -56,14 +56,13 @@
                                         <td class="py-3">{{ $area->name ?? '' }}</td>
                                         <td class="py-3">{{ $area->description ?? '' }}</td>
                                         <td class="py-3 text-muted">
-                                            {{ optional($area->created_at)->format('d-m-Y H:i') ?? '' }}
+                                            {{ optional($area->created_at)->format('d-m-Y H:i') }}
                                         </td>
                                         <td class="py-3 text-muted">
-                                            {{ optional($area->updated_at)->format('d-m-Y H:i') ?? '' }}
+                                            {{ optional($area->updated_at)->format('d-m-Y H:i') }}
                                         </td>
-                                        <td class="py-3">
+                                        <td class="py-3 text-center">
                                             <div class="btn-group" role="group" aria-label="Acciones">
-                                                <!-- Botón Editar -->
                                                 @can('edit areas')
                                                     <a href="{{ route('areas.edit', $area->id) }}"
                                                        class="btn btn-sm btn-primary d-flex align-items-center"
@@ -72,20 +71,14 @@
                                                         <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
                                                     </a>
                                                 @endcan
-                                                <!-- Botón Eliminar -->
                                                 @can('delete areas')
-                                                    <form action="{{ route('areas.destroy', $area->id) }}"
-                                                          method="POST"
-                                                          style="display: inline-block;"
-                                                          onsubmit="return confirm('¿Estás seguro de eliminar esta línea?')">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit"
-                                                                class="btn btn-sm btn-danger d-flex align-items-center">
-                                                            <i class="fas fa-trash mr-1"></i>
-                                                            <span class="d-none d-sm-inline">{{ __('Eliminar') }}</span>
-                                                        </button>
-                                                    </form>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-danger d-flex align-items-center delete-area"
+                                                            data-id="{{ $area->id }}"
+                                                            data-name="{{ $area->name }}">
+                                                        <i class="fas fa-trash mr-1"></i>
+                                                        <span class="d-none d-sm-inline">{{ __('Eliminar') }}</span>
+                                                    </button>
                                                 @endcan
                                             </div>
                                         </td>
@@ -93,7 +86,7 @@
                                 @empty
                                     <tr>
                                         <td colspan="6" class="text-center text-muted py-4">
-                                            No hay areas por mostrar.
+                                            No hay áreas por mostrar.
                                         </td>
                                     </tr>
                                 @endforelse
@@ -101,18 +94,49 @@
                             </table>
                         </div>
                     </div>
-                    <div class="card-footer bg-white py-3 d-flex justify-content-end">
-                        {{ $areas->links() }}
+                    <div class="d-flex justify-content-between align-items-center w-100 p-3">
+                        <div class="text-muted">
+                            MOSTRANDO {{ $areas->firstItem() ?? 0 }} -
+                            {{ $areas->lastItem() ?? 0 }} DE {{ $areas->total() }}
+                        </div>
+                        <div>
+                            {{ $areas->links('pagination::bootstrap-4') }}
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    {{-- Modal de confirmación de eliminación --}}
+    <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <form id="deleteForm" method="POST">
+                @csrf
+                @method('DELETE')
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteModalLabel">Eliminar Área</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        ¿Estás seguro que deseas eliminar el área <strong id="areaName"></strong>?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 @stop
 
 @section('css')
     <style>
-        /* Estilos para la paginación */
         .pagination {
             margin-bottom: 0;
         }
@@ -122,13 +146,11 @@
             border-color: #007bff;
         }
 
-        /* Estilos para badges */
         .badge {
             font-weight: 500;
             font-size: 0.85rem;
         }
 
-        /* Estilos para botones de acción */
         .btn-group {
             white-space: nowrap;
         }
@@ -155,7 +177,6 @@
             font-size: 0.8rem;
         }
 
-        /* Responsive para móviles */
         @media (max-width: 576px) {
             .btn-group .btn span {
                 display: none;
@@ -166,7 +187,6 @@
             }
         }
 
-        /* Estilos para el buscador */
         .input-group {
             box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
         }
@@ -179,4 +199,18 @@
             border-radius: 0 0.25rem 0.25rem 0;
         }
     </style>
+@stop
+
+@section('js')
+    <script>
+        $(document).ready(function () {
+            $('.delete-area').click(function () {
+                const areaId = $(this).data('id');
+                const areaName = $(this).data('name');
+                $('#areaName').text(areaName);
+                $('#deleteForm').attr('action', `/areas/${areaId}`);
+                $('#deleteModal').modal('show');
+            });
+        });
+    </script>
 @stop

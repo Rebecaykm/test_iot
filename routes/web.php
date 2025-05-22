@@ -17,7 +17,7 @@ use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('work-center-map-view');
+    return view('welcome');
 });
 
 Route::middleware([
@@ -98,3 +98,7 @@ Route::get('guest/production-records/{workCenterId}', function ($workCenterId) {
         'workCenterId' => $workCenterId,
     ]);
 })->name('guest.production-records');
+
+Route::get('guest/work-center-dashboard', function () {
+    return view('guest.work-center-dashboard');
+});

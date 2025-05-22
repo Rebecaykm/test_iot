@@ -63,7 +63,7 @@ return [
     |
     */
 
-    'logo' => 'YKM',
+    'logo' => '',
     'logo_img' => 'images/ykm.png',
     'logo_img_class' => 'brand-image',
     'logo_img_xl' => null,
@@ -570,7 +570,7 @@ return [
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.0/Chart.bundle.min.js',
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.min.js',
                 ],
             ],
         ],
@@ -580,7 +580,7 @@ return [
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdn.jsdelivr.net/npm/sweetalert2@8',
+                    'location' => '//cdn.jsdelivr.net/npm/sweetalert2@11',
                 ],
             ],
         ],

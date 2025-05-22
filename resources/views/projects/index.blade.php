@@ -14,6 +14,11 @@
                         <button class="btn btn-primary" type="submit">
                             <i class="fas fa-search"></i>
                         </button>
+                        @if(request()->has('search'))
+                            <a href="{{ route('projects.index') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        @endif
                     </div>
                 </div>
             </form>
@@ -61,24 +66,20 @@
                                             <div class="btn-group" role="group" aria-label="Acciones">
                                                 @can('edit projects')
                                                     <a href="{{ route('projects.edit', $project->id) }}"
-                                                       class="btn btn-sm btn-primary d-flex align-items-center"
+                                                       class="btn btn-sm btn-primary"
                                                        title="Editar">
-                                                        <i class="fas fa-edit mr-1"></i>
-                                                        <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
+                                                        <i class="fas fa-edit"></i>
+                                                        <span class="d-none d-sm-inline ml-1">{{ __('Editar') }}</span>
                                                     </a>
                                                 @endcan
                                                 @can('delete projects')
-                                                    <form action="{{ route('projects.destroy', $project->id) }}"
-                                                          method="POST"
-                                                          onsubmit="return confirm('¿Eliminar este proyecto?')">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit"
-                                                                class="btn btn-sm btn-danger d-flex align-items-center">
-                                                            <i class="fas fa-trash mr-1"></i>
-                                                            <span class="d-none d-sm-inline">{{ __('Eliminar') }}</span>
-                                                        </button>
-                                                    </form>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-danger delete-project"
+                                                            data-id="{{ $project->id }}"
+                                                            data-name="{{ $project->client->name }} - {{ $project->model }}">
+                                                        <i class="fas fa-trash"></i>
+                                                        <span class="d-none d-sm-inline ml-1">{{ __('Eliminar') }}</span>
+                                                    </button>
                                                 @endcan
                                             </div>
                                         </td>
@@ -97,12 +98,98 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                    <div class="card-footer bg-white py-3 d-flex justify-content-end">
-                        {{ $projects->links() }}
+
+                        <div class="d-flex justify-content-between align-items-center px-3 py-3 border-top">
+                            <div class="text-muted">
+                                MOSTRANDO {{ $projects->firstItem() ?? 0 }} -
+                                {{ $projects->lastItem() ?? 0 }} DE {{ $projects->total() }}
+                            </div>
+                            <div>
+                                {{ $projects->links('pagination::bootstrap-4') }}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Modal de confirmación de eliminación -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirmar Eliminación</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    ¿Estás seguro que deseas eliminar el proyecto <strong id="projectName"></strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <form id="deleteForm" method="POST">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+@stop
+
+@section('css')
+    <style>
+        .table-responsive {
+            min-height: 300px;
+        }
+
+        .btn-group .btn {
+            margin-right: 5px;
+        }
+
+        .btn-group .btn:last-child {
+            margin-right: 0;
+        }
+
+        @media (max-width: 768px) {
+            .btn-group .btn span {
+                display: none;
+            }
+
+            .btn-group .btn i {
+                margin-right: 0 !important;
+            }
+
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+
+            .card-header h3 {
+                margin-bottom: 1rem;
+            }
+
+            th, td {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+@stop
+
+@section('js')
+    <script>
+        $(document).ready(function() {
+            $('.delete-project').click(function() {
+                const projectId = $(this).data('id');
+                const projectName = $(this).data('name');
+
+                $('#projectName').text(projectName);
+                $('#deleteForm').attr('action', `/projects/${projectId}`);
+                $('#deleteModal').modal('show');
+            });
+        });
+    </script>
 @stop

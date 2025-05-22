@@ -1,4 +1,4 @@
-<div class="w-screen h-screen bg-gray-100">
+<div class="w-full h-full bg-gray-100">
     <div class="flex flex-col w-full h-full">
         <!-- Contenedor con scroll -->
         <div id="map-container" class="flex-1 relative overflow-auto cursor-grab">
@@ -72,8 +72,15 @@
                 let isPanning = false;
                 let startX, startY, scrollLeft, scrollTop;
 
-                // Zoom con scroll
+                function isMapViewActive() {
+                    const mapView = document.getElementById('map-view');
+                    return mapView && !mapView.classList.contains('hidden');
+                }
+
+                // Zoom con scroll - SOLO cuando el mapa esté activo
                 container.addEventListener('wheel', (e) => {
+                    if (!isMapViewActive()) return; // No interferir si el mapa no está activo
+
                     e.preventDefault();
                     if (e.deltaY < 0) {
                         @this.zoomIn();
@@ -82,9 +89,11 @@
                     }
                 }, { passive: false });
 
-                // Panning (arrastrar)
+                // Panning (arrastrar) - SOLO cuando el mapa esté activo
                 container.addEventListener('mousedown', (e) => {
+                    if (!isMapViewActive()) return; // No interferir si el mapa no está activo
                     if (e.target.closest('select') || e.target.closest('button')) return;
+
                     isPanning = true;
                     startX = e.pageX;
                     startY = e.pageY;
@@ -94,17 +103,19 @@
                 });
 
                 container.addEventListener('mouseup', () => {
+                    if (!isMapViewActive()) return;
                     isPanning = false;
                     container.style.cursor = 'grab';
                 });
 
                 container.addEventListener('mouseleave', () => {
+                    if (!isMapViewActive()) return;
                     isPanning = false;
                     container.style.cursor = 'grab';
                 });
 
                 container.addEventListener('mousemove', (e) => {
-                    if (!isPanning) return;
+                    if (!isMapViewActive() || !isPanning) return;
                     const x = e.pageX - startX;
                     const y = e.pageY - startY;
                     container.scrollLeft = scrollLeft - x;
@@ -112,6 +123,7 @@
                 });
 
                 Livewire.on('resetViewPosition', () => {
+                    if (!isMapViewActive()) return;
                     container.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
                 });
             });
