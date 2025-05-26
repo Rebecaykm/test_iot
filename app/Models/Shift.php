@@ -25,43 +25,53 @@ class Shift extends Model
     }
 
     /**
-     * Obtener el turno
+     * Obtener el turno actual basado en la hora
      */
     public static function getShift($now): ?Shift
     {
+        $currentTime = $now->format('H:i:s');
+
         return Shift::query()
-            ->where(function ($query) use ($now) {
-                $query->where('abbreviation', 'D') // Turno diurno
-                ->whereTime('start_time', '<=', $now)
-                    ->whereTime('end_time', '>', $now);
+            ->where(function ($query) use ($currentTime) {
+                // Turno diurno: 08:00 - 20:00
+                $query->where('abbreviation', 'D')
+                    ->where('start_time', '<=', $currentTime)
+                    ->where('end_time', '>', $currentTime);
             })
-            ->orWhere(function ($query) use ($now) {
-                $query->where('abbreviation', 'N') // Turno nocturno
-                ->where(function ($nestedQuery) use ($now) {
-                    $nestedQuery->whereTime('start_time', '<=', $now)
-                        ->orWhereTime('end_time', '>=', $now);
-                });
+            ->orWhere(function ($query) use ($currentTime) {
+                // Turno nocturno: 20:00 - 08:00 (cruza medianoche)
+                $query->where('abbreviation', 'N')
+                    ->where(function ($nestedQuery) use ($currentTime) {
+                        // Primera parte: 20:00 - 23:59:59
+                        $nestedQuery->where('start_time', '<=', $currentTime)
+                            ->where('start_time', '>=', '20:00:00');
+                    })
+                    ->orWhere(function ($nestedQuery) use ($currentTime) {
+                        // Segunda parte: 00:00:00 - 08:00
+                        $nestedQuery->where('abbreviation', 'N')
+                            ->where('end_time', '>', $currentTime)
+                            ->where('end_time', '<=', '08:00:00');
+                    });
             })
             ->first();
     }
 
     /**
-     * Obtener rango del turno
+     * Obtener rango de fecha y hora del turno
      */
-    public static function getShiftDateTimeRange(Shift $shift, $now)
+    public static function getShiftDateTimeRange(Shift $shift, $referenceDate)
     {
-        $startTime = $now->copy()->setTimeFromTimeString($shift->start_time);
+        $date = Carbon::parse($referenceDate);
 
-        if ($shift->abbreviation === 'N') {
-            if ($now->greaterThan(Carbon::today())) {
-                $startDateTime = $startTime->subDay();
-            } else {
-                $startDateTime = $startTime;
-            }
-            $endDateTime = $startTime->copy()->addDay()->setTimeFromTimeString($shift->end_time);
-        } else {
-            $startDateTime = $startTime;
-            $endDateTime = $now->copy()->setTimeFromTimeString($shift->end_time);
+        if ($shift->abbreviation === 'D') {
+            // Turno diurno: 08:00 - 20:00 del mismo día
+            $startDateTime = $date->copy()->setTimeFromTimeString($shift->start_time);
+            $endDateTime = $date->copy()->setTimeFromTimeString($shift->end_time);
+
+        } else { // Turno nocturno
+            // Turno nocturno: 20:00 de un día - 08:00 del día siguiente
+            $startDateTime = $date->copy()->setTimeFromTimeString($shift->start_time);
+            $endDateTime = $date->copy()->addDay()->setTimeFromTimeString($shift->end_time);
         }
 
         return (object)[
@@ -72,10 +82,12 @@ class Shift extends Model
     }
 
     /**
-     *
+     * Encontrar el turno anterior (función original mantenida por compatibilidad)
      */
     public static function findPreviousShift(Shift $currentShift)
     {
+        if (!$currentShift) return null;
+
         $shifts = Shift::orderBy('end_time', 'desc')->get();
 
         $previousShift = null;

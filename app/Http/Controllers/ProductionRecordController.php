@@ -43,7 +43,7 @@ class ProductionRecordController extends Controller
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->join('lines', 'work_centers.line_id', '=', 'lines.id')
             ->where('production_records.synced_to_infor', false)
-            //->where('statuses.name', 'LIKE', 'Completado')
+            ->where('statuses.name', 'LIKE', 'Completado')
             ->whereIn('work_centers.name', $workCentersArray)
             ->whereBetween('production_records.planned_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
             ->when($search, function ($query, $search) {
@@ -142,7 +142,7 @@ class ProductionRecordController extends Controller
                     'YFSCRE' => 'RJ',
                     'YFCRDT' => $now->format('Ymd'),
                     'YFCRTM' => $now->format('His'),
-                    'YFCRUS' => auth()->user()->username ?? '', // Asignar usuario actual
+                    'YFCRUS' => '',
                 ]);
 
                 if ($inserted) {
