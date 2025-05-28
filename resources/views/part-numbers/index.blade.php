@@ -41,8 +41,6 @@
                                     <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Estación') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Número') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
-                                    {{--                                    <th class="py-3 text-secondary fw-normal text-center">{{ __('Tiempo Ciclo') }}</th>--}}
-                                    {{--                                    <th class="py-3 text-secondary fw-normal text-center">{{ __('Eficiencia') }}</th>--}}
                                     <th class="py-3 text-secondary fw-normal text-center">{{ __('Estado') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Creación') }}</th>
                                     <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Actualización') }}</th>
@@ -55,18 +53,6 @@
                                         <td class="ps-4 py-3">{{ $partNumber->workCenter->name ?? 'No Asignado' }}</td>
                                         <td class="py-3 fw-medium">{{ $partNumber->number }}</td>
                                         <td class="py-3">{{ $partNumber->name }}</td>
-                                        {{--                                        <td class="py-3 text-center">--}}
-                                        {{--                                            @if($partNumber->production_rate != 0)--}}
-                                        {{--                                                <span--}}
-                                        {{--                                                    class="badge rounded-pill bg-primary px-3 py-2">{{ number_format(60 / $partNumber->production_rate, 2) }}</span>--}}
-                                        {{--                                            @else--}}
-                                        {{--                                                <span class="badge rounded-pill bg-primary px-3 py-2">0.00</span>--}}
-                                        {{--                                            @endif--}}
-                                        {{--                                        </td>--}}
-                                        {{--                                        <td class="py-3 text-center">--}}
-                                        {{--                                            <span--}}
-                                        {{--                                                class="badge rounded-pill bg-secondary px-3 py-2">{{ $partNumber->efficiency }}</span>--}}
-                                        {{--                                        </td>--}}
                                         <td class="py-3 text-center">
                                             @if($partNumber->is_obsolete)
                                                 <span class="badge rounded-pill bg-danger px-3 py-2">Obsoleto</span>
@@ -78,13 +64,6 @@
                                         <td class="py-3 text-muted">{{ $partNumber->updated_at->format('d-m-Y H:i') }}</td>
                                         <td class="py-3 text-center">
                                             <div class="btn-group" role="group" aria-label="Acciones">
-                                                <!-- Botón Ver -->
-                                                {{--                                                <a href="{{ route('part-numbers.show', $partNumber->id) }}"--}}
-                                                {{--                                                   class="btn btn-sm btn-info d-flex align-items-center" title="Ver">--}}
-                                                {{--                                                    <i class="fas fa-eye mr-1"></i>--}}
-                                                {{--                                                    <span class="d-none d-sm-inline">{{ __('Ver') }}</span>--}}
-                                                {{--                                                </a>--}}
-
                                                 <!-- Botón Editar -->
                                                 @can('edit part numbers')
                                                     <a href="{{ route('part-numbers.edit', $partNumber->id) }}"
@@ -94,17 +73,6 @@
                                                         <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
                                                     </a>
                                                 @endcan
-                                                <!-- Botón Eliminar -->
-                                                {{--                                                <form action="{{ route('part-numbers.destroy', $partNumber->id) }}"--}}
-                                                {{--                                                      method="POST"--}}
-                                                {{--                                                      style="display: inline-block;"--}}
-                                                {{--                                                      onsubmit="return confirm('¿Estás seguro de eliminar este número de parte?')">--}}
-                                                {{--                                                    @csrf--}}
-                                                {{--                                                    @method('DELETE')--}}
-                                                {{--                                                    <button type="submit" class="btn btn-sm btn-danger d-flex align-items-center delete-btn">--}}
-                                                {{--                                                        <i class="fas fa-trash mr-1"></i> {{ __('Eliminar') }}--}}
-                                                {{--                                                    </button>--}}
-                                                {{--                                                </form>--}}
                                             </div>
                                         </td>
                                     </tr>
@@ -201,4 +169,3 @@
         }
     </style>
 @stop
-

@@ -30,6 +30,7 @@ class ProductionRecordController extends Controller
                 'work_centers.name AS work_name',
                 'part_numbers.number AS part_number',
                 'part_numbers.name AS part_name',
+                'production_records.shop_order_number as shop_order_number',
                 'production_records.planned_date AS planned_date',
                 'production_records.planned_quantity AS planned_quantity',
                 'production_records.produced_quantity AS produced_quantity',

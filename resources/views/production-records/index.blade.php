@@ -35,6 +35,7 @@
                                 <tr class="text-uppercase">
                                     <th class="py-2 px-3">{{ __('Estación') }}</th>
                                     <th class="py-2 px-3">{{ __('Número de Parte') }}</th>
+                                    <th class="py-2 px-3">{{ __('Número de Orden') }}</th>
                                     <th class="py-2 px-3">{{ __('Fecha') }}</th>
                                     <th class="py-2 px-3">{{ __('Turno') }}</th>
                                     <th class="py-2 px-3 text-center">{{ __('Planeada') }}</th>
@@ -58,6 +59,9 @@
                                                 <span class="badge badge-pill px-3 py-1" style="background-color: {{ $productionRecord->line_color }}; color: white;">
                                                     {{ $productionRecord->part_number }}
                                                 </span>
+                                            </td>
+                                            <td class="py-2 px-3 align-middle">
+                                                {{ $productionRecord->shop_order_number }}
                                             </td>
                                             <td class="py-2 px-3 align-middle">
                                                 {{ \Carbon\Carbon::parse($productionRecord->planned_date)->format('d-m-Y') }}

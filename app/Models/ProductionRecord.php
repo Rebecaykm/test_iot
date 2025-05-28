@@ -61,8 +61,7 @@ class ProductionRecord extends Model
         $plannedDate,
         $shiftId = null,
         $shopOrderNumber = null,
-    )
-    {
+    ) {
         $status = Status::where('name', 'LIKE', 'Pendiente')->first();
 
         $productionPlan = ProductionRecord::query()->where([['part_number_id', $partNumberId], ['planned_quantity', $plannedQuantity], ['planned_date', $plannedDate], ['shift_id', $shiftId]])->first();
@@ -81,7 +80,7 @@ class ProductionRecord extends Model
     }
 
     /**
-     * Obtener los registros de producción por WorkCenter
+     * Obtener los registros de producción por WorkCenter ORDENADOS por orden de producción
      */
     public static function getWorkCenterProductionRecord(string $workCenter, int $shiftId, $now): Collection
     {
@@ -93,6 +92,7 @@ class ProductionRecord extends Model
                 'part_numbers.number AS part_number',
                 'part_numbers.name AS part_name',
                 'part_numbers.production_rate as production_rate',
+                'part_numbers.production_order as production_order', // Agregamos el campo de orden
                 'production_records.planned_date AS planned_date',
                 'production_records.planned_quantity AS planned_quantity',
                 'production_records.produced_quantity AS produced_quantity',
@@ -108,6 +108,7 @@ class ProductionRecord extends Model
             ->where('shifts.id', $shiftId)
             ->where('work_centers.name', 'LIKE', $workCenter)
             ->where('statuses.id', 7)
+            ->orderBy('part_numbers.production_order', 'asc') // ORDEN PRINCIPAL por production_order
             ->orderBy('shifts.start_time', 'asc')
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('production_records.production_end', 'desc')
@@ -124,6 +125,7 @@ class ProductionRecord extends Model
                 'part_numbers.number AS part_number',
                 'part_numbers.name AS part_name',
                 'part_numbers.production_rate as production_rate',
+                'part_numbers.production_order as production_order', // Agregamos el campo de orden
                 'production_records.planned_date AS planned_date',
                 'production_records.planned_quantity AS planned_quantity',
                 'production_records.produced_quantity AS produced_quantity',
@@ -138,9 +140,37 @@ class ProductionRecord extends Model
             ->where('production_records.planned_date', $now->toDateString())
             ->where('shifts.id', $shiftId)
             ->where('work_centers.name', 'LIKE', $workCenter)
+            ->orderBy('part_numbers.production_order', 'asc') // ORDEN PRINCIPAL por production_order
             ->orderBy('shifts.start_time', 'asc')
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('production_records.production_end', 'desc')
             ->get();
+    }
+
+    /**
+     * Método para obtener el siguiente part number que debe producirse
+     * basado en el orden de producción
+     */
+    public static function getNextPartNumberToProduceByOrder(string $workCenter, int $shiftId, $now)
+    {
+        return ProductionRecord::query()
+            ->select([
+                'production_records.id AS production_id',
+                'part_numbers.number AS part_number',
+                'part_numbers.production_order as production_order',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'statuses.name AS status_name'
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->where('production_records.planned_date', $now->toDateString())
+            ->where('shifts.id', $shiftId)
+            ->where('work_centers.name', 'LIKE', $workCenter)
+            ->whereIn('statuses.name', ['Pendiente', 'En Proceso']) // Solo pendientes o en proceso
+            ->orderBy('part_numbers.production_order', 'asc')
+            ->first();
     }
 }
