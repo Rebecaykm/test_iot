@@ -169,7 +169,7 @@ class ProductionRecord extends Model
             ->where('production_records.planned_date', $now->toDateString())
             ->where('shifts.id', $shiftId)
             ->where('work_centers.name', 'LIKE', $workCenter)
-            ->whereIn('statuses.name', ['Pendiente', 'En Proceso']) // Solo pendientes o en proceso
+            ->whereIn('statuses.name', ['Pendiente', 'En Progreso']) // Solo pendientes o en proceso
             ->orderBy('part_numbers.production_order', 'asc')
             ->first();
     }

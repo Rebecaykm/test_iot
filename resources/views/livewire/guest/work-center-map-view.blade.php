@@ -40,19 +40,29 @@
                     @php
                         $x = $workCenter->position_x ?? 100 + ($loop->index % 10) * 140;
                         $y = $workCenter->position_y ?? 100 + floor($loop->index / 10) * 120;
-                        $color = $workCenter->line->color ?? '#6c757d';
+                        $lineColor = $workCenter->line->color ?? '#6c757d';
+
+                        // Determinar el color del estado
+                        $statusColor = $workCenter->production_status === 'En progreso' ? '#10b981' : '#ef4444'; // Verde o Rojo
+                        $statusTextColor = 'white';
                     @endphp
 
                     <div class="absolute bg-white rounded shadow border-l-4 p-2 text-xs"
-                         style="left: {{ $x }}px; top: {{ $y }}px; width: 120px; height: 80px; border-left-color: {{ $color }};"
+                         style="left: {{ $x }}px; top: {{ $y }}px; width: 120px; height: 80px; border-left-color: {{ $lineColor }};"
                          wire:key="workcenter-{{ $workCenter->id }}"
                          ondblclick="window.location.href='{{ route('guest.production-records', $workCenter->id) }}'">
 
+                        <!-- Nombre de la estación -->
                         <div class="font-bold truncate my-1">{{ $workCenter->name }}</div>
-                        <div class="text-gray-500 my-1">{{ $workCenter->number }}</div>
+
+                        <!-- Nombre de la línea (donde antes estaba el número) -->
+                        <div class="text-gray-600 my-1 text-xs truncate">{{ $workCenter->line->name ?? 'Sin línea' }}</div>
+
+                        <!-- Estado de producción (donde antes estaba el nombre de la línea) -->
                         <div class="mt-auto">
-                            <span class="text-white text-xs px-2 py-1 rounded-full" style="background-color: {{ $color }}">
-                                {{ $workCenter->line->name ?? 'Sin línea' }}
+                            <span class="text-xs px-2 py-1 rounded-full font-medium"
+                                  style="background-color: {{ $statusColor }}; color: {{ $statusTextColor }}">
+                                {{ $workCenter->production_status }}
                             </span>
                         </div>
                     </div>
@@ -67,6 +77,7 @@
     </div>
     @push('scripts')
         <script>
+
             document.addEventListener('DOMContentLoaded', () => {
                 const container = document.getElementById('map-container');
                 let isPanning = false;
