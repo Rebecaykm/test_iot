@@ -36,7 +36,7 @@ class ProductionRecordView extends Component
         $this->currentShift = Shift::getShift($this->now);
 
         if ($this->lastShiftId !== $this->currentShift?->id) {
-            $this->previousShift = Shift::findPreviousShift($this->currentShift);
+            $this->previousShift = Shift::getPreviousShift($this->currentShift);
             $this->previousProductionRecords();
             $this->lastShiftId = $this->currentShift?->id;
         }
@@ -46,14 +46,17 @@ class ProductionRecordView extends Component
 
     public function previousProductionRecords()
     {
-        if (!$this->previousShift) return;
+        if (!$this->previousShift || !$this->currentShift) return;
 
-        $previousTimeRange = Shift::getShiftDateTimeRange($this->previousShift, $this->now);
+        // Usar el método centralizado del modelo
+        $previousShiftInfo = Shift::getPreviousShiftInfo($this->now);
+
+        if (!$previousShiftInfo->timeRange) return;
 
         $previousProductionRecords = ProductionRecord::getProductionRecords(
             $this->workCenter->name,
-            $this->previousShift->id,
-            $previousTimeRange->startDateTime
+            $previousShiftInfo->shift->id,
+            $previousShiftInfo->timeRange->startDateTime
         );
 
         $this->previousData = $this->formatProductionData($previousProductionRecords);
@@ -63,12 +66,15 @@ class ProductionRecordView extends Component
     {
         if (!$this->currentShift) return;
 
-        $currentTimeRange = Shift::getShiftDateTimeRange($this->currentShift, $this->now);
+        // Usar el método centralizado del modelo
+        $currentShiftInfo = Shift::getCurrentShiftInfo($this->now);
+
+        if (!$currentShiftInfo->timeRange) return;
 
         $currentProductionRecord = ProductionRecord::getProductionRecords(
             $this->workCenter->name,
-            $this->currentShift->id,
-            $currentTimeRange->startDateTime
+            $currentShiftInfo->shift->id,
+            $currentShiftInfo->timeRange->startDateTime
         );
 
         $this->currentData = $this->formatProductionData($currentProductionRecord);
@@ -99,10 +105,11 @@ class ProductionRecordView extends Component
         $status = preg_replace('/\s+/', ' ', mb_strtolower(trim($status), 'UTF-8'));
 
         return match ($status) {
-            'pendiente' => 'text-red-700 bg-red-100',
-            'en progreso' => 'text-blue-700 bg-blue-100',
-            'completado' => 'text-green-700 bg-green-100',
-            default => 'text-gray-700 bg-gray-200'
+            'pendiente' => 'text-orange-700 bg-orange-100',  // Corregido a 'amber' (ámbar)
+            'en progreso' => 'text-blue-700 bg-blue-100',   // Azul para operaciones en curso
+            'completado' => 'text-green-700 bg-green-100',  // Verde para completado
+            'detenido' => 'text-red-700 bg-red-100',        // Rojo para detenido/error
+            default => 'text-gray-700 bg-gray-200'          // Gris por defecto
         };
     }
 

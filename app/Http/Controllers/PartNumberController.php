@@ -64,19 +64,89 @@ class PartNumberController extends Controller
     {
         $visualAids = VisualAid::query()->where('part_number_id', $partNumber->id)->get();
 
-        return view('part-numbers.edit')->with('partNumber', $partNumber)->with('visualAids', $visualAids);
+        // Obtener otros part numbers del mismo work center para mostrar conflictos de orden
+        $partNumbersInSameWorkCenter = PartNumber::where('work_center_id', $partNumber->work_center_id)
+            ->where('id', '!=', $partNumber->id)
+            ->whereNotNull('production_order')
+            ->orderBy('production_order', 'asc')
+            ->get(['id', 'number', 'production_order']);
+
+        return view('part-numbers.edit')
+            ->with('partNumber', $partNumber)
+            ->with('visualAids', $visualAids)
+            ->with('partNumbersInSameWorkCenter', $partNumbersInSameWorkCenter);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, PartNumber $partNumber  )
+    public function update(Request $request, PartNumber $partNumber)
     {
+        // Validación de los campos
+        $request->validate([
+            'efficiency' => 'nullable|numeric|min:0|max:100',
+            'production_order' => 'nullable|integer|min:0'
+        ]);
+
         $efficiency = $request->input("efficiency");
+        $productionOrder = $request->input("production_order");
 
-        $partNumber->update(['efficiency' => $efficiency]);
+        // Preparar los datos a actualizar
+        $dataToUpdate = [];
 
-        return redirect()->back()->with('success', 'Eficiencia Actualizada');
+        if ($request->has('efficiency')) {
+            if ($efficiency !== null && $efficiency !== '') {
+                $dataToUpdate['efficiency'] = $efficiency;
+            } else {
+                // Si está vacío, establecer como null
+                $dataToUpdate['efficiency'] = null;
+            }
+        }
+
+        // Manejar el campo production_order
+        // Verificar si el campo fue enviado en la request (incluso si está vacío)
+        if ($request->has('production_order')) {
+            if ($productionOrder === null || $productionOrder === '' || $productionOrder === 0) {
+                // Si está vacío, es null o es 0, establecer como null
+                $dataToUpdate['production_order'] = null;
+            } else {
+                // Verificar si ya existe otro part number con el mismo orden en el mismo work center
+                $existingPartNumber = PartNumber::where('work_center_id', $partNumber->work_center_id)
+                    ->where('production_order', $productionOrder)
+                    ->where('id', '!=', $partNumber->id)
+                    ->first();
+
+                if ($existingPartNumber) {
+                    return redirect()->back()->withErrors([
+                        'production_order' => "Ya existe otro número de parte ({$existingPartNumber->number}) con el orden {$productionOrder} en esta estación."
+                    ])->withInput();
+                }
+
+                $dataToUpdate['production_order'] = $productionOrder;
+            }
+        }
+
+        // Actualizar solo si hay datos para actualizar
+        if (!empty($dataToUpdate)) {
+            $partNumber->update($dataToUpdate);
+        }
+
+        // Mensaje de éxito personalizado
+        $messages = [];
+        if (isset($dataToUpdate['efficiency'])) {
+            $messages[] = 'eficiencia';
+        }
+        if (array_key_exists('production_order', $dataToUpdate)) {
+            if ($dataToUpdate['production_order'] === null) {
+                $messages[] = 'orden de producción (removida)';
+            } else {
+                $messages[] = 'orden de producción';
+            }
+        }
+
+        $successMessage = !empty($messages) ? 'Actualizado: ' . implode(' y ', $messages) : 'No se realizaron cambios.';
+
+        return redirect()->back()->with('success', $successMessage);
     }
 
     /**
@@ -85,5 +155,19 @@ class PartNumberController extends Controller
     public function destroy(string $id)
     {
         //
+    }
+
+    /**
+     * Método para obtener part numbers ordenados por estación (para AJAX si lo necesitas)
+     */
+    public function getPartNumbersByWorkCenter(Request $request)
+    {
+        $workCenterId = $request->input('work_center_id');
+
+        $partNumbers = PartNumber::where('work_center_id', $workCenterId)
+            ->orderBy('production_order', 'asc')
+            ->get(['id', 'number', 'production_order']);
+
+        return response()->json($partNumbers);
     }
 }

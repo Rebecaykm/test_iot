@@ -25,6 +25,17 @@
                         @csrf
                         @method('PUT')
 
+                        <!-- Mostrar errores de validación -->
+                        @if ($errors->any())
+                            <div class="alert alert-danger">
+                                <ul class="mb-0">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
                         <div class="card-body">
                             <div class="row">
                                 <!-- Campo Estación -->
@@ -101,13 +112,33 @@
                                     </div>
                                 </div>
 
+                                <!-- Campo Orden de Producción -->
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="production_order">Orden de Producción</label>
+                                        <input type="number" min="0" step="1" class="form-control @error('production_order') is-invalid @enderror"
+                                            id="production_order" name="production_order"
+                                            value="{{ old('production_order', $partNumber->production_order) }}"
+                                            placeholder="Dejar vacío si no tiene orden específico">
+                                        @error('production_order')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                        <small class="form-text text-muted">
+                                            Orden en que se debe producir este número de parte en la estación. Puede dejarse vacío.
+                                        </small>
+                                    </div>
+                                </div>
+
                                 <!-- Campo Eficiencia -->
                                 <div class="col-md-4">
                                     <div class="form-group">
                                         <label for="efficiency">Eficiencia (%)</label>
-                                        <input type="number" step="0.01" min="0" max="100" class="form-control"
+                                        <input type="number" step="0.01" min="0" max="100" class="form-control @error('efficiency') is-invalid @enderror"
                                                id="efficiency" name="efficiency"
                                                value="{{ old('efficiency', $partNumber->efficiency) }}">
+                                        @error('efficiency')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
                                     </div>
                                 </div>
                             </div>
@@ -116,13 +147,74 @@
                         <!-- Botón de guardar -->
                         <div class="card-footer d-flex justify-content-end">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-plus mr-2"></i> Guardar
+                                <i class="fas fa-save mr-2"></i> Guardar Cambios
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
+
+        <!-- Sección de información del orden de producción en la estación -->
+        @if($partNumbersInSameWorkCenter->isNotEmpty())
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card card-primary card-outline">
+                    <div class="card-header">
+                        <h3 class="card-title">Orden de Producción en {{ $partNumber->workCenter->name ?? 'Esta Estación' }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Orden</th>
+                                            <th>Número de Parte</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @php
+                                            // Incluir el part number actual y ordenar por production_order, poniendo los null al final
+                                            $allPartNumbers = $partNumbersInSameWorkCenter->concat(collect([$partNumber]))
+                                                ->sortBy(function($item) {
+                                                    return $item->production_order ?? 9999; // Los null van al final
+                                                });
+                                        @endphp
+                                        @foreach($allPartNumbers as $pn)
+                                            <tr class="{{ $pn->id === $partNumber->id ? 'table-warning' : '' }}">
+                                                <td>
+                                                    @if($pn->production_order)
+                                                        <span class="badge badge-primary">{{ $pn->production_order }}</span>
+                                                    @else
+                                                        <span class="badge badge-secondary">Sin orden</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    {{ $pn->number }}
+                                                    @if($pn->id === $partNumber->id)
+                                                        <span class="badge badge-warning ml-2">Actual</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    @if($pn->is_obsolete)
+                                                        <span class="badge badge-danger">Obsoleto</span>
+                                                    @else
+                                                        <span class="badge badge-success">Activo</span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
 
         <!-- Sección de imágenes asociadas -->
         <div class="row mt-4">

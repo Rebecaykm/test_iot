@@ -19,8 +19,48 @@ class PartNumber extends Model
         'efficiency',
         'item_class_id',
         'work_center_id',
-        'is_obsolete'
+        'is_obsolete',
+        'production_order'
     ];
+
+    /**
+     * Scope para ordenar por orden de producción
+     */
+    public function scopeOrderByProduction($query)
+    {
+        return $query->orderBy('production_order', 'asc');
+    }
+
+    /**
+     * Scope para obtener números de parte por work center ordenados
+     */
+    public function scopeByWorkCenterOrdered($query, $workCenterId)
+    {
+        return $query->where('work_center_id', $workCenterId)
+            ->orderBy('production_order', 'asc');
+    }
+
+    /**
+     * Método para obtener el siguiente número de parte en el orden de producción
+     */
+    public function getNextInProductionOrder()
+    {
+        return static::where('work_center_id', $this->work_center_id)
+            ->where('production_order', '>', $this->production_order)
+            ->orderBy('production_order', 'asc')
+            ->first();
+    }
+
+    /**
+     * Método para obtener el número de parte anterior en el orden de producción
+     */
+    public function getPreviousInProductionOrder()
+    {
+        return static::where('work_center_id', $this->work_center_id)
+            ->where('production_order', '<', $this->production_order)
+            ->orderBy('production_order', 'desc')
+            ->first();
+    }
 
     /**
      *
