@@ -15,10 +15,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users');
             $table->foreignId('work_center_id')->constrained('work_centers');
-            $table->string('container_code');
-            $table->string('visual_aid_code');
-            $table->string('final_label_code');
-            $table->string('part_number');
+            $table->string('container_code')->nullable();
+            $table->string('visual_aid_code')->nullable();
+            $table->string('final_label_code')->nullable();
+            $table->string('part_number')->nullable();
             $table->enum('validation_status', ['OK', 'NG']);
             $table->json('validation_details')->nullable();
             $table->timestamps();

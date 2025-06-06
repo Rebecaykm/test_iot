@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MaterialValidation;
+use App\Models\PartNumber;
 use App\Models\WorkCenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,8 @@ class MaterialValidationController extends Controller
     public function store(Request $request): JsonResponse
     {
         try {
+
+            Log::alert($request->all());
             // Validar los datos de entrada
             $validator = Validator::make($request->all(), [
                 'work_center_id' => 'required|integer|exists:work_centers,id',
@@ -25,7 +28,7 @@ class MaterialValidationController extends Controller
                 'visual_aid_code' => 'required|string|max:255',
                 'final_label_code' => 'required|string|max:255',
                 'validation_status' => 'required|in:OK,NG',
-                'part_number' => 'required|string|max:255',
+                'part_number' => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -36,15 +39,23 @@ class MaterialValidationController extends Controller
                 ], 422);
             }
 
-            // Verificar que el usuario tenga acceso al centro de trabajo
+            $accessErrors = [];
+
             $workCenter = WorkCenter::find($request->work_center_id);
             $user = $request->user();
 
             if (!$user->workCenters()->where('work_center_id', $request->work_center_id)->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No tienes acceso a este centro de trabajo'
-                ], 403);
+                $accessErrors[] = 'No tienes acceso a este centro de trabajo';
+            }
+
+            if ($request->filled('part_number')) {
+                $partNumberExists = PartNumber::where('number', 'LIKE', $request->part_number . '%')
+                    ->where('work_center_id', $request->work_center_id)
+                    ->exists();
+
+                if (!$partNumberExists) {
+                    $accessErrors[] = 'El número de parte no pertenece a esta estación de trabajo';
+                }
             }
 
             // Crear el registro de validación
@@ -62,6 +73,7 @@ class MaterialValidationController extends Controller
                     'work_center_name' => $workCenter->name,
                     'work_center_number' => $workCenter->number,
                     'part_number' => $request->part_number,
+                    'access_errors' => $accessErrors,
                     'timestamp' => now()->toISOString(),
                 ]
             ]);
@@ -79,15 +91,23 @@ class MaterialValidationController extends Controller
                 'part_number' => $request->part_number,
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Validación registrada correctamente',
+            $response = [
+                'success' => empty($accessErrors),
+                'message' => empty($accessErrors)
+                    ? 'Validación registrada correctamente'
+                    : 'Validación registrada con errores de acceso',
                 'data' => [
                     'id' => $materialValidation->id,
                     'validation_status' => $materialValidation->validation_status,
                     'created_at' => $materialValidation->created_at,
                 ]
-            ], 201);
+            ];
+
+            if (!empty($accessErrors)) {
+                $response['access_errors'] = $accessErrors;
+            }
+
+            return response()->json($response, 201);
         } catch (\Exception $e) {
             Log::error('Error storing material validation', [
                 'error' => $e->getMessage(),
@@ -174,8 +194,8 @@ class MaterialValidationController extends Controller
             }
 
             $totalValidations = $query->count();
-            $okValidations = $query->byStatus('OK')->count();
-            $ngValidations = $query->byStatus('NG')->count();
+            $okValidations = (clone $query)->byStatus('OK')->count();
+            $ngValidations = (clone $query)->byStatus('NG')->count();
 
             $successRate = $totalValidations > 0 ? ($okValidations / $totalValidations) * 100 : 0;
 
