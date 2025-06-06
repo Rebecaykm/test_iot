@@ -101,6 +101,45 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Sección para asociar estaciones (work centers) -->
+                            <div class="row mt-4">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label class="font-weight-bold">Estaciones Asociadas</label>
+                                        <div class="stations-container">
+                                            @if($workCenters->count() > 0)
+                                                <div class="row">
+                                                    @foreach($workCenters as $workCenter)
+                                                        <div class="col-md-4 mb-2">
+                                                            <div class="custom-control custom-checkbox">
+                                                                <input type="checkbox"
+                                                                       class="custom-control-input"
+                                                                       id="workCenter{{ $workCenter->id }}"
+                                                                       name="work_centers[]"
+                                                                       value="{{ $workCenter->id }}"
+                                                                       {{ in_array($workCenter->id, old('work_centers', [])) ? 'checked' : '' }}>
+                                                                <label class="custom-control-label" for="workCenter{{ $workCenter->id }}">
+                                                                    {{ $workCenter->name }} ({{ $workCenter->number }})
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <div class="alert alert-info">
+                                                    No hay estaciones disponibles para asociar.
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('work_centers')
+                                        <span class="text-danger" role="alert">
+                                            <small><strong>{{ $message }}</strong></small>
+                                        </span>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="card-footer bg-white d-flex justify-content-end py-3">
@@ -140,6 +179,11 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             padding: 10px;
+        }
+
+        .custom-control-label::before,
+        .custom-control-label::after {
+            top: .25rem;
         }
     </style>
 @stop
