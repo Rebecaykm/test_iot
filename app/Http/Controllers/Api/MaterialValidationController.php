@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\MaterialValidation;
 use App\Models\PartNumber;
-use App\Models\WorkCenter;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -19,19 +19,22 @@ class MaterialValidationController extends Controller
     public function store(Request $request): JsonResponse
     {
         try {
+            $accessErrors = [];
 
-            Log::alert($request->all());
-            // Validar los datos de entrada
             $validator = Validator::make($request->all(), [
-                'work_center_id' => 'required|integer|exists:work_centers,id',
                 'container_code' => 'required|string|max:255',
                 'visual_aid_code' => 'required|string|max:255',
                 'final_label_code' => 'required|string|max:255',
                 'validation_status' => 'required|in:OK,NG',
                 'part_number' => 'nullable|string|max:255',
+                'device_model' => 'nullable|string|max:255',
+                'device_name' => 'nullable|string|max:255',
+                'device_id' => 'nullable|string|max:255',
+                'ip_address' => 'nullable|string|max:45',
             ]);
 
             if ($validator->fails()) {
+                $accessErrors[] = 'Datos de validación incorrectos';
                 return response()->json([
                     'success' => false,
                     'message' => 'Datos de validación incorrectos',
@@ -39,29 +42,17 @@ class MaterialValidationController extends Controller
                 ], 422);
             }
 
-            $accessErrors = [];
-
-            $workCenter = WorkCenter::find($request->work_center_id);
             $user = $request->user();
 
-            if (!$user->workCenters()->where('work_center_id', $request->work_center_id)->exists()) {
-                $accessErrors[] = 'No tienes acceso a este centro de trabajo';
-            }
+            $partNumber = PartNumber::where('number', $request->part_number)->first();
 
-            if ($request->filled('part_number')) {
-                $partNumberExists = PartNumber::where('number', 'LIKE', $request->part_number . '%')
-                    ->where('work_center_id', $request->work_center_id)
-                    ->exists();
-
-                if (!$partNumberExists) {
-                    $accessErrors[] = 'El número de parte no pertenece a esta estación de trabajo';
-                }
+            if ($request->filled('part_number') && !$partNumber) {
+                $accessErrors[] = 'El número de parte no existe';
             }
 
             // Crear el registro de validación
             $materialValidation = MaterialValidation::create([
                 'user_id' => $user->id,
-                'work_center_id' => $request->work_center_id,
                 'container_code' => $request->container_code,
                 'visual_aid_code' => $request->visual_aid_code,
                 'final_label_code' => $request->final_label_code,
@@ -70,25 +61,16 @@ class MaterialValidationController extends Controller
                 'validation_details' => [
                     'user_name' => $user->name,
                     'user_email' => $user->email,
-                    'work_center_name' => $workCenter->name,
-                    'work_center_number' => $workCenter->number,
-                    'part_number' => $request->part_number,
+                    'part_number' => $partNumber ? $partNumber->number : null,
+                    'part_name' => $partNumber ? $partNumber->name : null,
+                    'device_model' => $request->device_model,
+                    'device_name' => $request->device_name,
+                    'device_id' => $request->device_id,
+                    'ip_address' => $request->ip_address,
+                    'mac_address' => $request->mac_address,
                     'access_errors' => $accessErrors,
-                    'timestamp' => now()->toISOString(),
+                    'timestamp' => Carbon::now()->format('Y-m-d H:i:s'),
                 ]
-            ]);
-
-            // Log de la validación para auditoría
-            Log::info('Material validation recorded', [
-                'user_id' => $user->id,
-                'user_email' => $user->email,
-                'work_center_id' => $request->work_center_id,
-                'work_center_name' => $workCenter->name,
-                'validation_status' => $request->validation_status,
-                'container_code' => $request->container_code,
-                'visual_aid_code' => $request->visual_aid_code,
-                'final_label_code' => $request->final_label_code,
-                'part_number' => $request->part_number,
             ]);
 
             $response = [
@@ -129,17 +111,17 @@ class MaterialValidationController extends Controller
     {
         try {
             $user = $request->user();
-            $workCenterId = $request->query('work_center_id');
-            $status = $request->query('status');
+            $status = $request->query('validation_status');
             $limit = $request->query('limit', 50);
+
+            // Calcular inicio y fin de la semana actual
+            $startOfWeek = now()->startOfWeek();
+            $endOfWeek = now()->endOfWeek();
 
             $query = MaterialValidation::with(['workCenter', 'user'])
                 ->byUser($user->id)
+                ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
                 ->orderBy('created_at', 'desc');
-
-            if ($workCenterId) {
-                $query->byWorkCenter($workCenterId);
-            }
 
             if ($status) {
                 $query->byStatus($status);
@@ -156,11 +138,6 @@ class MaterialValidationController extends Controller
                         'visual_aid_code' => $validation->visual_aid_code,
                         'final_label_code' => $validation->final_label_code,
                         'validation_status' => $validation->validation_status,
-                        'work_center' => [
-                            'id' => $validation->workCenter->id,
-                            'name' => $validation->workCenter->name,
-                            'number' => $validation->workCenter->number,
-                        ],
                         'created_at' => $validation->created_at,
                     ];
                 })
@@ -174,49 +151,6 @@ class MaterialValidationController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener el historial'
-            ], 500);
-        }
-    }
-
-    /**
-     * Obtener estadísticas de validaciones
-     */
-    public function statistics(Request $request): JsonResponse
-    {
-        try {
-            $user = $request->user();
-            $workCenterId = $request->query('work_center_id');
-
-            $query = MaterialValidation::byUser($user->id);
-
-            if ($workCenterId) {
-                $query->byWorkCenter($workCenterId);
-            }
-
-            $totalValidations = $query->count();
-            $okValidations = (clone $query)->byStatus('OK')->count();
-            $ngValidations = (clone $query)->byStatus('NG')->count();
-
-            $successRate = $totalValidations > 0 ? ($okValidations / $totalValidations) * 100 : 0;
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'total_validations' => $totalValidations,
-                    'ok_validations' => $okValidations,
-                    'ng_validations' => $ngValidations,
-                    'success_rate' => round($successRate, 2),
-                ]
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error fetching validation statistics', [
-                'error' => $e->getMessage(),
-                'user_id' => $request->user()?->id,
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener las estadísticas'
             ], 500);
         }
     }

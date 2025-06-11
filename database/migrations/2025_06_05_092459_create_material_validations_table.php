@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('material_validations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users');
-            $table->foreignId('work_center_id')->constrained('work_centers');
+            $table->foreignId('work_center_id')->nullable()->constrained('work_centers');
             $table->string('container_code')->nullable();
             $table->string('visual_aid_code')->nullable();
             $table->string('final_label_code')->nullable();
