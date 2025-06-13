@@ -14,7 +14,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/work-centers', [AuthController::class, 'workCenters']);
+    Route::get('/user', [AuthController::class, 'user']);
 
     Route::post('/material-validations', [MaterialValidationController::class, 'store']);
     Route::get('/material-validations', [MaterialValidationController::class, 'index']);
@@ -27,4 +27,8 @@ Route::get('/user', function (Request $request) {
 
 Route::get('/test-connection', function () {
     return response()->json(['status' => 'success']);
+});
+
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok'], 200);
 });

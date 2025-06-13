@@ -13,15 +13,17 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'login' => 'required|string',
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $request->login)
+            ->orWhere('nickname', $request->login)
+            ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'email' => ['Las credenciales proporcionadas son incorrectas.'],
+                'login' => ['Las credenciales proporcionadas son incorrectas.'],
             ]);
         }
 
@@ -30,9 +32,6 @@ class AuthController extends Controller
 
         // Crear nuevo token con expiración de 24 horas
         $token = $user->createToken('auth-token', ['*'], now()->addDay())->plainTextToken;
-
-        // Cargar centros de trabajo asignados
-        $user->load('workCenters.line');
 
         return response()->json([
             'user' => $user,
@@ -50,14 +49,13 @@ class AuthController extends Controller
         ]);
     }
 
-    public function workCenters(Request $request)
+    public function user(Request $request)
     {
         $user = $request->user();
-        $user->load('workCenters.line');
+        $user->load(['workCenters' => function ($query) {
+            $query->with('line');
+        }]);
 
-        return response()->json([
-            'user' => $user,
-            'work_centers' => $user->workCenters,
-        ]);
+        return response()->json($user);
     }
 }
