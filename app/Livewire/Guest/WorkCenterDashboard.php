@@ -3,6 +3,7 @@
 namespace App\Livewire\Guest;
 
 use App\Models\ProductionRecord;
+use App\Models\Shift;
 use Carbon\Carbon;
 use Livewire\Component;
 
@@ -48,6 +49,7 @@ class WorkCenterDashboard extends Component
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->where('production_records.planned_date', $this->now->toDateString())
+            ->where('shifts.abbreviation', Shift::getShift($this->now)->abbreviation)
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
             ->orderBy('lines.name', 'asc')
@@ -62,6 +64,7 @@ class WorkCenterDashboard extends Component
                 return $lineGroups->map(function ($workCenterGroups) {
                     return [
                         'id' => $workCenterGroups->first()->work_center_id,
+                        'work_name' => $workCenterGroups->first()->work_name,
                         'color' => $workCenterGroups->first()->line_color,
                         'total_planned' => $workCenterGroups->sum('planned_quantity'),
                         'total_produced' => $workCenterGroups->sum('produced_quantity'),
