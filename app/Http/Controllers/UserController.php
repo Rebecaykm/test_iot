@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\WorkCenter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -42,10 +43,13 @@ class UserController extends Controller
     public function create()
     {
         $roles = Role::query()->where('name', '!=', 'Administrador')->orderBy('name', 'asc')->get();
+        $workCenters = WorkCenter::orderBy('name', 'asc')->get();
 
-        return view('users.create')->with('roles', $roles);
+        return view('users.create', [
+            'roles' => $roles,
+            'workCenters' => $workCenters
+        ]);
     }
-
     /**
      * Store a newly created resource in storage.
      */
@@ -56,6 +60,8 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
+            'work_centers' => 'nullable|array',
+            'work_centers.*' => 'exists:work_centers,id'
         ]);
 
         $user = User::create([
@@ -65,6 +71,11 @@ class UserController extends Controller
         ]);
 
         $user->assignRole($request->role);
+
+        // Asociar estaciones si se enviaron
+        if ($request->has('work_centers')) {
+            $user->workCenters()->sync($request->work_centers);
+        }
 
         return redirect()->route('users.index')->with('success', 'Usuario creado correctamente.');
     }
@@ -83,8 +94,13 @@ class UserController extends Controller
     public function edit(User $user)
     {
         $roles = Role::query()->where('name', '!=', 'Administrador')->orderBy('name', 'asc')->get();
+        $workCenters = WorkCenter::orderBy('name', 'asc')->get();
 
-        return view('users.edit')->with('user', $user)->with('roles', $roles);
+        return view('users.edit', [
+            'user' => $user,
+            'roles' => $roles,
+            'workCenters' => $workCenters
+        ]);
     }
 
     /**
@@ -97,6 +113,8 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email,' . $user->id,
             'role' => 'required|exists:roles,name',
             'password' => 'nullable|string|min:8|confirmed',
+            'work_centers' => 'nullable|array',
+            'work_centers.*' => 'exists:work_centers,id'
         ]);
 
         $data = [
@@ -109,8 +127,10 @@ class UserController extends Controller
         }
 
         $user->update($data);
-
         $user->syncRoles($request->role);
+
+        // Sincronizar estaciones
+        $user->workCenters()->sync($request->work_centers ?? []);
 
         return redirect()->route('users.index')->with('success', 'Usuario actualizado correctamente.');
     }

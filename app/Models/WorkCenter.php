@@ -71,4 +71,14 @@ class WorkCenter extends Model
     {
         return $this->belongsToMany(User::class);
     }
+
+    /**
+     * Relación con las validaciones de material del centro de trabajo
+     *
+     * @return HasMany
+     */
+    public function materialValidations(): HasMany
+    {
+        return $this->hasMany(MaterialValidation::class, 'work_center_id');
+    }
 }
