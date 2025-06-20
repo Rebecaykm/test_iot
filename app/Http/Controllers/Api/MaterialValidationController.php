@@ -31,6 +31,7 @@ class MaterialValidationController extends Controller
                 'device_name' => 'nullable|string|max:255',
                 'device_id' => 'nullable|string|max:255',
                 'ip_address' => 'nullable|string|max:45',
+                'validation_comment' => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -58,6 +59,7 @@ class MaterialValidationController extends Controller
                 'final_label_code' => $request->final_label_code,
                 'part_number' => $request->part_number,
                 'validation_status' => $request->validation_status,
+                'validation_comment' => $request->validation_comment,
                 'validation_details' => [
                     'user_name' => $user->name,
                     'user_email' => $user->email,

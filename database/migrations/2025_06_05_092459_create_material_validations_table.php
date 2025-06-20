@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('final_label_code')->nullable();
             $table->string('part_number')->nullable();
             $table->enum('validation_status', ['OK', 'NG']);
+            $table->string('validation_comment')->nullable();
             $table->json('validation_details')->nullable();
             $table->timestamps();
 

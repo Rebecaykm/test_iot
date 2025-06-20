@@ -18,6 +18,7 @@ class MaterialValidation extends Model
         'final_label_code',
         'part_number',
         'validation_status',
+        'validation_comment',
         'validation_details',
     ];
 
