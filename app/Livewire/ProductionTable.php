@@ -13,15 +13,13 @@ class ProductionTable extends Component
     public $workCenter;
     public $shift;
     public $now;
+    public $data = [];
+    public bool $realTime = false;
 
-    public $startDate;
-    public $endDate;
-    public $data;
-
-    public function mount($workCenter): void
+    public function mount($workCenter, $realTime = false): void
     {
         $this->workCenter = $workCenter;
-
+        $this->realTime = $realTime;
         $this->refreshTable();
     }
 
@@ -29,16 +27,17 @@ class ProductionTable extends Component
     public function refreshTable()
     {
         $this->now = Carbon::now();
-
         $this->shift = Shift::getShift($this->now);
-
         $this->fetchTableData();
     }
 
-    // Método para obtener los datos agrupados
     public function fetchTableData(): void
     {
-        $productionRecords = ProductionRecord::getWorkCenterProductionRecord($this->workCenter, $this->shift->id, $this->now);
+        $productionRecords = ProductionRecord::getWorkCenterProductionRecord(
+            $this->workCenter,
+            $this->shift->id,
+            $this->now
+        );
 
         $this->data = $productionRecords->groupBy('work_name')
             ->map(function ($workCenterGroup) {
@@ -55,7 +54,8 @@ class ProductionTable extends Component
                                 });
                             });
                     });
-            });
+            })
+            ->toArray();
     }
 
     public function render()

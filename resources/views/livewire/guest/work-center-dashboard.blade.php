@@ -73,7 +73,6 @@
                 Alpine.data('chart', () => {
                     return {
                         createChart(canvasElement, workCenterName, planned, produced) {
-                            console.log(`Creating chart for ${workCenterName} with planned: ${planned}, produced: ${produced}`);
                             new Chart(canvasElement, {
                                 type: 'bar',
                                 data: {

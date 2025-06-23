@@ -53,6 +53,43 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Método optimizado para obtener registros de producción con eficiencia
+     */
+    public static function getWorkCenterProductionRecord(string $workCenter, int $shiftId, $now): Collection
+    {
+        return ProductionRecord::query()
+            ->select([
+                'production_records.id AS production_id',
+                'work_centers.number AS work_number',
+                'work_centers.name AS work_name',
+                'part_numbers.number AS part_number',
+                'part_numbers.name AS part_name',
+                'part_numbers.production_rate as production_rate',
+                'part_numbers.efficiency as efficiency', // Agregar eficiencia
+                'part_numbers.production_order as production_order',
+                'production_records.planned_date AS planned_date',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'shifts.abbreviation AS shift_name',
+                'statuses.name AS status_name',
+                'production_records.production_start AS production_start'
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->where('production_records.planned_date', $now->toDateString())
+            ->where('shifts.id', $shiftId)
+            ->where('work_centers.name', 'LIKE', $workCenter)
+            ->where('statuses.id', 7)
+            ->orderBy('part_numbers.production_order', 'asc')
+            ->orderBy('shifts.start_time', 'asc')
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('production_records.production_end', 'desc')
+            ->get();
+    }
+
+    /**
      *
      */
     public static function store(
@@ -80,39 +117,24 @@ class ProductionRecord extends Model
     }
 
     /**
-     * Obtener los registros de producción por WorkCenter ORDENADOS por orden de producción
+     * Método para obtener registros con cache para mejor performance
      */
-    public static function getWorkCenterProductionRecord(string $workCenter, int $shiftId, $now): Collection
+    public static function getCachedWorkCenterProductionRecord(string $workCenter, int $shiftId, $now): Collection
     {
-        return ProductionRecord::query()
-            ->select([
-                'production_records.id AS production_id',
-                'work_centers.number AS work_number',
-                'work_centers.name AS work_name',
-                'part_numbers.number AS part_number',
-                'part_numbers.name AS part_name',
-                'part_numbers.production_rate as production_rate',
-                'part_numbers.production_order as production_order', // Agregamos el campo de orden
-                'production_records.planned_date AS planned_date',
-                'production_records.planned_quantity AS planned_quantity',
-                'production_records.produced_quantity AS produced_quantity',
-                'shifts.abbreviation AS shift_name',
-                'statuses.name AS status_name',
-                'production_records.production_start AS production_start'
-            ])
-            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
-            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
-            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
-            ->where('production_records.planned_date', $now->toDateString())
-            ->where('shifts.id', $shiftId)
-            ->where('work_centers.name', 'LIKE', $workCenter)
-            ->where('statuses.id', 7)
-            ->orderBy('part_numbers.production_order', 'asc') // ORDEN PRINCIPAL por production_order
-            ->orderBy('shifts.start_time', 'asc')
-            ->orderBy('production_records.planned_date', 'asc')
-            ->orderBy('production_records.production_end', 'desc')
-            ->get();
+        $cacheKey = "production_records_{$workCenter}_{$shiftId}_{$now->toDateString()}";
+
+        return cache()->remember($cacheKey, 300, function () use ($workCenter, $shiftId, $now) {
+            return self::getWorkCenterProductionRecord($workCenter, $shiftId, $now);
+        });
+    }
+
+    /**
+     * Método para limpiar cache cuando hay actualizaciones
+     */
+    public static function clearProductionCache(string $workCenter, int $shiftId, $date)
+    {
+        $cacheKey = "production_records_{$workCenter}_{$shiftId}_{$date}";
+        cache()->forget($cacheKey);
     }
 
     public static function getProductionRecords(string $workCenter, int $shiftId, $now): Collection
