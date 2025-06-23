@@ -1,8 +1,8 @@
 <div>
     <div class="w-full h-full" x-data="productionChart" wire:ignore>
         <div class="bg-white rounded-xl shadow-lg overflow-hidden h-full flex flex-col">
-            <!-- Mensaje cuando no hay datos -->
             @if(!$hasData)
+                <!-- Mensaje cuando no hay datos -->
                 <div class="flex-1 flex items-center justify-center">
                     <div class="text-center">
                         <h3 class="text-lg font-medium text-gray-900">No hay datos de producción</h3>
@@ -83,8 +83,8 @@
                         }, {
                             label: 'Real',
                             data: chartData.producedData,
-                            backgroundColor: 'rgba(22, 163, 74, 0.2)',
-                            borderColor: 'rgb(21, 128, 61)',
+                            backgroundColor: chartData.realBgColors,
+                            borderColor: chartData.realBorderColors,
                             borderWidth: 2,
                             borderRadius: 8,
                         }];
@@ -103,7 +103,7 @@
                                 plugins: {
                                     datalabels: {
                                         anchor: 'start',
-                                        align: 'end',
+                                        align: 'center',
                                         color: 'black',
                                         font: {
                                             weight: 'bold',
@@ -170,23 +170,12 @@
                     }
 
                     if (!chart) {
-                        this.createChart();
+                        await this.createChart();
                     } else {
-                        this.updateChartData();
+                        await this.updateChartData();
                     }
                 },
 
-                startRealTimeUpdates() {
-                    // Actualización de datos cada 10 segundos (optimizado)
-                    refreshInterval = setInterval(() => {
-                        $wire.dispatchSelf("refresh-graph");
-                    }, 10000);
-
-                    // Actualización del progreso del plan cada 5 segundos
-                    planProgressInterval = setInterval(() => {
-                        this.updatePlanProgress();
-                    }, 5000);
-                },
 
                 async updateChartData() {
                     if (!chart) return;
@@ -194,13 +183,15 @@
                     try {
                         const chartData = await $wire.getChartData();
 
-                        if (!chartData || !chartData.labels) {
-                            return;
-                        }
+                        if (!chartData || !chartData.labels) return;
 
+                        // Actualizar datos y colores
                         chart.data.labels = chartData.labels;
                         chart.data.datasets[0].data = chartData.planProgress;
                         chart.data.datasets[1].data = chartData.producedData;
+
+                        chart.data.datasets[1].backgroundColor = chartData.realBgColors;
+                        chart.data.datasets[1].borderColor = chartData.realBorderColors;
 
                         chart.update('none');
                     } catch (error) {
@@ -221,6 +212,12 @@
                     } catch (error) {
                         console.error('Error updating plan progress:', error);
                     }
+                },
+
+                startRealTimeUpdates() {
+                    refreshInterval = setInterval(() => {
+                        $wire.dispatchSelf("refresh-graph");
+                    }, 10000);
                 },
 
                 destroy() {

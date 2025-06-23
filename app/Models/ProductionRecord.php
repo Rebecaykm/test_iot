@@ -162,10 +162,10 @@ class ProductionRecord extends Model
             ->where('production_records.planned_date', $now->toDateString())
             ->where('shifts.id', $shiftId)
             ->where('work_centers.name', 'LIKE', $workCenter)
-            ->orderBy('part_numbers.production_order', 'asc') // ORDEN PRINCIPAL por production_order
-            ->orderBy('shifts.start_time', 'asc')
-            ->orderBy('production_records.planned_date', 'asc')
-            ->orderBy('production_records.production_end', 'desc')
+            ->orderBy('part_numbers.production_order', 'asc')
+            // ->orderBy('shifts.start_time', 'asc')
+            // ->orderBy('production_records.planned_date', 'asc')
+            // ->orderBy('production_records.production_end', 'desc')
             ->get();
     }
 

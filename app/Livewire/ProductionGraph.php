@@ -14,6 +14,8 @@ class ProductionGraph extends Component
 {
     public string|null $chartId = null;
     public bool $hasData = false;
+    public array $realBgColors = [];
+    public array $realBorderColors = [];
 
     public array $labels = [];
     public array $plannedData = [];
@@ -28,7 +30,6 @@ class ProductionGraph extends Component
     public $now;
     public $shift;
 
-    // Cache para evitar recálculos innecesarios
     private array $cachedCalculations = [];
     private ?Carbon $lastRefresh = null;
 
@@ -44,26 +45,28 @@ class ProductionGraph extends Component
     #[On('refresh-graph')]
     public function refreshGraph()
     {
-        // Optimización: solo actualizar si han pasado al menos 10 segundos
-        if ($this->lastRefresh && $this->lastRefresh->diffInSeconds(Carbon::now()) < 10) {
-            return;
+        $now = Carbon::now();
+
+        // Permitir actualización si nunca se ha refrescado o si pasaron +9s
+        if (!$this->lastRefresh || $this->lastRefresh->diffInSeconds($now) >= 9) {
+            $this->now = $now;
+            $this->shift = Shift::getShift($this->now);
+
+            if (!$this->shift) {
+                $this->hasData = false;
+                return;
+            }
+
+            $this->lastRefresh = $now;
+            $this->fetchGraphData();
         }
-
-        $this->now = Carbon::now();
-        $this->shift = Shift::getShift($this->now);
-
-        if (!$this->shift) {
-            // Manejar el caso cuando no hay shift
-            $this->hasData = false;
-            return;
-        }
-
-        $this->lastRefresh = Carbon::now();
-        $this->fetchGraphData();
     }
 
     public function fetchGraphData(): void
     {
+        $this->realBgColors = [];
+        $this->realBorderColors = [];
+
         if (!$this->shift) {
             $this->hasData = false;
             return;
@@ -94,6 +97,16 @@ class ProductionGraph extends Component
             $this->productionStart[] = $record->production_start ?
                 Carbon::parse($record->production_start)->toISOString() :
                 Carbon::now()->toISOString();
+
+            if ($record->planned_quantity == 0) {
+                // Naranja - Fondo con opacidad, borde sólido
+                $this->realBgColors[] = 'rgba(255, 159, 64, 0.2)';
+                $this->realBorderColors[] = 'rgb(255, 159, 64)';
+            } else {
+                // Verde - Fondo con opacidad, borde sólido
+                $this->realBgColors[] = 'rgba(22, 163, 74, 0.2)';
+                $this->realBorderColors[] = 'rgb(22, 163, 74)';
+            }
         }
 
         $this->hasData = !empty($this->labels);
@@ -189,6 +202,8 @@ class ProductionGraph extends Component
             'productionRate' => $this->productionRate,
             'efficiency' => $this->efficiency,
             'productionStart' => $this->productionStart,
+            'realBgColors' => $this->realBgColors,
+            'realBorderColors' => $this->realBorderColors,
         ];
     }
 

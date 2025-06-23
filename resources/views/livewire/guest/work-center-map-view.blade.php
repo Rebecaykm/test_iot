@@ -50,7 +50,7 @@
                     <div class="absolute bg-white rounded shadow border-l-4 p-2 text-xs"
                          style="left: {{ $x }}px; top: {{ $y }}px; width: 120px; height: 80px; border-left-color: {{ $lineColor }};"
                          wire:key="workcenter-{{ $workCenter->id }}"
-                         ondblclick="window.location.href='{{ route('guest.production-records', $workCenter->id) }}'">
+                         ondblclick="window.location.href='{{ route('production-dashboard', $workCenter->name) }}'">
 
                         <!-- Nombre de la estación -->
                         <div class="font-bold truncate my-1">{{ $workCenter->name }}</div>
