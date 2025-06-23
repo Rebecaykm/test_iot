@@ -39,7 +39,7 @@
                                     </h3>
                                     <div class="chart-container" style="height: 150px;">
                                         <canvas
-                                            x-init="createChart($el, '{{ $workCenterName }}', {{ $data['planned_percentage'] }}, {{ $data['produced_percentage'] }})"
+                                            x-init="createChart($el, '{{ $workCenterName }}', {{ $data['total_planned'] }}, {{ $data['total_produced'] }})"
                                             class="w-full h-full"
                                         ></canvas>
                                     </div>

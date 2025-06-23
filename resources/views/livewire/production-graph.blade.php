@@ -1,50 +1,93 @@
 <div>
-    <div class="w-full h-full" x-data="chart" wire:ignore>
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden  h-full flex flex-col">
-
-            <!-- Gráfico - Ahora ocupa más espacio -->
-            <div class="flex-1 p-4">
-                <div class="chart-container h-full min-h-[400px]">
-                    <canvas id="{{ $chartId }}" class="w-full h-full"></canvas>
+    <div class="w-full h-full" x-data="productionChart" wire:ignore>
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden h-full flex flex-col">
+            @if(!$hasData)
+                <div class="flex-1 flex items-center justify-center">
+                    <div class="text-center">
+                        <h3 class="text-lg font-medium text-gray-900">No hay datos de producción</h3>
+                        <p class="text-gray-500">No se encontraron registros para el turno actual</p>
+                    </div>
                 </div>
-            </div>
+            @else
+                <div class="flex-1 p-4">
+                    <div class="chart-container h-full min-h-[400px]">
+                        <canvas id="{{ $chartId }}" class="w-full h-full"></canvas>
+                    </div>
+                </div>
+            @endif
         </div>
+    </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
-        @script
-        <script>
-            Alpine.data('chart', () => {
-                return {
-                    init() {
-                        let plannedData = $wire.entangle("plannedData").live.initialValue;
-                        let productionRate = $wire.entangle("productionRate").live.initialValue;
-                        let productionStart = $wire.entangle("productionStart").live.initialValue;
-                        let planProgress = new Array(plannedData.length).fill(0);
+    @script
+    <script>
+        Alpine.data('productionChart', () => {
+            let chart = null;
+            let refreshInterval = null;
 
-                        const ctx = document.getElementById(@json($chartId));
+            return {
+                async init() {
+                    await new Promise(resolve => setTimeout(resolve, 100));
 
-                        ds = [{
+                    if (@json($hasData)) {
+                        this.createChart();
+                    }
+
+                    if (@json($realTime)) {
+                        this.startRealTimeUpdates();
+                    }
+
+                    $wire.on('refresh-graph', () => {
+                        setTimeout(() => {
+                            this.updateOrCreateChart();
+                        }, 100);
+                    });
+                },
+
+                async createChart() {
+                    const ctx = document.getElementById(@json($chartId));
+
+                    if (!ctx) {
+                        console.error('Canvas element not found');
+                        return;
+                    }
+
+                    if (chart) {
+                        chart.destroy();
+                        chart = null;
+                    }
+
+                    try {
+                        const chartData = await $wire.getChartData();
+
+                        if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+                            console.log('No chart data available');
+                            return;
+                        }
+
+                        const datasets = [{
                             label: 'Plan',
-                            data: planProgress,
-                            backgroundColor: 'rgba(37, 99, 235, 0.2)', // Tailwind blue-600 con 80% opacidad
-                            borderColor: 'rgb(29, 78, 216)', // Tailwind blue-700 (para borde)
+                            data: chartData.planProgress,
+                            backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                            borderColor: 'rgb(29, 78, 216)',
                             borderWidth: 2,
                             borderRadius: 8,
                         }, {
                             label: 'Real',
-                            data: $wire.entangle("producedData").live.initialValue,
-                            backgroundColor: 'rgba(22, 163, 74, 0.2)', // Tailwind green-600 con 80% opacidad
-                            borderColor: 'rgb(21, 128, 61)', // Tailwind green-700 (para borde)
+                            data: chartData.producedData,
+                            backgroundColor: chartData.realBgColors,
+                            borderColor: chartData.realBorderColors,
                             borderWidth: 2,
                             borderRadius: 8,
                         }];
-                        var chart = new Chart(ctx, {
+
+                        chart = new Chart(ctx, {
                             type: 'bar',
                             data: {
-                                labels: $wire.entangle("labels").live.initialValue,
-                                datasets: ds,
+                                labels: chartData.labels,
+                                datasets: datasets,
                             },
                             plugins: [ChartDataLabels],
                             options: {
@@ -59,10 +102,14 @@
                                         font: {
                                             weight: 'bold',
                                             size: 16
+                                        },
+                                        formatter: (value) => {
+                                            return value > 0 ? value : '';
                                         }
                                     },
                                     legend: {
-                                        display: false
+                                        display: true,
+                                        position: 'top'
                                     },
                                 },
                                 scales: {
@@ -87,8 +134,8 @@
                                             font: {
                                                 weight: 'bold'
                                             },
-                                            maxRotation: 0,
-                                            minRotation: 0,
+                                            maxRotation: 90,
+                                            minRotation: 90,
                                         }
                                     }
                                 },
@@ -98,47 +145,83 @@
                                 }
                             }
                         });
+                    } catch (error) {
+                        console.error('Error creating chart:', error);
+                    }
+                },
 
-                        if (@json($realTime)) {
-                            // Real
-                            setInterval(() => {
-                                $wire.dispatchSelf("refresh-graph");
-                                chart.data.labels = $wire.entangle("labels").live.initialValue;
-                                chart.data.datasets[1].data = $wire.entangle("producedData").live.initialValue;
-                                chart.update();
-                            }, 1000);
+                async updateOrCreateChart() {
+                    const hasData = @json($hasData);
 
-                            // Plan
-                            setInterval(function() {
-                            let currentDate = new Date();
-
-                            for (let i = 0; i < plannedData.length; i++) {
-
-                                // Verifica si la tasa de producción es 0 o no válida
-                                if (productionRate[i] == 0 || isNaN(productionRate[i])) {
-                                    chart.data.datasets[0].data[i] = plannedData[i];
-                                } else {
-                                    let currentProductionRate = Math.round(3600 / productionRate[i]);
-                                    let currentProductionStart = new Date(productionStart[i]);
-                                    let timeDifference = Math.round((currentDate - currentProductionStart) / 1000);
-                                    let currentQuantity = Math.round(timeDifference / currentProductionRate);
-
-                                    if (planProgress[i] < plannedData[i]) {
-                                        planProgress[i] = Math.min(currentQuantity, plannedData[i]);
-                                    }
-                                }
-
-                                // Actualizar el valor del gráfico sin importar si hubo cambio o no
-                                chart.data.datasets[0].data[i] = planProgress[i];
-                            }
-                            chart.update();
-                        }, 1000);
-
+                    if (!hasData) {
+                        if (chart) {
+                            chart.destroy();
+                            chart = null;
                         }
+                        return;
+                    }
+
+                    if (!chart) {
+                        await this.createChart();
+                    } else {
+                        await this.updateChartData();
+                    }
+                },
+
+                async updateChartData() {
+                    if (!chart) return;
+
+                    try {
+                        const chartData = await $wire.getChartData();
+
+                        if (!chartData || !chartData.labels) return;
+
+                        // Verificar si la estructura de datos cambió
+                        const sameLength = chartData.labels.length === chart.data.labels.length;
+                        let sameLabels = true;
+
+                        if (sameLength) {
+                            for (let i = 0; i < chartData.labels.length; i++) {
+                                if (chartData.labels[i] !== chart.data.labels[i]) {
+                                    sameLabels = false;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (sameLength && sameLabels) {
+                            // Actualización segura
+                            chart.data.datasets[0].data = chartData.planProgress;
+                            chart.data.datasets[1].data = chartData.producedData;
+                            chart.data.datasets[1].backgroundColor = chartData.realBgColors;
+                            chart.data.datasets[1].borderColor = chartData.realBorderColors;
+                            chart.update('none');
+                        } else {
+                            // Recrear el gráfico si cambió la estructura
+                            await this.createChart();
+                        }
+                    } catch (error) {
+                        console.error('Error updating chart data:', error);
+                    }
+                },
+
+                startRealTimeUpdates() {
+                    refreshInterval = setInterval(() => {
+                        $wire.dispatchSelf("refresh-graph");
+                    }, 10500); // 10.5 segundos
+                },
+
+                destroy() {
+                    if (refreshInterval) {
+                        clearInterval(refreshInterval);
+                    }
+                    if (chart) {
+                        chart.destroy();
+                        chart = null;
                     }
                 }
-            });
-        </script>
-        @endscript
-    </div>
+            }
+        });
+    </script>
+    @endscript
 </div>
