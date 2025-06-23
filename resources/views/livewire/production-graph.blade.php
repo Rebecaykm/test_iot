@@ -2,7 +2,6 @@
     <div class="w-full h-full" x-data="productionChart" wire:ignore>
         <div class="bg-white rounded-xl shadow-lg overflow-hidden h-full flex flex-col">
             @if(!$hasData)
-                <!-- Mensaje cuando no hay datos -->
                 <div class="flex-1 flex items-center justify-center">
                     <div class="text-center">
                         <h3 class="text-lg font-medium text-gray-900">No hay datos de producción</h3>
@@ -10,7 +9,6 @@
                     </div>
                 </div>
             @else
-                <!-- Gráfico -->
                 <div class="flex-1 p-4">
                     <div class="chart-container h-full min-h-[400px]">
                         <canvas id="{{ $chartId }}" class="w-full h-full"></canvas>
@@ -28,11 +26,9 @@
         Alpine.data('productionChart', () => {
             let chart = null;
             let refreshInterval = null;
-            let planProgressInterval = null;
 
             return {
                 async init() {
-                    // Esperar un poco para asegurar que el DOM esté listo
                     await new Promise(resolve => setTimeout(resolve, 100));
 
                     if (@json($hasData)) {
@@ -43,7 +39,6 @@
                         this.startRealTimeUpdates();
                     }
 
-                    // Escuchar eventos de Livewire para recrear el gráfico
                     $wire.on('refresh-graph', () => {
                         setTimeout(() => {
                             this.updateOrCreateChart();
@@ -59,7 +54,6 @@
                         return;
                     }
 
-                    // Destruir gráfico existente si existe
                     if (chart) {
                         chart.destroy();
                         chart = null;
@@ -151,8 +145,6 @@
                                 }
                             }
                         });
-
-                        console.log('Chart created successfully');
                     } catch (error) {
                         console.error('Error creating chart:', error);
                     }
@@ -176,7 +168,6 @@
                     }
                 },
 
-
                 async updateChartData() {
                     if (!chart) return;
 
@@ -185,47 +176,44 @@
 
                         if (!chartData || !chartData.labels) return;
 
-                        // Actualizar datos y colores
-                        chart.data.labels = chartData.labels;
-                        chart.data.datasets[0].data = chartData.planProgress;
-                        chart.data.datasets[1].data = chartData.producedData;
+                        // Verificar si la estructura de datos cambió
+                        const sameLength = chartData.labels.length === chart.data.labels.length;
+                        let sameLabels = true;
 
-                        chart.data.datasets[1].backgroundColor = chartData.realBgColors;
-                        chart.data.datasets[1].borderColor = chartData.realBorderColors;
+                        if (sameLength) {
+                            for (let i = 0; i < chartData.labels.length; i++) {
+                                if (chartData.labels[i] !== chart.data.labels[i]) {
+                                    sameLabels = false;
+                                    break;
+                                }
+                            }
+                        }
 
-                        chart.update('none');
+                        if (sameLength && sameLabels) {
+                            // Actualización segura
+                            chart.data.datasets[0].data = chartData.planProgress;
+                            chart.data.datasets[1].data = chartData.producedData;
+                            chart.data.datasets[1].backgroundColor = chartData.realBgColors;
+                            chart.data.datasets[1].borderColor = chartData.realBorderColors;
+                            chart.update('none');
+                        } else {
+                            // Recrear el gráfico si cambió la estructura
+                            await this.createChart();
+                        }
                     } catch (error) {
                         console.error('Error updating chart data:', error);
-                    }
-                },
-
-                async updatePlanProgress() {
-                    if (!chart) return;
-
-                    try {
-                        const chartData = await $wire.getChartData();
-
-                        if (!chartData) return;
-
-                        chart.data.datasets[0].data = chartData.planProgress;
-                        chart.update('none');
-                    } catch (error) {
-                        console.error('Error updating plan progress:', error);
                     }
                 },
 
                 startRealTimeUpdates() {
                     refreshInterval = setInterval(() => {
                         $wire.dispatchSelf("refresh-graph");
-                    }, 10000);
+                    }, 10500); // 10.5 segundos
                 },
 
                 destroy() {
                     if (refreshInterval) {
                         clearInterval(refreshInterval);
-                    }
-                    if (planProgressInterval) {
-                        clearInterval(planProgressInterval);
                     }
                     if (chart) {
                         chart.destroy();

@@ -2,7 +2,6 @@
 
 namespace App\Livewire;
 
-use App\Models\History;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use Carbon\Carbon;
@@ -47,7 +46,6 @@ class ProductionGraph extends Component
     {
         $now = Carbon::now();
 
-        // Permitir actualización si nunca se ha refrescado o si pasaron +9s
         if (!$this->lastRefresh || $this->lastRefresh->diffInSeconds($now) >= 9) {
             $this->now = $now;
             $this->shift = Shift::getShift($this->now);
@@ -105,7 +103,7 @@ class ProductionGraph extends Component
             } else {
                 // Verde - Fondo con opacidad, borde sólido
                 $this->realBgColors[] = 'rgba(22, 163, 74, 0.2)';
-                $this->realBorderColors[] = 'rgb(22, 163, 74)';
+                $this->realBorderColors[] = 'rgb(21, 128, 61)';
             }
         }
 
@@ -115,9 +113,6 @@ class ProductionGraph extends Component
         $this->cachedCalculations = [];
     }
 
-    /**
-     * Calcular el progreso esperado basado en tiempo ciclo y eficiencia
-     */
     public function calculateExpectedProgress(int $index): int
     {
         if (!isset($this->plannedData[$index])) {
@@ -149,14 +144,13 @@ class ProductionGraph extends Component
             // Tiempo transcurrido en segundos
             $elapsedSeconds = abs($currentTime->diffInSeconds($startTime, false));
 
-            // Aplicar eficiencia al tiempo ciclo
-            $effectiveProductionRate = $productionRate * (max($efficiency, 1) / 100);
+            $effectiveProductionRate = $productionRate > 0 ?
+                $productionRate * (max($efficiency, 1) / 100) :
+                0;
 
-            // Calcular tiempo ciclo por pieza en segundos
-            $cycleTimePerPiece = 3600 / $effectiveProductionRate; // 3600 segundos = 1 hora
-
-            // Calcular cantidad esperada
-            $expectedQuantity = intval($elapsedSeconds / $cycleTimePerPiece);
+            $expectedQuantity = $productionRate > 0 ?
+                intval($elapsedSeconds * $effectiveProductionRate / 3600) :
+                0;
 
             // No puede exceder la cantidad planificada
             $result = min($expectedQuantity, $plannedQuantity);
@@ -171,9 +165,6 @@ class ProductionGraph extends Component
         }
     }
 
-    /**
-     * Obtener datos para JavaScript
-     */
     public function getChartData(): array
     {
         if (!$this->hasData) {
@@ -185,6 +176,8 @@ class ProductionGraph extends Component
                 'productionRate' => [],
                 'efficiency' => [],
                 'productionStart' => [],
+                'realBgColors' => [],
+                'realBorderColors' => [],
             ];
         }
 
