@@ -26,6 +26,7 @@ class UserController extends Controller
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('nickname', 'like', "%{$search}%")
                         ->orWhereHas('roles', function ($q) use ($search) {
                             $q->where('name', 'like', "%{$search}%");
                         });
@@ -50,6 +51,7 @@ class UserController extends Controller
             'workCenters' => $workCenters
         ]);
     }
+
     /**
      * Store a newly created resource in storage.
      */
@@ -58,6 +60,7 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
+            'nickname' => 'required|string|max:50|unique:users,nickname|alpha_dash',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
             'work_centers' => 'nullable|array',
@@ -67,6 +70,7 @@ class UserController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'nickname' => $request->nickname,
             'password' => Hash::make($request->password)
         ]);
 
@@ -111,6 +115,7 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
+            'nickname' => 'required|string|max:50|unique:users,nickname,' . $user->id . '|alpha_dash', // Validación para nickname en update
             'role' => 'required|exists:roles,name',
             'password' => 'nullable|string|min:8|confirmed',
             'work_centers' => 'nullable|array',
@@ -120,6 +125,7 @@ class UserController extends Controller
         $data = [
             'name' => $request->name,
             'email' => $request->email,
+            'nickname' => $request->nickname, // Agregado nickname
         ];
 
         if ($request->password) {

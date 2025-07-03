@@ -22,11 +22,48 @@
 </head>
 <body class="bg-gray-50">
 <div class="font-sans text-gray-900 antialiased min-h-screen">
+
+    <!-- Header Global para todas las vistas de invitados -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+            <!-- Logo y título -->
+            <div class="flex items-center space-x-4">
+                <a href="{{ url('/') }}" class="flex items-center hover:opacity-80 transition-opacity duration-200">
+                    <img src="{{ asset('images/ykm.png') }}" alt="Logo" class="h-10 w-auto">
+                </a>
+            </div>
+
+            <!-- Navegación de login -->
+            @if(Route::has('login'))
+                <nav class="flex items-center space-x-4 text-sm">
+                    @auth
+                        <a href="{{ url('/home') }}"
+                           class="px-4 py-2 rounded-md text-gray-700 hover:text-white hover:bg-blue-700 transition duration-200">
+                            Inicio
+                        </a>
+                    @else
+                        <a href="{{ route('login') }}"
+                           class="px-4 py-2 rounded-md text-gray-700 hover:text-white hover:bg-blue-700 transition duration-200">
+                            Iniciar sesión
+                        </a>
+                        @if (Route::has('register'))
+                            <a href="{{ route('register') }}"
+                               class="px-4 py-2 rounded-md text-gray-700 hover:text-white hover:bg-blue-700 transition duration-200">
+                                Registrarse
+                            </a>
+                        @endif
+                    @endauth
+                </nav>
+            @endif
+        </div>
+    </header>
+
+    <!-- Contenido de cada vista -->
     {{ $slot }}
+
 </div>
 
 @livewireScripts
-
 
 <!-- Stack para scripts y estilos adicionales -->
 @stack('scripts')
