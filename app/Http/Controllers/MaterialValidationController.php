@@ -181,6 +181,7 @@ class MaterialValidationController extends Controller
 
     /**
      * Calcular la fecha correcta para un turno específico
+     * CORREGIDO: Manejo adecuado del turno nocturno
      */
     private function calculateShiftDate($shift, $referenceDate)
     {
@@ -188,16 +189,35 @@ class MaterialValidationController extends Controller
 
         if ($shift->abbreviation === 'D') {
             // Turno diurno: usar la fecha de referencia
+            // Ejemplo: Si consulto el 4 de julio, muestro el turno diurno del 4 de julio (08:00-20:00)
             return $date->copy();
         }
 
         if ($shift->abbreviation === 'N') {
-            // Turno nocturno: si estamos pidiendo estadísticas de un día específico,
-            // el turno nocturno de ese día comienza a las 20:00 de ese día
-            return $date->copy();
+            // Turno nocturno: mostrar el turno que TERMINÓ en la fecha de referencia
+            // Ejemplo: Si consulto el 4 de julio, muestro el turno nocturno que terminó el 4 de julio
+            // (es decir, el que comenzó el 3 de julio a las 20:00 y terminó el 4 de julio a las 08:00)
+            return $date->copy()->subDay();
+        }
+
+        // Para otros turnos, verificar si cruzan la medianoche
+        if ($this->isNightShift($shift)) {
+            return $date->copy()->subDay();
         }
 
         return $date->copy();
+    }
+
+    /**
+     * Verificar si un turno es nocturno (cruza la medianoche)
+     */
+    private function isNightShift($shift)
+    {
+        $startTime = Carbon::createFromTimeString($shift->start_time);
+        $endTime = Carbon::createFromTimeString($shift->end_time);
+
+        // Si la hora de fin es menor que la de inicio, cruza la medianoche
+        return $endTime->lessThan($startTime);
     }
 
     /**

@@ -58,4 +58,17 @@ class AuthController extends Controller
 
         return response()->json($user);
     }
+
+    /**
+     * Obtener usuarios con rol de Escaneo
+     */
+    public function getScanUsers()
+    {
+        $users = User::role('Escaneo')
+            ->select('nickname', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($users);
+    }
 }

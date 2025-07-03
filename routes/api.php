@@ -10,6 +10,7 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/scan-users', [AuthController::class, 'getScanUsers']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
