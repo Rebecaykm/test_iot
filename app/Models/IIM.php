@@ -11,9 +11,10 @@ class IIM extends Model
 
     protected $fillable = [
         'IID',
-        'IDESC',
         'IPROD',
+        'IDESC',
         'IREF04',
-        'IMPLC'
+        'IMPLC',
+        'IMSPKT'
     ];
 }

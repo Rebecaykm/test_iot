@@ -5,7 +5,7 @@
                 <div class="flex-1 flex items-center justify-center">
                     <div class="text-center">
                         <h3 class="text-lg font-medium text-gray-900">No hay datos de producción</h3>
-                        <p class="text-gray-500">No se encontraron registros para el turno actual</p>
+                        <p class="text-gray-500">No se encontraron registros</p>
                     </div>
                 </div>
             @else
@@ -94,6 +94,7 @@
                                 responsive: true,
                                 maintainAspectRatio: false,
                                 indexAxis: 'y',
+                                animation: false,
                                 plugins: {
                                     datalabels: {
                                         anchor: 'start',
@@ -138,10 +139,6 @@
                                             minRotation: 90,
                                         }
                                     }
-                                },
-                                animation: {
-                                    duration: 1000,
-                                    easing: 'easeOutQuart'
                                 }
                             }
                         });
@@ -190,11 +187,11 @@
                         }
 
                         if (sameLength && sameLabels) {
-                            // Actualización segura
-                            chart.data.datasets[0].data = chartData.planProgress;
-                            chart.data.datasets[1].data = chartData.producedData;
-                            chart.data.datasets[1].backgroundColor = chartData.realBgColors;
-                            chart.data.datasets[1].borderColor = chartData.realBorderColors;
+                            chart.data.datasets[0].data = [...chartData.planProgress];
+                            chart.data.datasets[1].data = [...chartData.producedData];
+                            chart.data.datasets[1].backgroundColor = [...chartData.realBgColors];
+                            chart.data.datasets[1].borderColor = [...chartData.realBorderColors];
+
                             chart.update('none');
                         } else {
                             // Recrear el gráfico si cambió la estructura
@@ -208,7 +205,7 @@
                 startRealTimeUpdates() {
                     refreshInterval = setInterval(() => {
                         $wire.dispatchSelf("refresh-graph");
-                    }, 10500); // 10.5 segundos
+                    }, 10000); // 10 segundos
                 },
 
                 destroy() {

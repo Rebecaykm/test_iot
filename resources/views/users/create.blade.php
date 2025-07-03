@@ -44,6 +44,37 @@
 
                                 <div class="col-md-6">
                                     <div class="form-group">
+                                        <label for="nickname" class="font-weight-bold">Nombre de Usuario <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control @error('nickname') is-invalid @enderror"
+                                               id="nickname" name="nickname" value="{{ old('nickname') }}"
+                                               placeholder="Ej: miguel_alcala" required>
+                                        <small class="form-text text-muted">Solo letras, números, guiones y guiones bajos</small>
+                                        @error('nickname')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="email" class="font-weight-bold">Correo Electrónico <span
+                                                class="text-danger">*</span></label>
+                                        <input type="email" class="form-control @error('email') is-invalid @enderror"
+                                               id="email" name="email" value="{{ old('email') }}"
+                                               placeholder="Ej: usuario@dominio.com" required>
+                                        @error('email')
+                                        <span class="invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
                                         <label for="role" class="font-weight-bold">Rol</label>
                                         <select class="form-control @error('role') is-invalid @enderror" id="role" name="role">
                                             <option value="">Seleccione un rol...</option>
@@ -61,22 +92,7 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="email" class="font-weight-bold">Correo Electrónico <span
-                                                class="text-danger">*</span></label>
-                                        <input type="email" class="form-control @error('email') is-invalid @enderror"
-                                               id="email" name="email" value="{{ old('email') }}"
-                                               placeholder="Ej: usuario@dominio.com" required>
-                                        @error('email')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="password" class="font-weight-bold">Contraseña <span
                                                 class="text-danger">*</span></label>
@@ -91,7 +107,7 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="password_confirmation" class="font-weight-bold">Confirmar Contraseña
                                             <span class="text-danger">*</span></label>

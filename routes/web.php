@@ -3,6 +3,7 @@
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\LineController;
+use App\Http\Controllers\MaterialValidationController;
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProductionRecordController;
@@ -46,6 +47,8 @@ Route::middleware([
     Route::resource('projects', ProjectController::class)->except('show');
     Route::resource('visual-aids', VisualAidController::class);
     Route::resource('production-records', ProductionRecordController::class);
+    Route::resource('material-validations', MaterialValidationController::class);
+    Route::get('statistics', [MaterialValidationController::class, 'statistics'])->name('material-validations.statistics');
 
     Route::get('work-center-map', function () {
         return view('work-centers.work-center-map');
