@@ -98,12 +98,10 @@ class MaterialValidationController extends Controller
                 : Carbon::now();
 
             $dateStr = $date->toDateString();
+            $isToday = $date->isToday();
 
-            // Obtener todos los turnos ordenados por hora de inicio
-            $shifts = $this->getOrderedShifts();
-
-            // Obtener información de turnos para la fecha seleccionada
-            $shiftInfos = $this->getShiftInfos($shifts, $date);
+            // Obtener turnos para mostrar
+            $shiftsToShow = $this->getShiftsToShow($date, $isToday);
 
             // Obtener todos los escaneos del día seleccionado con eager loading
             $scansToday = MaterialValidation::with(['user:id,name,nickname,profile_photo_path'])
@@ -123,15 +121,19 @@ class MaterialValidationController extends Controller
             // Calcular estadísticas o usar valores por defecto
             if ($scansToday->isEmpty()) {
                 $dailyStats = $emptyStats;
-                $shiftStats = $this->getEmptyShiftStats($shifts, $emptyStats);
+                $shiftStats = $this->getEmptyShiftStats($shiftsToShow['shifts'], $emptyStats);
                 $userStats = collect();
                 $hourlyStats = $this->getEmptyHourlyStats();
             } else {
                 $dailyStats = $this->getDailyStats($scansToday);
-                $shiftStats = $this->getShiftStats($shiftInfos);
+                $shiftStats = $this->getShiftStats($shiftsToShow['shiftInfos']);
                 $userStats = $this->getUserStats($scansToday);
                 $hourlyStats = $this->getHourlyStats($scansToday);
             }
+
+            // CORRECCIÓN: Definir las variables antes de pasarlas al compact
+            $shiftInfos = $shiftsToShow['shiftInfos'];
+            $shifts = $shiftsToShow['shifts'];
 
             return view('material-validations.statistics', compact(
                 'dailyStats',
@@ -139,7 +141,8 @@ class MaterialValidationController extends Controller
                 'userStats',
                 'hourlyStats',
                 'shiftInfos',
-                'shifts'
+                'shifts',
+                'isToday'
             ));
         } catch (\Exception $e) {
             // Log del error
@@ -151,61 +154,236 @@ class MaterialValidationController extends Controller
     }
 
     /**
-     * Obtener todos los turnos ordenados por hora de inicio
+     * Obtener los turnos que se deben mostrar según la fecha
      */
-    private function getOrderedShifts()
+    private function getShiftsToShow($date, $isToday)
     {
-        return Shift::orderBy('start_time', 'asc')->get();
-    }
-
-    /**
-     * Obtener información de todos los turnos para la fecha dada
-     */
-    private function getShiftInfos($shifts, $date)
-    {
+        $shifts = [];
         $shiftInfos = [];
 
-        foreach ($shifts as $shift) {
-            $shiftDate = $this->calculateShiftDate($shift, $date);
-            $timeRange = $this->getShiftDateTimeRange($shift, $shiftDate);
+        if ($isToday) {
+            // Para el día actual: mostrar turno anterior y turno actual
+            $now = Carbon::now();
+            $currentShift = $this->getCurrentShift($now);
 
-            $shiftInfos[] = (object) [
-                'shift' => $shift,
-                'date' => $shiftDate,
-                'timeRange' => $timeRange
-            ];
+            if ($currentShift) {
+                $previousShift = $this->getPreviousShift($currentShift);
+
+                // Agregar turno anterior primero
+                if ($previousShift) {
+                    $shifts[] = $previousShift;
+                    $shiftInfos[] = $this->getPreviousShiftInfo($now, $previousShift);
+                }
+
+                // Agregar turno actual
+                $shifts[] = $currentShift;
+                $shiftInfos[] = $this->getCurrentShiftInfo($now, $currentShift);
+            }
+        } else {
+            // Para días anteriores: mostrar turnos en orden cronológico
+            $allShifts = Shift::orderBy('start_time', 'asc')->get();
+
+            foreach ($allShifts as $shift) {
+                $shifts[] = $shift;
+                $shiftInfos[] = $this->getShiftInfoForDate($shift, $date);
+            }
         }
 
-        return $shiftInfos;
+        return [
+            'shifts' => $shifts,
+            'shiftInfos' => $shiftInfos
+        ];
     }
 
     /**
-     * Calcular la fecha correcta para un turno específico
-     * CORREGIDO: Manejo adecuado del turno nocturno
+     * Obtener el turno actual basado en la hora actual
      */
-    private function calculateShiftDate($shift, $referenceDate)
+    private function getCurrentShift($now)
     {
-        $date = Carbon::parse($referenceDate);
+        $shifts = Shift::all();
+        $currentTime = $now->format('H:i:s');
+
+        foreach ($shifts as $shift) {
+            if ($this->isTimeInShift($currentTime, $shift)) {
+                return $shift;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Verificar si una hora está dentro de un turno
+     */
+    private function isTimeInShift($time, $shift)
+    {
+        $startTime = $shift->start_time;
+        $endTime = $shift->end_time;
+
+        if ($startTime <= $endTime) {
+            // Turno que no cruza medianoche
+            return $time >= $startTime && $time <= $endTime;
+        } else {
+            // Turno que cruza medianoche
+            return $time >= $startTime || $time <= $endTime;
+        }
+    }
+
+    /**
+     * Obtener el turno anterior al turno actual
+     */
+    private function getPreviousShift($currentShift)
+    {
+        $allShifts = Shift::orderBy('start_time', 'asc')->get();
+        $currentIndex = $allShifts->search(function ($shift) use ($currentShift) {
+            return $shift->id === $currentShift->id;
+        });
+
+        if ($currentIndex === false || $currentIndex === 0) {
+            return $allShifts->last(); // Si es el primero, devolver el último
+        }
+
+        return $allShifts[$currentIndex - 1];
+    }
+
+    /**
+     * Obtener información del turno anterior
+     */
+    private function getPreviousShiftInfo($now, $previousShift)
+    {
+        $timeRange = $this->getPreviousShiftTimeRange($previousShift, $now);
+
+        return (object) [
+            'shift' => $previousShift,
+            'date' => $timeRange->startDateTime->toDateString(),
+            'timeRange' => $timeRange,
+            'label' => 'Turno Anterior'
+        ];
+    }
+
+    /**
+     * Obtener información del turno actual
+     */
+    private function getCurrentShiftInfo($now, $currentShift)
+    {
+        $timeRange = $this->getCurrentShiftTimeRange($currentShift, $now);
+
+        return (object) [
+            'shift' => $currentShift,
+            'date' => $timeRange->startDateTime->toDateString(),
+            'timeRange' => $timeRange,
+            'label' => 'Turno Actual'
+        ];
+    }
+
+    /**
+     * Obtener información del turno para una fecha específica
+     */
+    private function getShiftInfoForDate($shift, $date)
+    {
+        $timeRange = $this->getShiftTimeRangeForDate($shift, $date);
+
+        return (object) [
+            'shift' => $shift,
+            'date' => $date->toDateString(),
+            'timeRange' => $timeRange,
+            'label' => $shift->name
+        ];
+    }
+
+    /**
+     * Obtener rango de tiempo del turno anterior
+     */
+    private function getPreviousShiftTimeRange($shift, $now)
+    {
+        if ($shift->abbreviation === 'D') {
+            // Turno diurno anterior
+            $date = $now->copy()->subDay();
+            $startDateTime = $date->copy()->setTimeFromTimeString($shift->start_time);
+            $endDateTime = $date->copy()->setTimeFromTimeString($shift->end_time);
+        } else {
+            // Turno nocturno anterior
+            if ($this->isNightShift($shift)) {
+                $date = $now->copy()->subDay();
+                $startDateTime = $date->copy()->setTimeFromTimeString($shift->start_time);
+                $endDateTime = $date->copy()->addDay()->setTimeFromTimeString($shift->end_time);
+            } else {
+                $date = $now->copy()->subDay();
+                $startDateTime = $date->copy()->setTimeFromTimeString($shift->start_time);
+                $endDateTime = $date->copy()->setTimeFromTimeString($shift->end_time);
+            }
+        }
+
+        return (object)[
+            'shift' => $shift->abbreviation,
+            'startDateTime' => $startDateTime,
+            'endDateTime' => $endDateTime
+        ];
+    }
+
+    /**
+     * Obtener rango de tiempo del turno actual
+     */
+    private function getCurrentShiftTimeRange($shift, $now)
+    {
+        if ($shift->abbreviation === 'D') {
+            // Turno diurno actual
+            $startDateTime = $now->copy()->setTimeFromTimeString($shift->start_time);
+            $endDateTime = $now->copy()->setTimeFromTimeString($shift->end_time);
+        } else {
+            // Turno nocturno actual
+            if ($this->isNightShift($shift)) {
+                $currentTime = $now->format('H:i:s');
+                if ($currentTime >= $shift->start_time) {
+                    // Estamos en la primera parte del turno nocturno
+                    $startDateTime = $now->copy()->setTimeFromTimeString($shift->start_time);
+                    $endDateTime = $now->copy()->addDay()->setTimeFromTimeString($shift->end_time);
+                } else {
+                    // Estamos en la segunda parte del turno nocturno
+                    $startDateTime = $now->copy()->subDay()->setTimeFromTimeString($shift->start_time);
+                    $endDateTime = $now->copy()->setTimeFromTimeString($shift->end_time);
+                }
+            } else {
+                $startDateTime = $now->copy()->setTimeFromTimeString($shift->start_time);
+                $endDateTime = $now->copy()->setTimeFromTimeString($shift->end_time);
+            }
+        }
+
+        return (object)[
+            'shift' => $shift->abbreviation,
+            'startDateTime' => $startDateTime,
+            'endDateTime' => $endDateTime
+        ];
+    }
+
+    /**
+     * Obtener rango de tiempo del turno para una fecha específica
+     */
+    private function getShiftTimeRangeForDate($shift, $date)
+    {
+        $referenceDate = Carbon::parse($date);
 
         if ($shift->abbreviation === 'D') {
-            // Turno diurno: usar la fecha de referencia
-            // Ejemplo: Si consulto el 4 de julio, muestro el turno diurno del 4 de julio (08:00-20:00)
-            return $date->copy();
+            // Turno diurno
+            $startDateTime = $referenceDate->copy()->setTimeFromTimeString($shift->start_time);
+            $endDateTime = $referenceDate->copy()->setTimeFromTimeString($shift->end_time);
+        } else {
+            // Turno nocturno
+            if ($this->isNightShift($shift)) {
+                // El turno nocturno que terminó en la fecha consultada
+                $startDateTime = $referenceDate->copy()->subDay()->setTimeFromTimeString($shift->start_time);
+                $endDateTime = $referenceDate->copy()->setTimeFromTimeString($shift->end_time);
+            } else {
+                $startDateTime = $referenceDate->copy()->setTimeFromTimeString($shift->start_time);
+                $endDateTime = $referenceDate->copy()->setTimeFromTimeString($shift->end_time);
+            }
         }
 
-        if ($shift->abbreviation === 'N') {
-            // Turno nocturno: mostrar el turno que TERMINÓ en la fecha de referencia
-            // Ejemplo: Si consulto el 4 de julio, muestro el turno nocturno que terminó el 4 de julio
-            // (es decir, el que comenzó el 3 de julio a las 20:00 y terminó el 4 de julio a las 08:00)
-            return $date->copy()->subDay();
-        }
-
-        // Para otros turnos, verificar si cruzan la medianoche
-        if ($this->isNightShift($shift)) {
-            return $date->copy()->subDay();
-        }
-
-        return $date->copy();
+        return (object)[
+            'shift' => $shift->abbreviation,
+            'startDateTime' => $startDateTime,
+            'endDateTime' => $endDateTime
+        ];
     }
 
     /**
@@ -221,35 +399,7 @@ class MaterialValidationController extends Controller
     }
 
     /**
-     * Obtener rango de fecha y hora del turno
-     */
-    private function getShiftDateTimeRange($shift, $referenceDate)
-    {
-        if (!$shift) {
-            return null;
-        }
-
-        $date = Carbon::parse($referenceDate);
-
-        if ($shift->abbreviation === 'D') {
-            // Turno diurno: 08:00 - 20:00 del mismo día
-            $startDateTime = $date->copy()->setTimeFromTimeString($shift->start_time);
-            $endDateTime = $date->copy()->setTimeFromTimeString($shift->end_time);
-        } else {
-            // Turno nocturno: 20:00 de un día - 08:00 del día siguiente
-            $startDateTime = $date->copy()->setTimeFromTimeString($shift->start_time);
-            $endDateTime = $date->copy()->addDay()->setTimeFromTimeString($shift->end_time);
-        }
-
-        return (object)[
-            'shift' => $shift->abbreviation,
-            'startDateTime' => $startDateTime,
-            'endDateTime' => $endDateTime
-        ];
-    }
-
-    /**
-     * Obtener estadísticas de turnos ordenadas
+     * Obtener estadísticas de turnos
      */
     private function getShiftStats($shiftInfos)
     {

@@ -86,25 +86,48 @@
                         'ok_percentage' => 0,
                         'ng_percentage' => 0
                     ];
+
+                    // Determinar el título del turno
+                    $shiftTitle = $shiftInfo->label ?? $shift->name ?? $shift->abbreviation;
+
+                    // Determinar el color del badge
+                    $badgeClass = 'bg-secondary';
+                    if (isset($isToday) && $isToday) {
+                        $badgeClass = $index === 0 ? 'bg-warning' : 'bg-primary'; // Anterior = warning, Actual = primary
+                    } else {
+                        $badgeClass = $shift->abbreviation === 'D' ? 'bg-primary' : 'bg-secondary';
+                    }
                 @endphp
 
                 <div class="col-md-6 mb-3">
                     <div class="card card-uniform-height">
                         <div class="card-header bg-light">
-                            <h3 class="card-title">Turno {{ $shift->name ?? $shift->abbreviation }}</h3>
+                            <h3 class="card-title">
+                                {{ $shiftTitle }}
+                                @if(isset($isToday) && $isToday)
+                                    <small class="text-muted ml-2">
+                                        {{ $index === 0 ? '(Anterior)' : '(Actual)' }}
+                                    </small>
+                                @endif
+                            </h3>
                         </div>
                         <div class="card-body d-flex flex-column">
                             @if($shiftInfo && $shiftInfo->timeRange)
                                 <div class="shift-content flex-grow-1">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <div>
-                                            <span class="badge {{ $shift->abbreviation === 'D' ? 'bg-primary' : 'bg-secondary' }}">
-                                                {{ $shift->abbreviation }}
-                                            </span>
+                                        <span class="badge {{ $badgeClass }}">
+                                            {{ $shift->abbreviation }}
+                                        </span>
                                             <span class="ml-2">
-                                                {{ $shiftInfo->timeRange->startDateTime->format('H:i') }} -
-                                                {{ $shiftInfo->timeRange->endDateTime->format('H:i') }}
-                                            </span>
+                                            {{ $shiftInfo->timeRange->startDateTime->format('H:i') }} -
+                                            {{ $shiftInfo->timeRange->endDateTime->format('H:i') }}
+                                        </span>
+                                            @if($shiftInfo->timeRange->startDateTime->format('d/m') !== $shiftInfo->timeRange->endDateTime->format('d/m'))
+                                                <small class="text-muted">
+                                                    ({{ $shiftInfo->timeRange->startDateTime->format('d/m') }} - {{ $shiftInfo->timeRange->endDateTime->format('d/m') }})
+                                                </small>
+                                            @endif
                                         </div>
                                         <div>
                                             <span class="badge bg-success">{{ $shiftStat['ok'] }} OK</span>
@@ -136,7 +159,7 @@
                                 <div class="alert alert-info text-center py-4 m-0 flex-grow-1 d-flex align-items-center justify-content-center">
                                     <div>
                                         <i class="fas fa-info-circle mr-2"></i>
-                                        No hay datos para el turno {{ $shift->name ?? $shift->abbreviation }}
+                                        No hay datos para {{ $shiftTitle }}
                                     </div>
                                 </div>
                             @endif
