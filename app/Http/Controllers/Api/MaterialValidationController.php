@@ -53,71 +53,70 @@ class MaterialValidationController extends Controller
             }
 
             // Enviar datos a la API externa antes de crear el registro
-//            $externalApiResponse = null;
-//            try {
-//                $response = Http::withHeaders([
-//                    'Accept' => 'application/json',
-//                    'Content-Type' => 'application/json',
-//                    'X-Auth-Channel' => '0C5A15CC-DD57-4C4F-81DF-730AFA796967'
-//                ])
-//                    ->timeout(30) // Timeout de 30 segundos
-//                    ->post('http://192.168.130.16:8980/ykm-monitor/qualitylog', [
-//                        'barcode' => $request->final_label_code,
-//                        'status' => $request->validation_status,
-//                        'comments' => $request->validation_comment
-//                    ]);
-//
-//                // Capturar la respuesta completa
-//                $externalApiResponse = [
-//                    'status_code' => $response->status(),
-//                    'response_body' => $response->json(),
-//                    'request_sent' => [
-//                        'barcode' => $request->final_label_code,
-//                        'status' => $request->validation_status,
-//                        'comments' => $request->validation_comment
-//                    ],
-//                    'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
-//                ];
-//
-//                // Verificar si la respuesta fue exitosa
-//                if (!$response->successful()) {
-//                    $accessErrors[] = 'Error al enviar datos a la API externa';
-//                    Log::warning('Error enviando datos a API externa', [
-//                        'status' => $response->status(),
-//                        'response' => $response->body(),
-//                        'request_data' => [
-//                            'barcode' => $request->final_label_code,
-//                            'status' => $request->validation_status,
-//                            'comments' => $request->validation_comment
-//                        ]
-//                    ]);
-//                }
-//
-//            } catch (\Exception $e) {
-//                $accessErrors[] = 'Error de conexión con la API externa';
-//
-//                // Capturar el error en la respuesta
-//                $externalApiResponse = [
-//                    'status_code' => null,
-//                    'response_body' => null,
-//                    'error' => $e->getMessage(),
-//                    'request_sent' => [
-//                        'barcode' => $request->final_label_code,
-//                        'status' => $request->validation_status,
-//                        'comments' => $request->validation_comment
-//                    ],
-//                    'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
-//                ];
-//
-//                Log::error('Error conectando con API externa', [
-//                    'error' => $e->getMessage(),
-//                    'request_data' => [
-//                        'barcode' => $request->final_label_code,
-//                        'status' => $request->validation_status,
-//                        'comments' => $request->validation_comment
-//                    ]
-//                ]);
-//            }
+            $externalApiResponse = null;
+            try {
+                $response = Http::withHeaders([
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                    'X-Auth-Channel' => '0C5A15CC-DD57-4C4F-81DF-730AFA796967'
+                ])
+                    ->timeout(30) // Timeout de 30 segundos
+                    ->post('http://192.168.130.16:8980/ykm-monitor/qualitylog', [
+                        'barcode' => $request->final_label_code,
+                        'status' => $request->validation_status,
+                        'comments' => $request->validation_comment
+                    ]);
+
+                // Capturar la respuesta completa
+                $externalApiResponse = [
+                    'status_code' => $response->status(),
+                    'response_body' => $response->json(),
+                    'request_sent' => [
+                        'barcode' => $request->final_label_code,
+                        'status' => $request->validation_status,
+                        'comments' => $request->validation_comment
+                    ],
+                    'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
+                ];
+
+                // Verificar si la respuesta fue exitosa
+                if (!$response->successful()) {
+                    $accessErrors[] = 'Error al enviar datos a la API externa';
+                    Log::warning('Error enviando datos a API externa', [
+                        'status' => $response->status(),
+                        'response' => $response->body(),
+                        'request_data' => [
+                            'barcode' => $request->final_label_code,
+                            'status' => $request->validation_status,
+                            'comments' => $request->validation_comment
+                        ]
+                    ]);
+                }
+            } catch (\Exception $e) {
+                $accessErrors[] = 'Error de conexión con la API externa';
+
+                // Capturar el error en la respuesta
+                $externalApiResponse = [
+                    'status_code' => null,
+                    'response_body' => null,
+                    'error' => $e->getMessage(),
+                    'request_sent' => [
+                        'barcode' => $request->final_label_code,
+                        'status' => $request->validation_status,
+                        'comments' => $request->validation_comment
+                    ],
+                    'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
+                ];
+
+                Log::error('Error conectando con API externa', [
+                    'error' => $e->getMessage(),
+                    'request_data' => [
+                        'barcode' => $request->final_label_code,
+                        'status' => $request->validation_status,
+                        'comments' => $request->validation_comment
+                    ]
+                ]);
+            }
 
             // Crear el registro de validación
             $materialValidation = MaterialValidation::create([
@@ -139,7 +138,7 @@ class MaterialValidationController extends Controller
                     'ip_address' => $request->ip_address,
                     'mac_address' => $request->mac_address,
                     'access_errors' => $accessErrors,
-//                    'external_api_response' => $externalApiResponse,
+                    'external_api_response' => $externalApiResponse,
                     'timestamp' => Carbon::now()->format('Y-m-d H:i:s'),
                 ]
             ]);

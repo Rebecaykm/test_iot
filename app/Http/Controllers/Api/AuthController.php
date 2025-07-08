@@ -64,7 +64,7 @@ class AuthController extends Controller
      */
     public function getScanUsers()
     {
-        $users = User::role('Escaneo')
+        $users = User::role('Escaneo Usuario')
             ->select('nickname', 'name')
             ->orderBy('name')
             ->get();
