@@ -47,6 +47,9 @@ Route::middleware([
     Route::resource('projects', ProjectController::class)->except('show');
     Route::resource('visual-aids', VisualAidController::class);
     Route::resource('production-records', ProductionRecordController::class);
+    Route::get('production-records-summary', [ProductionRecordController::class, 'summary'])->name('production-records.summary');
+
+    // Escaneo de Tres Puntos
     Route::resource('material-validations', MaterialValidationController::class);
     Route::get('statistics', [MaterialValidationController::class, 'statistics'])->name('material-validations.statistics');
 

@@ -407,9 +407,12 @@ return [
                 [
                     'text' => 'Registro de Producción',
                     'route'  => 'production-records.index',
-                    'icon' => 'fas fa-fw fa-clipboard-list',
                     'can' => 'view production records'
                 ],
+                [
+                    'text' => 'Resumen de Producción',
+                    'route' => 'production-records.summary',
+                ]
             ],
         ],
         [
@@ -419,13 +422,11 @@ return [
                 [
                     'text' => 'Historial de Escaneo',
                     'route'  => 'material-validations.index',
-                    'icon' => 'fas fa-fw fa-table',
                     'can' => 'view material validations'
                 ],
                 [
                     'text' => 'Historial de Escaneo',
                     'route'  => 'material-validations.statistics',
-                    'icon' => 'fas fa-fw fa-chart-bar',
                     'can' => 'view material validations'
                 ]
             ]

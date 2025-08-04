@@ -44,7 +44,7 @@ class ProductionRecordController extends Controller
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->join('lines', 'work_centers.line_id', '=', 'lines.id')
             ->where('production_records.synced_to_infor', false)
-            ->where('statuses.name', 'LIKE', 'Completado')
+            // ->where('statuses.name', 'LIKE', 'Completado')
             ->whereIn('work_centers.name', $workCentersArray)
             ->whereBetween('production_records.planned_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
             ->when($search, function ($query, $search) {
@@ -61,6 +61,75 @@ class ProductionRecordController extends Controller
             ->paginate(10);
 
         return view('production-records.index', compact('productionRecords'));
+    }
+
+    /**
+     *
+     */
+    public function summary(Request $request)
+    {
+        // Obtener estaciones asociadas al usuario actual
+        $user = Auth::user();
+        $workCenters = $user->workCenters; // colección de WorkCenter
+        $workCenterNames = $workCenters->pluck('name')->toArray();
+
+        // Parámetros de filtro
+        $filterCenter = $request->input('work_center');    // nombre de la estación
+        $searchPart   = $request->input('search');         // parte
+        $startDate    = $request->input('startDate')
+            ? Carbon::parse($request->input('startDate'))->toDateString()
+            : Carbon::now()->toDateString();
+        $endDate      = $request->input('endDate')
+            ? Carbon::parse($request->input('endDate'))->toDateString()
+            : Carbon::now()->addDay()->toDateString();
+
+        // Construcción de la consulta
+        $query = ProductionRecord::query()
+            // Joins para traer datos relacionados
+            ->select([
+                'work_centers.number                    AS work_number',
+                'work_centers.name                      AS work_name',
+                'part_numbers.number                    AS part_number',
+                'part_numbers.name                      AS part_name',
+                'production_records.planned_date        AS planned_date',
+                'shifts.abbreviation                    AS shift_name',
+                'production_records.planned_quantity    AS planned_quantity',
+                'production_records.produced_quantity   AS produced_quantity',
+                'production_records.scrap_quantity      AS scrap_quantity',
+                'production_records.production_start    AS production_start',
+                'production_records.production_end      AS production_end',
+            ])
+            ->join('part_numbers',     'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers',     'part_numbers.work_center_id',   '=', 'work_centers.id')
+            ->join('shifts',           'production_records.shift_id',   '=', 'shifts.id')
+            // Sólo estaciones del usuario
+            ->whereIn('work_centers.name', $workCenterNames)
+            // Filtro de estación (opcional)
+            ->when($filterCenter, function ($q) use ($filterCenter) {
+                $q->where('work_centers.name', $filterCenter);
+            })
+            // Rango de fecha planeada
+            ->whereBetween('production_records.planned_date', [$startDate, $endDate])
+            // Filtro por número de parte (opcional)
+            ->when($searchPart, function ($q) use ($searchPart) {
+                $q->where('part_numbers.number', 'like', "%{$searchPart}%");
+            })
+            // Ordenamiento: fecha, turno, número de parte
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('shifts.start_time', 'asc')
+            ->orderBy('part_numbers.number', 'asc');
+            // ->withQueryString();
+            //
+            $productionRecords = $query->get();
+
+        return view('production-records.summary', [
+            'productionRecords' => $productionRecords,
+            'workCenters'       => $workCenters,
+            'selectedCenter'    => $filterCenter,
+            'search'            => $searchPart,
+            'startDate'         => $startDate,
+            'endDate'           => $endDate,
+        ]);
     }
 
     /**
@@ -155,7 +224,6 @@ class ProductionRecordController extends Controller
             });
 
             return redirect()->back()->with('success', 'Cantidad de scrap actualizada.');
-
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Error al sincronizar con Infor: ' . $e->getMessage());
@@ -280,9 +348,7 @@ class ProductionRecordController extends Controller
     /**
      *
      */
-    public function getProductionPlan()
-    {
-    }
+    public function getProductionPlan() {}
 
     /**
      *
@@ -349,7 +415,7 @@ class ProductionRecordController extends Controller
             ->where(function ($query) use ($now) {
                 // Turno diurno: 08:00 - 20:00
                 $query->where('name', 'Diurno') // Asegúrate de que esto coincida con el nombre del turno en tu tabla
-                ->whereTime('start_time', '<=', $now)
+                    ->whereTime('start_time', '<=', $now)
                     ->whereTime('end_time', '>', $now);
             })
             ->orWhere(function ($query) use ($now) {
@@ -357,7 +423,7 @@ class ProductionRecordController extends Controller
                 $query->where('name', 'Nocturno')
                     ->where(function ($nestedQuery) use ($now) {
                         $nestedQuery->whereTime('start_time', '<=', $now) // Hoy entre 20:00 y 23:59
-                        ->orWhereTime('end_time', '>=', $now); // Mañana entre 00:00 y 08:00
+                            ->orWhereTime('end_time', '>=', $now); // Mañana entre 00:00 y 08:00
                     });
             })
             ->first();
