@@ -9,7 +9,7 @@
 @stop
 
 @section('content')
-<div class="card border-0 shadow-sm rounded-3">
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
     <div class="card-body">
         <!-- Filtros Simplificados -->
         <form method="GET" action="{{ route('production-records.summary') }}" class="row g-3 mb-4 align-items-end">
@@ -31,7 +31,6 @@
                 <label for="startDate" class="form-label mb-1">Desde</label>
                 <input type="date" name="startDate" id="startDate" class="form-control" value="{{ $startDate }}">
             </div>
-
             <div class="col-md-2 col-sm-6">
                 <label for="endDate" class="form-label mb-1">Hasta</label>
                 <input type="date" name="endDate" id="endDate" class="form-control" value="{{ $endDate }}">
@@ -56,42 +55,53 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th>Estación</th>
-                        <th>Número de Parte</th>
-                        <th>Fecha Planeada</th>
-                        <th>Turno</th>
-                        <th class="text-end">Planeada</th>
-                        <th class="text-end">Producida</th>
-                        <th class="text-end">Scrap</th>
-                        <th>Inicio</th>
-                        <th>Fin</th>
+                        <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Estación') }}</th>
+                        <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Número de Parte') }}</th>
+                        <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Fecha Planeada') }}</th>
+                        <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Turno') }}</th>
+                        <th class="fw-bold text-secondary text-uppercase border-light-subtle text-end">{{ __('Planeada') }}</th>
+                        <th class="fw-bold text-secondary text-uppercase border-light-subtle text-end">{{ __('Producida') }}</th>
+                        <th class="fw-bold text-secondary text-uppercase border-light-subtle text-end">{{ __('Scrap') }}</th>
+                        <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Inicio') }}</th>
+                        <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Fin') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($productionRecords as $rec)
-                        <tr>
-                            <td>
-                                <div class="fw-semibold">{{ $rec->work_number }}</div>
+                        <tr class="border-light-subtle">
+                            <td class="py-3">
+                                <div class="fw-500">{{ $rec->work_number }}</div>
                                 <small class="text-muted">{{ $rec->work_name }}</small>
                             </td>
-                            <td>
-                                <div class="fw-semibold">{{ $rec->part_number }}</div>
+                            <td class="py-3">
+                                <div class="fw-500">{{ $rec->part_number }}</div>
                                 <small class="text-muted">{{ $rec->part_name }}</small>
                             </td>
-                            <td>{{ \Carbon\Carbon::parse($rec->planned_date)->format('d-m-Y') }}</td>
-                            <td><span class="badge bg-primary">{{ $rec->shift_name }}</span></td>
-                            <td class="text-end">{{ number_format($rec->planned_quantity) }}</td>
-                            <td class="text-end">
+                            <td class="py-3">{{ \Carbon\Carbon::parse($rec->planned_date)->format('d-m-Y') }}</td>
+                            <td class="py-3">
+                                <span class="badge-status bg-primary text-white">
+                                    {{ $rec->shift_name }}
+                                </span>
+                            </td>
+                            <td class="py-3 text-end">
+                                <span class="badge-status bg-primary text-white">
+                                    {{ number_format($rec->planned_quantity) }}
+                                </span>
+                            </td>
+                            <td class="py-3 text-end">
                                 @php
                                     $prod = $rec->produced_quantity;
                                     $plan = $rec->planned_quantity;
-                                    $color = $prod < $plan ? 'bg-danger' : ($prod == $plan ? 'bg-success' : 'bg-warning');
+                                    $color = $prod < $plan ? 'bg-danger text-white'
+                                            : ($prod == $plan ? 'bg-success text-white' : 'bg-warning text-dark');
                                 @endphp
-                                <span class="badge {{ $color }}">{{ number_format($prod) }}</span>
+                                <span class="badge-status {{ $color }}">
+                                    {{ number_format($prod) }}
+                                </span>
                             </td>
-                            <td class="text-end">{{ number_format($rec->scrap_quantity) }}</td>
-                            <td><small class="text-muted">{{ \Carbon\Carbon::parse($rec->production_start)->format('d-m-Y H:i') }}</small></td>
-                            <td><small class="text-muted">{{ \Carbon\Carbon::parse($rec->production_end)->format('d-m-Y H:i') }}</small></td>
+                            <td class="py-3 text-end">{{ number_format($rec->scrap_quantity) }}</td>
+                            <td class="py-3"><small class="text-muted">{{ \Carbon\Carbon::parse($rec->production_start)->format('d-m-Y H:i') }}</small></td>
+                            <td class="py-3"><small class="text-muted">{{ \Carbon\Carbon::parse($rec->production_end)->format('d-m-Y H:i') }}</small></td>
                         </tr>
                     @empty
                         <tr>
@@ -117,56 +127,78 @@
 @stop
 
 @section('css')
-<style>
-    /* Estilos mínimos y esenciales */
-    .table-responsive {
-        max-height: 600px;
-        overflow-y: auto;
-    }
+    <!-- Fuente Google Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Aplicar fuente */
+        body, .main-header, .main-sidebar, .content-wrapper,
+        .card, .btn, .form-control, .table, h1 {
+            font-family: 'Roboto', sans-serif !important;
+        }
 
-    .table-responsive thead th {
-        position: sticky;
-        top: 0;
-        background: #f8f9fa;
-        z-index: 10;
-    }
+        /* Tabla con altura máxima */
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
 
-    .table-responsive tfoot th {
-        position: sticky;
-        bottom: 0;
-        background: #f8f9fa;
-        z-index: 10;
-    }
+        /* Sticky headers/footers */
+        .table-responsive thead th,
+        .table-responsive tfoot th {
+            position: sticky;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+        thead th { top: 0; }
+        tfoot th { bottom: 0; }
 
-    .table-hover tbody tr:hover {
-        background-color: #f8f9fa;
-    }
+        /* Hover suavizado */
+        .table-hover tbody tr:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transform: translateY(-1px);
+            transition: all 0.2s ease;
+        }
 
-    .badge {
-        min-width: 60px;
-        font-weight: 500;
-        padding: 0.35em 0.65em;
-    }
+        /* Bordes y tipografía */
+        .border-light-subtle {
+            border-color: #f0f0f0 !important;
+        }
+        .fw-500 { font-weight: 500 !important; }
+        .fw-semibold { font-weight: 600 !important; }
 
-    .select2-container--default .select2-selection--single {
-        height: 38px;
-        border: 1px solid #ced4da;
-        border-radius: 0.375rem;
-        padding: 0.375rem 0.75rem;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 1.5;
-        padding-left: 0;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 36px;
-    }
-</style>
+        /* Badges personalizados */
+        .badge-status {
+            display: inline-block;
+            min-width: 60px;
+            padding: 0.35em 0.65em;
+            text-align: center;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        /* Select2 adaptado */
+        .select2-container--default .select2-selection--single {
+            height: 38px;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            padding: 0.375rem 0.75rem;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 1.5;
+            padding-left: 0;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+        }
+    </style>
 @stop
 
 @section('js')
 <script>
-     $(document).ready(function() {
+    $(document).ready(function() {
         $('#work_center').select2({
             placeholder: "Seleccione estación",
             allowClear: true,
