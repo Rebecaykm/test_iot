@@ -10,28 +10,59 @@
         <template x-if="$wire.workCentersData && $wire.workCentersData.length > 0">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 <template x-for="(workCenter, index) in $wire.workCentersData" :key="'wc-' + workCenter.id">
-                    <div class="bg-white rounded-lg shadow p-4 border border-gray-100">
-                        <div class="mb-2">
-                            <h3 class="font-semibold text-lg mb-3 text-gray-800" x-text="workCenter.name"></h3>
-                        </div>
-                        <div class="chart-container" style="height: 180px;">
-                            <canvas :id="'wc-chart-' + workCenter.id"></canvas>
-                        </div>
-                        <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
-                            <div class="bg-blue-50 p-2 rounded text-center">
-                                <div class="text-blue-600 font-semibold">Plan</div>
-                                <div class="font-bold" x-text="workCenter.planned"></div>
+                    <a
+                        :href="'{{ route('guest.production-records', '') }}/' + workCenter.id"
+                        class="block hover:no-underline transition-transform duration-200 hover:scale-[1.02]"
+                    >
+                        <div class="bg-white rounded-lg shadow p-4 border border-gray-200 hover:shadow-lg transition-shadow h-full">
+                            <div class="mb-2 flex items-start">
+                                <div class="flex-1">
+                                    <h3 class="font-medium text-gray-800" x-text="workCenter.name"></h3>
+                                    <div class="text-xs text-gray-500" x-text="workCenter.line"></div>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <template x-if="workCenter.percentage >= 100">
+                                        <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </template>
+                                    <template x-if="workCenter.percentage >= 90 && workCenter.percentage < 100">
+                                        <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3"></path>
+                                        </svg>
+                                    </template>
+                                    <template x-if="workCenter.percentage < 90">
+                                        <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </template>
+                                </div>
                             </div>
-                            <div class="bg-green-50 p-2 rounded text-center">
-                                <div class="text-green-600 font-semibold">Real</div>
-                                <div class="font-bold" x-text="workCenter.produced"></div>
+                            <div class="chart-container" style="height: 180px;">
+                                <canvas :id="'wc-chart-' + workCenter.id"></canvas>
                             </div>
-                            <div class="bg-gray-50 p-2 rounded text-center">
-                                <div class="text-gray-600 font-semibold">Eficiencia</div>
-                                <div class="font-bold" x-text="workCenter.percentage + '%'"></div>
+                            <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+                                <div class="bg-blue-50 p-2 rounded text-center">
+                                    <div class="text-blue-600 font-semibold">Plan</div>
+                                    <div class="font-bold" x-text="workCenter.planned"></div>
+                                </div>
+                                <div class="bg-green-50 p-2 rounded text-center">
+                                    <div class="text-green-600 font-semibold">Real</div>
+                                    <div class="font-bold" x-text="workCenter.produced"></div>
+                                </div>
+                                <div class="p-2 rounded text-center font-bold"
+                                     :class="{
+                                         'bg-red-50 text-red-600': workCenter.percentage < 60,
+                                         'bg-yellow-50 text-yellow-600': workCenter.percentage >= 60 && workCenter.percentage < 90,
+                                         'bg-green-50 text-green-600': workCenter.percentage >= 90 && workCenter.percentage <= 100,
+                                         'bg-yellow-50 text-yellow-600': workCenter.percentage > 100
+                                     }">
+                                    <div class="font-semibold">Eficiencia</div>
+                                    <div x-text="workCenter.percentage + '%'"></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </template>
             </div>
         </template>
@@ -105,7 +136,7 @@
                                     'rgb(21, 128, 61)'
                                 ],
                                 borderWidth: 2,
-                                borderRadius: 8,
+                                borderRadius: 4,
                             }]
                         },
                         options: {
