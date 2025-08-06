@@ -1,25 +1,40 @@
 <div>
-    <div wire:ignore x-data="workCenterDashboard" class="p-4 space-y-8">
-        <div class="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 mb-4">
-            <div class="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full sm:w-auto">
-                <div class="w-full sm:w-64">
-                    <label for="workCenterSelect" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Centro de Trabajo</label>
+    <div wire:ignore x-data="workCenterDashboard" class="p-4">
+        <div class="flex flex-col sm:flex-row justify-end items-start gap-2">  <!-- Cambiado de justify-end a justify-between -->
+            <!-- Movemos este div al principio para que quede a la izquierda -->
+            <div class="w-full sm:w-1/4">  <!-- Este div ahora está primero -->
+                <label for="workCenterSelect" class="block text-xs font-medium text-gray-700">Filtrar Centros de Trabajo</label>
+                <div class="relative">
                     <select
                         id="workCenterSelect"
-                        wire:model.live="selectedWorkCenter"
-                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                        wire:model.live="selectedWorkCenters"
+                        multiple
+                        size="1"
+                        class="block w-full text-xs rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 h-auto min-h-[20px]"
                     >
-                        <option value="">Todos los centros</option>
                         @foreach($allWorkCenters as $workCenter)
-                            <option value="{{ $workCenter['id'] }}">{{ $workCenter['name'] }}</option>
+                            <option value="{{ $workCenter['id'] }}" class="py-1">
+                                {{ $workCenter['full_name'] }}
+                            </option>
                         @endforeach
                     </select>
+                    @if(!empty($selectedWorkCenters))
+                        <button
+                            wire:click="selectedWorkCenters = []"
+                            class="absolute top-0 right-0 mt-1 mr-1 px-2 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-xs"
+                        >
+                            Limpiar
+                        </button>
+                    @endif
                 </div>
+                <p class="mt-1 text-xs text-gray-500">
+                    Mantén presionado Ctrl para seleccionar múltiples opciones
+                </p>
             </div>
         </div>
 
         <template x-if="$wire.areasData && $wire.areasData.length > 0">
-            <div class="space-y-8">
+            <div class="space-y-2">
                 <template x-for="area in $wire.areasData" :key="'area-' + area.name">
                     <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
                         <h2 class="text-xl font-bold mb-6 text-gray-800 border-b-2 border-blue-200 pb-3" x-text="area.name"></h2>
@@ -71,17 +86,17 @@
             </div>
         </template>
 
-        <template x-if="(!$wire.areasData || $wire.areasData.length === 0) && !$wire.selectedWorkCenter">
+        <template x-if="(!$wire.areasData || $wire.areasData.length === 0) && $wire.selectedWorkCenters.length === 0">
             <div class="bg-white rounded-lg shadow p-8 text-center">
                 <p class="text-gray-500">No hay datos de producción disponibles</p>
             </div>
         </template>
 
-        <template x-if="(!$wire.areasData || $wire.areasData.length === 0) && $wire.selectedWorkCenter">
+        <template x-if="(!$wire.areasData || $wire.areasData.length === 0) && $wire.selectedWorkCenters.length > 0">
             <div class="bg-white rounded-lg shadow p-8 text-center">
-                <p class="text-gray-500">No hay datos disponibles para el centro de trabajo seleccionado</p>
+                <p class="text-gray-500">No hay datos disponibles para los centros de trabajo seleccionados</p>
                 <button
-                    wire:click="selectedWorkCenter = null"
+                    wire:click="selectedWorkCenters = []"
                     class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
                 >
                     Mostrar todos los centros

@@ -14,7 +14,7 @@ class WorkCenterDashboard extends Component
     public $now;
     public array $areasData = [];
     public array $allWorkCenters = [];
-    public $selectedWorkCenter = null;
+    public array $selectedWorkCenters = [];
     public bool $realTime = true;
     public string $chartId;
 
@@ -28,10 +28,19 @@ class WorkCenterDashboard extends Component
     protected function loadWorkCenters()
     {
         $this->allWorkCenters = WorkCenter::query()
-            ->select('work_centers.id', 'work_centers.name')
+            ->select('work_centers.id', 'work_centers.name', 'lines.name as line_name')
             ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->orderBy('lines.name')
             ->orderBy('work_centers.name')
             ->get()
+            ->map(function ($workCenter) {
+                return [
+                    'id' => $workCenter->id,
+                    'name' => $workCenter->name,
+                    'line' => $workCenter->line_name,
+                    'full_name' => $workCenter->line_name . ' - ' . $workCenter->name
+                ];
+            })
             ->toArray();
     }
 
@@ -72,9 +81,8 @@ class WorkCenterDashboard extends Component
             ->where('production_records.planned_date', $currentTime->toDateString())
             ->where('shifts.abbreviation', Shift::getShift($currentTime)->abbreviation);
 
-        // Filtrar por work center seleccionado si existe
-        if ($this->selectedWorkCenter) {
-            $query->where('work_centers.id', $this->selectedWorkCenter);
+        if (!empty($this->selectedWorkCenters)) {
+            $query->whereIn('work_centers.id', $this->selectedWorkCenters);
         }
 
         $productionRecords = $query
@@ -132,7 +140,7 @@ class WorkCenterDashboard extends Component
         }
     }
 
-    public function updatedSelectedWorkCenter()
+    public function updatedSelectedWorkCenters()
     {
         $this->refreshProductionRecords();
     }
