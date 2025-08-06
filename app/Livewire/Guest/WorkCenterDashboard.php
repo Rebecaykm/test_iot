@@ -5,26 +5,33 @@ namespace App\Livewire\Guest;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use Carbon\Carbon;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class WorkCenterDashboard extends Component
 {
     public $now;
-    public $productionRecordData;
+    public array $workCentersData = [];
+    public bool $realTime = true;
+    public string $chartId;
 
     public function mount()
     {
-        $this->freshProductionRecords();
+        $this->chartId = 'dashboard-' . uniqid();
+        $this->refreshProductionRecords();
     }
 
-    public function freshProductionRecords()
+    #[On('refresh-production-records')]
+    public function refreshProductionRecords()
     {
-        $this->now = Carbon::now();
+        $this->now = Carbon::now()->format('Y-m-d H:i:s');
         $this->fetchProductionRecords();
     }
 
     public function fetchProductionRecords()
     {
+        $currentTime = Carbon::now();
+
         $productionRecords = ProductionRecord::query()
             ->select([
                 'production_records.id AS production_id',
@@ -48,34 +55,43 @@ class WorkCenterDashboard extends Component
             ->join('areas', 'lines.area_id', '=', 'areas.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
-            ->where('production_records.planned_date', $this->now->toDateString())
-            ->where('shifts.abbreviation', Shift::getShift($this->now)->abbreviation)
-            ->orderBy('production_records.planned_date', 'asc')
-            ->orderBy('shifts.start_time', 'asc')
+            ->where('production_records.planned_date', $currentTime->toDateString())
+            ->where('shifts.abbreviation', Shift::getShift($currentTime)->abbreviation)
             ->orderBy('lines.name', 'asc')
+            ->orderBy('work_centers.name', 'asc')
             ->get();
 
-        $this->productionRecordData = $productionRecords->groupBy([
-            'area_name',
+        $this->prepareWorkCentersData($productionRecords);
+    }
+
+    protected function prepareWorkCentersData($productionRecords)
+    {
+        $this->workCentersData = [];
+
+        $groupedData = $productionRecords->groupBy([
             'line_name',
             'work_name'
-        ])->map(function ($areaGroups) {
-            return $areaGroups->map(function ($lineGroups) {
-                return $lineGroups->map(function ($workCenterGroups) {
-                    return [
-                        'id' => $workCenterGroups->first()->work_center_id,
-                        'work_name' => $workCenterGroups->first()->work_name,
-                        'color' => $workCenterGroups->first()->line_color,
-                        'total_planned' => $workCenterGroups->sum('planned_quantity'),
-                        'total_produced' => $workCenterGroups->sum('produced_quantity'),
-                        'planned_percentage' => 100,
-                        'produced_percentage' => $workCenterGroups->sum('planned_quantity') > 0
-                            ? round(($workCenterGroups->sum('produced_quantity') / $workCenterGroups->sum('planned_quantity')) * 100)
-                            : 0,
-                    ];
-                });
-            });
-        });
+        ]);
+
+        foreach ($groupedData as $lineName => $workCenters) {
+            foreach ($workCenters as $workName => $records) {
+                $workCenterPlanned = $records->sum('planned_quantity');
+                $workCenterProduced = $records->sum('produced_quantity');
+                $percentage = $workCenterPlanned > 0
+                    ? round(($workCenterProduced / $workCenterPlanned) * 100)
+                    : 0;
+
+                $this->workCentersData[] = [
+                    'id' => $records->first()->work_center_id,
+                    'line' => $lineName,
+                    'name' => $workName,
+                    'planned' => $workCenterPlanned,
+                    'produced' => $workCenterProduced,
+                    'percentage' => $percentage,
+                    'color' => $records->first()->line_color,
+                ];
+            }
+        }
     }
 
     public function render()
