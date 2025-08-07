@@ -4,28 +4,58 @@ namespace App\Livewire\Guest;
 
 use App\Models\ProductionRecord;
 use App\Models\Shift;
+use App\Models\WorkCenter;
 use Carbon\Carbon;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class WorkCenterDashboard extends Component
 {
     public $now;
-    public $productionRecordData;
+    public array $areasData = [];
+    public array $allWorkCenters = [];
+    public array $selectedWorkCenters = [];
+    public bool $realTime = true;
+    public string $chartId;
 
     public function mount()
     {
-        $this->freshProductionRecords();
+        $this->chartId = 'dashboard-' . uniqid();
+        $this->loadWorkCenters();
+        $this->refreshProductionRecords();
     }
 
-    public function freshProductionRecords()
+    protected function loadWorkCenters()
     {
-        $this->now = Carbon::now();
+        $this->allWorkCenters = WorkCenter::query()
+            ->select('work_centers.id', 'work_centers.name', 'lines.name as line_name')
+            ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->orderBy('lines.name')
+            ->orderBy('work_centers.name')
+            ->get()
+            ->map(function ($workCenter) {
+                return [
+                    'id' => $workCenter->id,
+                    'name' => $workCenter->name,
+                    'line' => $workCenter->line_name,
+                    'full_name' => $workCenter->line_name . ' - ' . $workCenter->name
+                ];
+            })
+            ->toArray();
+    }
+
+    #[On('refresh-production-records')]
+    public function refreshProductionRecords()
+    {
+        $this->now = Carbon::now()->format('Y-m-d H:i:s');
         $this->fetchProductionRecords();
     }
 
     public function fetchProductionRecords()
     {
-        $productionRecords = ProductionRecord::query()
+        $currentTime = Carbon::now();
+
+        $query = ProductionRecord::query()
             ->select([
                 'production_records.id AS production_id',
                 'areas.name AS area_name',
@@ -48,34 +78,71 @@ class WorkCenterDashboard extends Component
             ->join('areas', 'lines.area_id', '=', 'areas.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
-            ->where('production_records.planned_date', $this->now->toDateString())
-            ->where('shifts.abbreviation', Shift::getShift($this->now)->abbreviation)
-            ->orderBy('production_records.planned_date', 'asc')
-            ->orderBy('shifts.start_time', 'asc')
+            ->where('production_records.planned_date', $currentTime->toDateString())
+            ->where('shifts.abbreviation', Shift::getShift($currentTime)->abbreviation);
+
+        if (!empty($this->selectedWorkCenters)) {
+            $query->whereIn('work_centers.id', $this->selectedWorkCenters);
+        }
+
+        $productionRecords = $query
+            ->orderBy('areas.name', 'asc')
             ->orderBy('lines.name', 'asc')
+            ->orderBy('work_centers.name', 'asc')
             ->get();
 
-        $this->productionRecordData = $productionRecords->groupBy([
+        $this->prepareAreasData($productionRecords);
+    }
+
+    protected function prepareAreasData($productionRecords)
+    {
+        $this->areasData = [];
+
+        $groupedData = $productionRecords->groupBy([
             'area_name',
             'line_name',
             'work_name'
-        ])->map(function ($areaGroups) {
-            return $areaGroups->map(function ($lineGroups) {
-                return $lineGroups->map(function ($workCenterGroups) {
-                    return [
-                        'id' => $workCenterGroups->first()->work_center_id,
-                        'work_name' => $workCenterGroups->first()->work_name,
-                        'color' => $workCenterGroups->first()->line_color,
-                        'total_planned' => $workCenterGroups->sum('planned_quantity'),
-                        'total_produced' => $workCenterGroups->sum('produced_quantity'),
-                        'planned_percentage' => 100,
-                        'produced_percentage' => $workCenterGroups->sum('planned_quantity') > 0
-                            ? round(($workCenterGroups->sum('produced_quantity') / $workCenterGroups->sum('planned_quantity')) * 100)
-                            : 0,
+        ]);
+
+        foreach ($groupedData as $areaName => $lines) {
+            $areaWorkCenters = [];
+
+            foreach ($lines as $lineName => $workCenters) {
+                foreach ($workCenters as $workName => $records) {
+                    $workCenterQuantityPlanned = $records->sum('planned_quantity');
+                    $workCenterQuantityUnplannedProduced = $records->where('planned_quantity', 0)->sum('produced_quantity');
+                    $workCenterQuantityProduced = $records->sum('produced_quantity') - $workCenterQuantityUnplannedProduced;
+                    $totalProduced = $records->sum('produced_quantity');
+
+                    $percentage = $workCenterQuantityPlanned > 0
+                        ? round(($totalProduced / $workCenterQuantityPlanned) * 100)
+                        : 0;
+
+                    $areaWorkCenters[] = [
+                        'id' => $records->first()->work_center_id,
+                        'line' => $lineName,
+                        'name' => $workName,
+                        'planned' => $workCenterQuantityPlanned,
+                        'produced' => $workCenterQuantityProduced,
+                        'unplanned' => $workCenterQuantityUnplannedProduced,
+                        'percentage' => $percentage,
+                        'color' => $records->first()->line_color,
                     ];
-                });
-            });
-        });
+                }
+            }
+
+            if (!empty($areaWorkCenters)) {
+                $this->areasData[] = [
+                    'name' => $areaName,
+                    'workCenters' => $areaWorkCenters
+                ];
+            }
+        }
+    }
+
+    public function updatedSelectedWorkCenters()
+    {
+        $this->refreshProductionRecords();
     }
 
     public function render()

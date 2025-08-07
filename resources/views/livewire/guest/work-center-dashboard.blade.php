@@ -1,133 +1,225 @@
 <div>
-    <div class="container mx-auto px-4 py-8">
-        <div x-data="chart" wire:ignore>
-            @foreach($productionRecordData as $areaName => $lines)
-            <div class="mb-12 p-6 bg-white rounded-xl border border-gray-200">
-                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b-2 border-blue-200 pb-3">{{ $areaName }}</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    @foreach($lines as $lineName => $workCenters)
-                        @foreach($workCenters as $workCenterName => $data)
-                        <a
-                            href="{{ route('guest.production-records', $data['id']) }}"
-                            class="block hover:no-underline transition-transform duration-200 hover:scale-[1.02]"
-                        >
-                            <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow border-l-2 border-blue-500 cursor-pointer h-full">
-                                <div class="p-4">
-                                    <h3 class="font-semibold text-lg mb-3 text-gray-700 flex items-center">
-                                        <span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
-                                        {{ $workCenterName }}
-                                        <span class="ml-auto flex items-center space-x-1">
-                                            @if($data['produced_percentage'] >= 100)
-                                                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                </svg>
-                                            @elseif($data['produced_percentage'] >= 90)
-                                                <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3"></path>
-                                                </svg>
-                                            @else
-                                                <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                </svg>
-                                            @endif
-                                            <span class="text-sm font-semibold @if($data['produced_percentage'] >= 100) text-green-600
-                                                @elseif($data['produced_percentage'] >= 90) text-yellow-600
-                                                @else text-red-600 @endif">
-                                                {{ $data['produced_percentage'] }}%
-                                            </span>
-                                        </span>
-                                    </h3>
-                                    <div class="chart-container" style="height: 150px;">
-                                        <canvas
-                                            x-init="createChart($el, '{{ $workCenterName }}', {{ $data['total_planned'] }}, {{ $data['total_produced'] }})"
-                                            class="w-full h-full"
-                                        ></canvas>
-                                    </div>
-                                    <div class="flex justify-between mt-4 text-sm font-medium">
-                                        <span class="text-blue-600 flex items-center">
-                                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd"/>
-                                            </svg>
-                                            Planeado: {{ $data['total_planned'] }}
-                                        </span>
-                                        <span class="text-green-600 flex items-center">
-                                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                            </svg>
-                                            Producido: {{ $data['total_produced'] }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </a>
+    <div wire:ignore x-data="workCenterDashboard" class="p-4">
+        <div class="flex flex-col sm:flex-row justify-end items-start gap-2">  <!-- Cambiado de justify-end a justify-between -->
+            <!-- Movemos este div al principio para que quede a la izquierda -->
+            <div class="w-full sm:w-1/4">  <!-- Este div ahora está primero -->
+                <label for="workCenterSelect" class="block text-xs font-medium text-gray-700">Filtrar Centros de Trabajo</label>
+                <div class="relative">
+                    <select
+                        id="workCenterSelect"
+                        wire:model.live="selectedWorkCenters"
+                        multiple
+                        size="1"
+                        class="block w-full text-xs rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 h-auto min-h-[20px]"
+                    >
+                        @foreach($allWorkCenters as $workCenter)
+                            <option value="{{ $workCenter['id'] }}" class="py-1">
+                                {{ $workCenter['full_name'] }}
+                            </option>
                         @endforeach
-                    @endforeach
+                    </select>
+                    @if(!empty($selectedWorkCenters))
+                        <button
+                            wire:click="selectedWorkCenters = []"
+                            class="absolute top-0 right-0 mt-1 mr-1 px-2 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-xs"
+                        >
+                            Limpiar
+                        </button>
+                    @endif
                 </div>
+                <p class="mt-1 text-xs text-gray-500">
+                    Mantén presionado Ctrl para seleccionar múltiples opciones
+                </p>
             </div>
-            @endforeach
+        </div>
 
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <template x-if="$wire.areasData && $wire.areasData.length > 0">
+            <div class="space-y-2">
+                <template x-for="area in $wire.areasData" :key="'area-' + area.name">
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                        <h2 class="text-xl font-bold mb-6 text-gray-800 border-b-2 border-blue-200 pb-3" x-text="area.name"></h2>
 
-            @script
-            <script>
-                Alpine.data('chart', () => {
-                    return {
-                        createChart(canvasElement, workCenterName, planned, produced) {
-                            new Chart(canvasElement, {
-                                type: 'bar',
-                                data: {
-                                    labels: ['Planeado', 'Producido'],
-                                    datasets: [{
-                                        label: 'Cantidad',
-                                        data: [planned, produced],
-                                        backgroundColor: [
-                                            'rgba(37, 99, 235, 0.2)',
-                                            'rgba(22, 163, 74, 0.2)'
-                                        ],
-                                        borderColor: [
-                                            'rgb(29, 78, 216)',
-                                            'rgb(21, 128, 61)'
-                                        ],
-                                        borderWidth: 2,
-                                        borderRadius: 8,
-                                        borderSkipped: false,
-                                    }]
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+                            <template x-for="workCenter in area.workCenters" :key="'wc-' + workCenter.id">
+                                <a
+                                    :href="'{{ route('guest.production-records', '') }}/' + workCenter.id"
+                                    class="block hover:no-underline transition-transform duration-200 hover:scale-[1.02]"
+                                >
+                                    <div class="bg-white rounded-lg shadow p-4 border border-gray-200 hover:shadow-lg transition-shadow h-full">
+                                        <div class="mb-2 flex items-start">
+                                            <div class="flex-1">
+                                                <h3 class="font-medium text-gray-800" x-text="workCenter.name"></h3>
+                                                <div class="text-xs text-gray-500" x-text="workCenter.line"></div>
+                                            </div>
+                                            <div class="text-sm font-bold"
+                                                :class="{
+                                                    'text-green-600': workCenter.percentage >= 90 && workCenter.percentage <= 100,
+                                                    'text-yellow-600': (workCenter.percentage >= 60 && workCenter.percentage < 90) || workCenter.percentage > 100,
+                                                    'text-red-600': workCenter.percentage < 60
+                                                }">
+                                                <span x-text="workCenter.percentage + '%'"></span>
+                                            </div>
+                                        </div>
+                                        <div class="chart-container" style="height: 180px;">
+                                            <canvas :id="'wc-chart-' + workCenter.id"></canvas>
+                                        </div>
+                                        <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+                                            <div class="bg-blue-50 p-2 rounded text-center">
+                                                <div class="text-blue-600 font-semibold">Plan</div>
+                                                <div class="font-bold" x-text="workCenter.planned"></div>
+                                            </div>
+                                            <div class="bg-green-50 p-2 rounded text-center">
+                                                <div class="text-green-600 font-semibold">Planeado</div>
+                                                <div class="font-bold" x-text="workCenter.produced"></div>
+                                            </div>
+                                            <div class="bg-yellow-50 p-2 rounded text-center">
+                                                <div class="text-yellow-600 font-semibold">No Planeado</div>
+                                                <div class="font-bold" x-text="workCenter.unplanned"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <template x-if="(!$wire.areasData || $wire.areasData.length === 0) && $wire.selectedWorkCenters.length === 0">
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <p class="text-gray-500">No hay datos de producción disponibles</p>
+            </div>
+        </template>
+
+        <template x-if="(!$wire.areasData || $wire.areasData.length === 0) && $wire.selectedWorkCenters.length > 0">
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <p class="text-gray-500">No hay datos disponibles para los centros de trabajo seleccionados</p>
+                <button
+                    wire:click="selectedWorkCenters = []"
+                    class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                >
+                    Mostrar todos los centros
+                </button>
+            </div>
+        </template>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    @script
+    <script>
+        Alpine.data('workCenterDashboard', () => {
+            let charts = new Map();
+            let refreshInterval = null;
+
+            return {
+                init() {
+                    // Cargar datos iniciales
+                    $wire.dispatchSelf('refresh-production-records');
+
+                    // Configurar actualización en tiempo real si está habilitado
+                    if (@json($realTime)) {
+                        refreshInterval = setInterval(() => {
+                            $wire.dispatchSelf('refresh-production-records');
+                        }, 10000);
+                    }
+
+                    // Escuchar cambios en los datos para actualizar gráficas
+                    $wire.on('refresh-production-records', () => {
+                        this.$nextTick(() => {
+                            this.updateAllCharts();
+                        });
+                    });
+                },
+
+                updateAllCharts() {
+                    if (!$wire.areasData || $wire.areasData.length === 0) return;
+
+                    $wire.areasData.forEach(area => {
+                        area.workCenters.forEach(workCenter => {
+                            const canvasId = 'wc-chart-' + workCenter.id;
+                            this.updateChart(canvasId, workCenter);
+                        });
+                    });
+                },
+
+                updateChart(canvasId, workCenter) {
+                    const ctx = document.getElementById(canvasId);
+                    if (!ctx) return;
+
+                    if (charts.has(canvasId)) {
+                        charts.get(canvasId).destroy();
+                    }
+
+                    const chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Plan', 'Planeado', 'No Planeado'],
+                            datasets: [{
+                                data: [workCenter.planned, workCenter.produced, workCenter.unplanned],
+                                backgroundColor: [
+                                    'rgba(37, 99, 235, 0.2)',
+                                    'rgba(22, 163, 74, 0.2)',
+                                    'rgba(255, 159, 64, 0.2)'
+                                ],
+                                borderColor: [
+                                    'rgb(29, 78, 216)',
+                                    'rgb(21, 128, 61)',
+                                    'rgb(255, 159, 64)'
+                                ],
+                                borderWidth: 2,
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: false,
+                            plugins: {
+                                legend: {
+                                    display: false
                                 },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: {
-                                        legend: { display: false },
-                                        tooltip: {
-                                            callbacks: {
-                                                label: function(context) {
-                                                    return `${context.label}: ${context.formattedValue}`;
-                                                }
-                                            }
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return context.label + ': ' + context.raw;
                                         }
-                                    },
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true,
-                                            grid: { drawBorder: false, color: 'rgba(0, 0, 0, 0.05)' },
-                                            ticks: { font: { weight: 'bold' }, padding: 10 }
-                                        },
-                                        x: {
-                                            grid: { display: false, drawBorder: false },
-                                            ticks: { font: { weight: 'bold', size: 12 } }
-                                        }
-                                    },
-                                    animation: {
-                                        duration: 1000,
-                                        easing: 'easeOutQuart'
                                     }
                                 }
-                            });
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        display: false
+                                    },
+                                    ticks: {
+                                        precision: 0
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    }
+                                }
+                            }
                         }
+                    });
+
+                    charts.set(canvasId, chart);
+                },
+
+                destroy() {
+                    if (refreshInterval) {
+                        clearInterval(refreshInterval);
                     }
-                });
-            </script>
-            @endscript
-        </div>
-    </div>
+
+                    charts.forEach(chart => chart.destroy());
+                    charts.clear();
+                }
+            };
+        });
+    </script>
+    @endscript
 </div>
