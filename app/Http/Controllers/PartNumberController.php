@@ -14,7 +14,8 @@ class PartNumberController extends Controller
      */
     public function index(Request $request)
     {
-        $query = PartNumber::query()->orderBy('created_at', 'desc');
+        $query = PartNumber::with(['workCenter.line', 'itemClass'])
+            ->orderBy('created_at', 'desc');
 
         if ($request->has('search') && !empty($request->search)) {
             $searchTerm = $request->search;
@@ -23,7 +24,17 @@ class PartNumberController extends Controller
                 $q->where('number', 'like', "%{$searchTerm}%")
                     ->orWhere('name', 'like', "%{$searchTerm}%")
                     ->orWhereHas('workCenter', function ($q) use ($searchTerm) {
-                        $q->where('name', 'like', "%{$searchTerm}%");
+                        $q->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('number', 'like', "%{$searchTerm}%")
+                            ->orWhereHas('line', function ($q) use ($searchTerm) {
+                                $q->where('name', 'like', "%{$searchTerm}%")
+                                    ->orWhere('color', 'like', "%{$searchTerm}%")
+                                    ->orWhere('description', 'like', "%{$searchTerm}%");
+                            });
+                    })
+                    ->orWhereHas('itemClass', function ($q) use ($searchTerm) {
+                        $q->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('abbreviation', 'like', "%{$searchTerm}%");
                     });
             });
         }

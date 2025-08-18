@@ -7,9 +7,11 @@ use App\Models\ProductionRecord;
 use App\Models\Shift;
 use App\Models\YF013;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ProductionRecordController extends Controller
@@ -118,9 +120,9 @@ class ProductionRecordController extends Controller
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
             ->orderBy('part_numbers.number', 'asc');
-            // ->withQueryString();
-            //
-            $productionRecords = $query->get();
+        // ->withQueryString();
+        //
+        $productionRecords = $query->get();
 
         return view('production-records.summary', [
             'productionRecords' => $productionRecords,
@@ -167,8 +169,6 @@ class ProductionRecordController extends Controller
     /**
      * Update the specified resource in storage.
      */
-
-
     public function update(Request $request, ProductionRecord $productionRecord)
     {
         $validated = $request->validate([
@@ -182,18 +182,19 @@ class ProductionRecordController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($productionRecord) {
-                $now = Carbon::now();
 
-                $productionStart = $productionRecord->production_start
-                    ? Carbon::parse($productionRecord->production_start)
-                    : null;
+            $now = Carbon::now();
 
-                $productionEnd = $productionRecord->production_end
-                    ? Carbon::parse($productionRecord->production_end)
-                    : null;
+            $productionStart = $productionRecord->production_start
+                ? Carbon::parse($productionRecord->production_start)
+                : null;
 
-                $inserted = YF013::query()->insert([
+            $productionEnd = $productionRecord->production_end
+                ? Carbon::parse($productionRecord->production_end)
+                : null;
+
+            $inserted = YF013::query()
+                ->insert([
                     'YFWRKC' => $productionRecord->partNumber->workCenter->number ?? '',
                     'YFWRKN' => $productionRecord->partNumber->workCenter->name ?? '',
                     'YFRDTE' => $productionRecord->planned_date
@@ -201,6 +202,7 @@ class ProductionRecordController extends Controller
                         : '',
                     'YFSHFT' => $productionRecord->shift->abbreviation ?? '',
                     'YFPPNO' => '', // ¿Este campo debería tener un valor?
+                    'YFSORD' => $productionRecord->shop_order_number ?? '',
                     'YFPROD' => $productionRecord->partNumber->number ?? '',
                     'YFSTIM' => $productionStart ? $productionStart->format('Hi') : '',
                     'YFETIM' => $productionEnd ? $productionEnd->format('Hi') : '',
@@ -209,19 +211,43 @@ class ProductionRecordController extends Controller
                     'YFQPLA' => $productionRecord->planned_quantity ?? 0,
                     'YFQPRO' => $productionRecord->produced_quantity ?? 0,
                     'YFQSCR' => $productionRecord->scrap_quantity ?? 0,
-                    'YFSCRE' => 'RJ',
+                    'YFSCRE' => ($productionRecord->scrap_quantity ?? 0) == 0 ? '' : 'RJ',
                     'YFCRDT' => $now->format('Ymd'),
                     'YFCRTM' => $now->format('His'),
                     'YFCRUS' => '',
                 ]);
 
-                if ($inserted) {
-                    $productionRecord->update([
-                        'synced_to_infor' => true,
-                        'synced_at' => $now,
-                    ]);
+            if ($inserted) {
+                $productionRecord->update([
+                    'synced_to_infor' => true,
+                    'synced_at' => $now,
+                ]);
+            }
+
+            try {
+                $conn = odbc_connect("Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR", "", "");
+
+                if ($conn === false) {
+                    throw new Exception("Error al conectar con la base de datos Infor.");
+                } else {
+                    Log::info("Conexión a Infor establecida correctamente en " . date('Y-m-d H:i:s'));
                 }
-            });
+
+                $query = "CALL LX834OU02.YSF013C";
+                $result = odbc_exec($conn, $query);
+
+                if ($result) {
+                    Log::info("LX834OU.YSF013C : La consulta se ejecutó con éxito en " . date('Y-m-d H:i:s'));
+                } else {
+                    throw new Exception("LX834OU.YSF013C : Error en la consulta: " . odbc_errormsg($conn));
+                }
+            } catch (Exception $e) {
+                Log::alert($e->getMessage());
+            } finally {
+                if (isset($conn)) {
+                    odbc_close($conn);
+                }
+            }
 
             return redirect()->back()->with('success', 'Cantidad de scrap actualizada.');
         } catch (\Exception $e) {

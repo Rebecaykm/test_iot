@@ -136,7 +136,7 @@
 <script>
     Alpine.data("table", () => ({
         init() {
-            setInterval(() => $wire.dispatchSelf("refresh"), 1000); // 30 segundos
+            setInterval(() => $wire.dispatchSelf("refresh"), 5000);
         }
     }));
 </script>

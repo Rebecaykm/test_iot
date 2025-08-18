@@ -125,6 +125,7 @@ class WorkCenterDashboard extends Component
                         'planned' => $workCenterQuantityPlanned,
                         'produced' => $workCenterQuantityProduced,
                         'unplanned' => $workCenterQuantityUnplannedProduced,
+                        'total' => $totalProduced,
                         'percentage' => $percentage,
                         'color' => $records->first()->line_color,
                     ];
