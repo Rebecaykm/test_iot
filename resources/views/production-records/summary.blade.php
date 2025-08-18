@@ -140,7 +140,7 @@
 
         /* Tabla con altura máxima */
         .table-responsive {
-            max-height: 600px;
+            max-height: 800px;
             overflow-y: auto;
         }
 
