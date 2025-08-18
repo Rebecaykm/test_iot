@@ -109,17 +109,17 @@ class WorkCenterDashboard extends Component
 
             foreach ($lines as $lineName => $workCenters) {
                 foreach ($workCenters as $workName => $records) {
-                    $workCenterQuantityPlanned = $records->sum('planned_quantity');
-                    $workCenterQuantityUnplannedProduced = $records->where('planned_quantity', 0)->sum('produced_quantity');
-                    $workCenterQuantityProduced = $records->sum('produced_quantity') - $workCenterQuantityUnplannedProduced;
-                    $totalProduced = $records->sum('produced_quantity');
+                    $workCenterQuantityPlanned = (int) $records->sum('planned_quantity');
+                    $workCenterQuantityUnplannedProduced = (int) $records->where('planned_quantity', 0)->sum('produced_quantity');
+                    $workCenterQuantityProduced = (int) ($records->sum('produced_quantity') - $workCenterQuantityUnplannedProduced);
+                    $totalProduced = (int) $records->sum('produced_quantity');
 
                     $percentage = $workCenterQuantityPlanned > 0
-                        ? round(($totalProduced / $workCenterQuantityPlanned) * 100)
+                        ? (int) round(($totalProduced / $workCenterQuantityPlanned) * 100)
                         : 0;
 
                     $areaWorkCenters[] = [
-                        'id' => $records->first()->work_center_id,
+                        'id' => (int) $records->first()->work_center_id,
                         'line' => $lineName,
                         'name' => $workName,
                         'planned' => $workCenterQuantityPlanned,
