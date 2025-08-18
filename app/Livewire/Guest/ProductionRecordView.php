@@ -86,16 +86,23 @@ class ProductionRecordView extends Component
             ->map(function ($dateGroup) {
                 return $dateGroup->groupBy('shift_name')
                     ->map(function ($shiftGroup) {
-                        return $shiftGroup->map(function ($record) {
+                        return $shiftGroup->groupBy(function ($record) {
+                            return $record->part_number . '|' . $record->planned_quantity;
+                        })->map(function ($partGroup, $groupKey) {
+                            [$partNumber, $plannedQuantity] = explode('|', $groupKey);
+                            $totalProduced = $partGroup->sum('produced_quantity');
+                            $firstRecord = $partGroup->first();
+
                             return [
-                                'part_number' => $record->part_number,
-                                'planned_quantity' => $record->planned_quantity,
-                                'produced_quantity' => $record->produced_quantity,
-                                'difference' => $record->produced_quantity - $record->planned_quantity,
-                                'status' => $record->status_name,
-                                'status_class' => $this->getStatusClass($record->status_name),
+                                'part_number' => $partNumber,
+                                'planned_quantity' => (int) $plannedQuantity,
+                                'produced_quantity' => $totalProduced,
+                                'difference' => $totalProduced - (int) $plannedQuantity,
+                                'status' => $firstRecord->status_name,
+                                'status_class' => $this->getStatusClass($firstRecord->status_name),
+                                'group_count' => $partGroup->count(), // Opcional: para saber cuántos registros se agruparon
                             ];
-                        });
+                        })->values();
                     });
             });
     }
@@ -105,11 +112,11 @@ class ProductionRecordView extends Component
         $status = preg_replace('/\s+/', ' ', mb_strtolower(trim($status), 'UTF-8'));
 
         return match ($status) {
-            'pendiente' => 'text-orange-700 bg-orange-100',  // Corregido a 'amber' (ámbar)
-            'en progreso' => 'text-blue-700 bg-blue-100',   // Azul para operaciones en curso
-            'completado' => 'text-green-700 bg-green-100',  // Verde para completado
-            'detenido' => 'text-red-700 bg-red-100',        // Rojo para detenido/error
-            default => 'text-gray-700 bg-gray-200'          // Gris por defecto
+            'pendiente' => 'text-orange-700 bg-orange-100',
+            'en progreso' => 'text-blue-700 bg-blue-100',
+            'completado' => 'text-green-700 bg-green-100',
+            'detenido' => 'text-red-700 bg-red-100',
+            default => 'text-gray-700 bg-gray-200'
         };
     }
 

@@ -38,33 +38,32 @@
                             </svg>
                             <span>Limpiar selección</span>
                         </button>
-                       @endif
+                        @endif
                     </div>
                 </div>
 
                 <div class="flex-shrink-0 flex items-center gap-2">
                     @if (Route::has('login'))
                     @auth
-                        <a href="{{ url('/dashboard') }}"
-                            class="inline-block px-4 py-2 text-sm font-medium rounded-md bg-transparent border border-gray-300 hover:bg-gray-50 transition-colors">
-                            Inicio
-                        </a>
+                    <a href="{{ url('/dashboard') }}"
+                        class="inline-block px-4 py-2 text-sm font-medium rounded-md bg-transparent border border-gray-300 hover:bg-gray-50 transition-colors">
+                        Inicio
+                    </a>
                     @else
-                        <a href="{{ route('login') }}" class="inline-block px-5 py-1.5 dark:text-[#EDEDEC] border-[#19140035] hover:border-[#1915014a] border text-[#1b1b18] dark:border-[#3E3E3A] dark:hover:border-[#62605b] rounded-sm text-sm leading-normal">
-                            Iniciar sesión
-                        </a>
-                        @if (Route::has('register'))
-                            <a href="{{ route('register') }}" class="inline-block px-5 py-1.5 dark:text-[#EDEDEC] border-[#19140035] hover:border-[#1915014a] border text-[#1b1b18] dark:border-[#3E3E3A] dark:hover:border-[#62605b] rounded-sm text-sm leading-normal">
-                                Register
-                            </a>
-                        @endif
+                    <a href="{{ route('login') }}" class="inline-block px-5 py-1.5 dark:text-[#EDEDEC] border-[#19140035] hover:border-[#1915014a] border text-[#1b1b18] dark:border-[#3E3E3A] dark:hover:border-[#62605b] rounded-sm text-sm leading-normal">
+                        Iniciar sesión
+                    </a>
+                    @if (Route::has('register'))
+                    <a href="{{ route('register') }}" class="inline-block px-5 py-1.5 dark:text-[#EDEDEC] border-[#19140035] hover:border-[#1915014a] border text-[#1b1b18] dark:border-[#3E3E3A] dark:hover:border-[#62605b] rounded-sm text-sm leading-normal">
+                        Register
+                    </a>
+                    @endif
                     @endauth
                     @endif
                 </div>
             </div>
         </div>
     </header>
-
 
 
     <div x-data="workCenterDashboard" class="px-4 py-2">
@@ -98,19 +97,19 @@
 
                                             <canvas :id="'wc-chart-' + workCenter.id" wire:ignore></canvas>
                                         </div>
-                                        <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+                                        <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
                                             <div class="bg-blue-50 p-2 rounded text-center">
                                                 <div class="text-blue-600 font-semibold">Plan</div>
                                                 <div class="font-bold" x-text="workCenter.planned"></div>
                                             </div>
                                             <div class="bg-green-50 p-2 rounded text-center">
-                                                <div class="text-green-600 font-semibold">Planeado</div>
-                                                <div class="font-bold" x-text="workCenter.produced"></div>
+                                                <div class="text-green-600 font-semibold">Real</div>
+                                                <div class="font-bold" x-text="workCenter.total"></div>
                                             </div>
-                                            <div class="bg-yellow-50 p-2 rounded text-center">
+                                            <!-- <div class="bg-yellow-50 p-2 rounded text-center">
                                                 <div class="text-yellow-600 font-semibold">No Planeado</div>
                                                 <div class="font-bold" x-text="workCenter.unplanned"></div>
-                                            </div>
+                                            </div> -->
                                         </div>
                                     </div>
                                 </a>
@@ -189,22 +188,43 @@
                     const chart = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: ['Plan', 'Planeado', 'No Planeado'],
-                            datasets: [{
-                                data: [workCenter.planned, workCenter.produced, workCenter.unplanned],
-                                backgroundColor: [
-                                    'rgba(37, 99, 235, 0.2)',
-                                    'rgba(22, 163, 74, 0.2)',
-                                    'rgba(255, 159, 64, 0.2)'
-                                ],
-                                borderColor: [
-                                    'rgb(29, 78, 216)',
-                                    'rgb(21, 128, 61)',
-                                    'rgb(255, 159, 64)'
-                                ],
-                                borderWidth: 2,
-                                borderRadius: 6
-                            }]
+                            labels: ['Plan', 'Real'],
+                            datasets: [
+                                {
+                                    label: 'Plan',
+                                    data: [workCenter.planned, 0], // Solo Plan en la primera barra
+                                    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                                    borderColor: 'rgb(29, 78, 216)',
+                                    borderWidth: 2,
+                                    borderRadius: 6
+                                },
+                                {
+                                    label: 'Planeado',
+                                    data: [0, workCenter.produced], // Planeado en la segunda barra (parte de abajo)
+                                    backgroundColor: 'rgba(22, 163, 74, 0.2)',
+                                    borderColor: 'rgb(21, 128, 61)',
+                                    borderWidth: 2,
+                                    borderRadius: {
+                                        bottomLeft: 6,
+                                        bottomRight: 6,
+                                        topLeft: workCenter.unplanned > 0 ? 0 : 6,
+                                        topRight: workCenter.unplanned > 0 ? 0 : 6
+                                    }
+                                },
+                                {
+                                    label: 'No Planeado',
+                                    data: [0, workCenter.unplanned], // No planeado en la segunda barra (parte de arriba)
+                                    backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                                    borderColor: 'rgb(255, 159, 64)',
+                                    borderWidth: 2,
+                                    borderRadius: {
+                                        bottomLeft: 0,
+                                        bottomRight: 0,
+                                        topLeft: 6,
+                                        topRight: 6
+                                    }
+                                }
+                            ]
                         },
                         options: {
                             responsive: true,
@@ -217,7 +237,9 @@
                                 tooltip: {
                                     callbacks: {
                                         label: function(context) {
-                                            return context.label + ': ' + context.raw;
+                                            const datasetLabel = context.dataset.label;
+                                            const value = context.raw;
+                                            return datasetLabel + ': ' + value;
                                         }
                                     }
                                 }
@@ -230,12 +252,14 @@
                                     },
                                     ticks: {
                                         precision: 0
-                                    }
+                                    },
+                                    stacked: true // Habilitar apilamiento en el eje Y
                                 },
                                 x: {
                                     grid: {
                                         display: false
-                                    }
+                                    },
+                                    stacked: true // Habilitar apilamiento en el eje X
                                 }
                             }
                         }
