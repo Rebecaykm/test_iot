@@ -95,9 +95,9 @@ class ProductionRecordView extends Component
 
                             return [
                                 'part_number' => $partNumber,
-                                'planned_quantity' => (int) $plannedQuantity,
+                                'planned_quantity' => (int)$plannedQuantity,
                                 'produced_quantity' => $totalProduced,
-                                'difference' => $totalProduced - (int) $plannedQuantity,
+                                'difference' => $totalProduced - (int)$plannedQuantity,
                                 'status' => $firstRecord->status_name,
                                 'status_class' => $this->getStatusClass($firstRecord->status_name),
                                 'group_count' => $partGroup->count(), // Opcional: para saber cuántos registros se agruparon
@@ -109,7 +109,7 @@ class ProductionRecordView extends Component
 
     protected function getStatusClass($status)
     {
-        $status = preg_replace('/\s+/', ' ', mb_strtolower(trim($status), 'UTF-8'));
+        $status = trim(strtolower($status));
 
         return match ($status) {
             'pendiente' => 'text-orange-700 bg-orange-100',

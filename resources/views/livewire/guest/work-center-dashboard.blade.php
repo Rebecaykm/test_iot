@@ -45,7 +45,7 @@
                 <div class="flex-shrink-0 flex items-center gap-2">
                     @if (Route::has('login'))
                         @auth
-                        <a href="{{ url('/dashboard') }}" class="inline-block px-4 py-2 text-sm font-medium rounded-md bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200 transition-colors">
+                        <a href="{{ url('/home') }}" class="inline-block px-4 py-2 text-sm font-medium rounded-md bg-transparent border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-200 transition-colors">
                             Inicio
                         </a>
                         @else
