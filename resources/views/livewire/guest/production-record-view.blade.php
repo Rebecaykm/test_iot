@@ -5,7 +5,7 @@
             <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/50">
                 <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Anterior</h2>
             </div>
-            <div class="p-4 space-y-6">
+            <div class="p-2">
                 @if($previousData && $previousData->isNotEmpty())
                     @foreach($previousData as $plannedDate => $shifts)
                         @foreach($shifts as $shiftName => $records)
@@ -75,7 +75,7 @@
             <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/50">
                 <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Actual</h2>
             </div>
-            <div class="p-4 space-y-6">
+            <div class="p-2">
                 @if($currentData && $currentData->isNotEmpty())
                     @foreach($currentData as $plannedDate => $shifts)
                         @foreach($shifts as $shiftName => $records)
