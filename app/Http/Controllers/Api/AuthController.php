@@ -30,13 +30,17 @@ class AuthController extends Controller
         // Eliminar tokens existentes
         $user->tokens()->delete();
 
-        // Crear nuevo token con expiración de 24 horas
-        $token = $user->createToken('auth-token', ['*'], now()->addDay())->plainTextToken;
+        $token = $user->createToken(
+            'auth-token',
+            ['*'],
+            now()->addHours(24)
+        )->plainTextToken;
 
         return response()->json([
             'user' => $user,
             'token' => $token,
             'work_centers' => $user->workCenters,
+            'expires_at' => now()->addHours(24)->toISOString(),
         ]);
     }
 
@@ -56,7 +60,14 @@ class AuthController extends Controller
             $query->with('line');
         }]);
 
-        return response()->json($user);
+        $token = $request->user()->currentAccessToken();
+        $isExpiringSoon = $token->expires_at && $token->expires_at->diffInHours(now()) < 2;
+
+        return response()->json([
+            'user' => $user,
+            'token_expires_soon' => $isExpiringSoon,
+            'expires_at' => $token->expires_at?->toISOString(),
+        ]);
     }
 
     /**
@@ -70,5 +81,24 @@ class AuthController extends Controller
             ->get();
 
         return response()->json($users);
+    }
+
+    public function refreshToken(Request $request)
+    {
+        $user = $request->user();
+
+        $request->user()->currentAccessToken()->delete();
+
+        $token = $user->createToken(
+            'auth-token',
+            ['*'],
+            now()->addHours(24)
+        )->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'expires_at' => now()->addHours(24)->toISOString(),
+            'message' => 'Token renovado exitosamente'
+        ]);
     }
 }
