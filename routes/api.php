@@ -18,6 +18,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
+    Route::get('/check-token', [AuthController::class, 'checkToken']); // Nueva ruta
 
     Route::post('/material-validations', [MaterialValidationController::class, 'store']);
     Route::get('/material-validations', [MaterialValidationController::class, 'index']);
