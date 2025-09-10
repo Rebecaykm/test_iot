@@ -6,9 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use Laravel\Sanctum\PersonalAccessToken;
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -29,24 +28,13 @@ class AuthController extends Controller
             ]);
         }
 
-        // NO eliminar tokens existentes (permite múltiples sesiones)
-        // $user->tokens()->delete(); // COMENTA ESTA LÍNEA
-
         $token = $user->createToken(
             'auth-token',
             ['*'],
             now()->addHours(24)
         )->plainTextToken;
 
-        // Obtener la fecha de expiración real del token
         $tokenModel = $user->tokens()->latest()->first();
-
-        Log::info('login', [
-            'user' => $user,
-            'token' => $token,
-            'work_centers' => $user->workCenters,
-            'expires_at' => $tokenModel->expires_at->toISOString(),
-        ]);
 
         return response()->json([
             'user' => $user,
@@ -58,7 +46,6 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        // Eliminar solo el token actual, no todos
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
@@ -83,9 +70,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Obtener usuarios con rol de Escaneo
-     */
     public function getScanUsers()
     {
         $users = User::role('Escaneo Usuario')
@@ -100,17 +84,14 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        // Eliminar el token actual
         $request->user()->currentAccessToken()->delete();
 
-        // Crear nuevo token
         $token = $user->createToken(
             'auth-token',
             ['*'],
             now()->addHours(24)
         )->plainTextToken;
 
-        // Obtener la fecha de expiración
         $tokenModel = $user->tokens()->latest()->first();
 
         return response()->json([
@@ -120,9 +101,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Nuevo método para verificar estado del token
-     */
     public function checkToken(Request $request)
     {
         $token = $request->user()->currentAccessToken();
