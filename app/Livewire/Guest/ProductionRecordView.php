@@ -109,14 +109,15 @@ class ProductionRecordView extends Component
 
     protected function getStatusClass($status)
     {
-        $status = trim(strtolower($status));
+        // Normalizar el texto: quitar espacios, acentos y convertir a minúsculas
+        $normalizedStatus = trim(strtolower(str_replace(['á', 'é', 'í', 'ó', 'ú', 'ñ'], ['a', 'e', 'i', 'o', 'u', 'n'], $status)));
 
-        return match ($status) {
-            'pendiente' => 'text-orange-700 bg-orange-100',
-            'en progreso' => 'text-blue-700 bg-blue-100',
-            'completado' => 'text-green-700 bg-green-100',
-            'detenido' => 'text-red-700 bg-red-100',
-            default => 'text-gray-700 bg-gray-200'
+        return match ($normalizedStatus) {
+            'pendiente' => 'text-orange-800 bg-orange-100 dark:text-orange-800 dark:bg-orange-900/50',
+            'en progreso' => 'text-blue-800 bg-blue-50 dark:text-blue-300 dark:bg-blue-900/50',
+            'completado' => 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/50',
+            'detenido' => 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/50',
+            default => 'text-gray-700 bg-gray-200 dark:text-gray-300 dark:bg-gray-600'
         };
     }
 
