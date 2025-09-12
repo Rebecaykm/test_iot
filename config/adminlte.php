@@ -420,12 +420,12 @@ return [
             'icon' => 'fas fa-fw fa-qrcode',
             'submenu' => [
                 [
-                    'text' => 'Historial de Escaneo',
+                    'text' => 'Registros de Escaneo',
                     'route'  => 'material-validations.index',
                     'can' => 'view material validations'
                 ],
                 [
-                    'text' => 'Historial de Escaneo',
+                    'text' => 'Resumen de Escaneo',
                     'route'  => 'material-validations.statistics',
                     'can' => 'view material validations'
                 ]
