@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\WorkCenter;
+use App\Models\Line;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -19,7 +20,7 @@ class UserController extends Controller
         $search = $request->input('search');
 
         $users = User::query()
-            ->with(['roles'])
+            ->with(['roles', 'lines'])
             ->where('id', '!=', Auth::id())
             ->where('name', '!=', 'Administrador')
             ->when($search, function ($query) use ($search) {
@@ -28,6 +29,9 @@ class UserController extends Controller
                         ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('nickname', 'like', "%{$search}%")
                         ->orWhereHas('roles', function ($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('lines', function ($q) use ($search) {
                             $q->where('name', 'like', "%{$search}%");
                         });
                 });
@@ -45,10 +49,12 @@ class UserController extends Controller
     {
         $roles = Role::query()->where('name', '!=', 'Administrador')->orderBy('name', 'asc')->get();
         $workCenters = WorkCenter::orderBy('name', 'asc')->get();
+        $lines = Line::orderBy('name', 'asc')->get();
 
         return view('users.create', [
             'roles' => $roles,
-            'workCenters' => $workCenters
+            'workCenters' => $workCenters,
+            'lines' => $lines
         ]);
     }
 
@@ -63,6 +69,8 @@ class UserController extends Controller
             'nickname' => 'required|string|max:50|unique:users,nickname|alpha_dash',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
+            'lines' => 'nullable|array',
+            'lines.*' => 'exists:lines,id',
             'work_centers' => 'nullable|array',
             'work_centers.*' => 'exists:work_centers,id'
         ]);
@@ -76,6 +84,10 @@ class UserController extends Controller
 
         $user->assignRole($request->role);
 
+        if ($request->has('lines')) {
+            $user->lines()->sync($request->lines);
+        }
+
         // Asociar estaciones si se enviaron
         if ($request->has('work_centers')) {
             $user->workCenters()->sync($request->work_centers);
@@ -85,25 +97,19 @@ class UserController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
      * Show the form for editing the specified resource.
      */
     public function edit(User $user)
     {
         $roles = Role::query()->where('name', '!=', 'Administrador')->orderBy('name', 'asc')->get();
         $workCenters = WorkCenter::orderBy('name', 'asc')->get();
+        $lines = Line::orderBy('name', 'asc')->get();
 
         return view('users.edit', [
             'user' => $user,
             'roles' => $roles,
-            'workCenters' => $workCenters
+            'workCenters' => $workCenters,
+            'lines' => $lines
         ]);
     }
 
@@ -115,8 +121,10 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
-            'nickname' => 'required|string|max:50|unique:users,nickname,' . $user->id . '|alpha_dash', // Validación para nickname en update
+            'nickname' => 'required|string|max:50|unique:users,nickname,' . $user->id . '|alpha_dash',
             'role' => 'required|exists:roles,name',
+            'lines' => 'nullable|array',
+            'lines.*' => 'exists:lines,id',
             'password' => 'nullable|string|min:8|confirmed',
             'work_centers' => 'nullable|array',
             'work_centers.*' => 'exists:work_centers,id'
@@ -125,7 +133,7 @@ class UserController extends Controller
         $data = [
             'name' => $request->name,
             'email' => $request->email,
-            'nickname' => $request->nickname, // Agregado nickname
+            'nickname' => $request->nickname,
         ];
 
         if ($request->password) {
@@ -134,6 +142,9 @@ class UserController extends Controller
 
         $user->update($data);
         $user->syncRoles($request->role);
+
+        // Sincronizar líneas
+        $user->lines()->sync($request->lines ?? []);
 
         // Sincronizar estaciones
         $user->workCenters()->sync($request->work_centers ?? []);
@@ -146,6 +157,8 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
+        $user->lines()->detach();
+        $user->workCenters()->detach();
         $user->syncRoles([]);
 
         $user->delete();

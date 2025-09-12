@@ -22,69 +22,21 @@
                         </h3>
                     </div>
 
-                    <!-- Acción y método del formulario cambiados -->
                     <form action="{{ route('users.update', $user->id) }}" method="POST">
                         @csrf
-                        @method('PUT') <!-- Método PUT para actualización -->
+                        @method('PUT')
 
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="name" class="font-weight-bold">Nombre <span class="text-danger">*</span></label>
+                                        <label for="name" class="font-weight-bold">Nombre <span
+                                                class="text-danger">*</span></label>
                                         <input type="text" class="form-control @error('name') is-invalid @enderror"
-                                               id="name" name="name" value="{{ old('name', $user->name) }}"
-                                               placeholder="Ej: Miguel Álcala" required>
+                                            id="name" name="name" value="{{ old('name', $user->name) }}"
+                                            placeholder="Ej: Miguel Álcala" required>
                                         @error('name')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="nickname" class="font-weight-bold">Nombre de Usuario <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control @error('nickname') is-invalid @enderror"
-                                               id="nickname" name="nickname" value="{{ old('nickname', $user->nickname) }}"
-                                               placeholder="Ej: miguel_alcala" required>
-                                        <small class="form-text text-muted">Solo letras, números, guiones y guiones bajos</small>
-                                        @error('nickname')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="email" class="font-weight-bold">Correo Electrónico <span class="text-danger">*</span></label>
-                                        <input type="email" class="form-control @error('email') is-invalid @enderror"
-                                               id="email" name="email" value="{{ old('email', $user->email) }}"
-                                               placeholder="Ej: usuario@dominio.com" required>
-                                        @error('email')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="role" class="font-weight-bold">Rol</label>
-                                        <select class="form-control @error('role') is-invalid @enderror" id="role" name="role">
-                                            <option value="">Seleccione un rol...</option>
-                                            @foreach($roles as $role)
-                                                <option value="{{ $role->name }}" {{ $user->hasRole($role->name) ? 'selected' : '' }}>
-                                                    {{ ucfirst($role->name) }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error('role')
-                                        <span class="invalid-feedback" role="alert">
+                                            <span class="invalid-feedback" role="alert">
                                                 <strong>{{ $message }}</strong>
                                             </span>
                                         @enderror
@@ -93,47 +45,136 @@
 
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="password" class="font-weight-bold">Contraseña (Dejar en blanco si no desea cambiarla)</label>
-                                        <input type="password"
-                                               class="form-control @error('password') is-invalid @enderror"
-                                               id="password" name="password" placeholder="Mínimo 8 caracteres">
-                                        @error('password')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
+                                        <label for="nickname" class="font-weight-bold">Nombre de Usuario <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control @error('nickname') is-invalid @enderror"
+                                            id="nickname" name="nickname" value="{{ old('nickname', $user->nickname) }}"
+                                            placeholder="Ej: miguel_alcala" required>
+                                        <small class="form-text text-muted">Solo letras, números, guiones y guiones
+                                            bajos</small>
+                                        @error('nickname')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
                                         @enderror
                                     </div>
                                 </div>
 
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="password_confirmation" class="font-weight-bold">Confirmar Contraseña</label>
-                                        <input type="password" class="form-control"
-                                               id="password_confirmation" name="password_confirmation"
-                                               placeholder="Repite la contraseña">
+                                        <label for="email" class="font-weight-bold">Correo Electrónico <span
+                                                class="text-danger">*</span></label>
+                                        <input type="email" class="form-control @error('email') is-invalid @enderror"
+                                            id="email" name="email" value="{{ old('email', $user->email) }}"
+                                            placeholder="Ej: usuario@dominio.com" required>
+                                        @error('email')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="role" class="font-weight-bold">Rol</label>
+                                        <select class="form-control @error('role') is-invalid @enderror" id="role"
+                                            name="role">
+                                            <option value="">Seleccione un rol...</option>
+                                            @foreach ($roles as $role)
+                                                <option value="{{ $role->name }}"
+                                                    {{ $user->hasRole($role->name) ? 'selected' : '' }}>
+                                                    {{ ucfirst($role->name) }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        @error('role')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="password" class="font-weight-bold">Contraseña (Dejar en blanco si no
+                                            desea cambiarla)</label>
+                                        <input type="password" class="form-control @error('password') is-invalid @enderror"
+                                            id="password" name="password" placeholder="Mínimo 8 caracteres">
+                                        @error('password')
+                                            <span class="invalid-feedback" role="alert">
+                                                <strong>{{ $message }}</strong>
+                                            </span>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="password_confirmation" class="font-weight-bold">Confirmar
+                                            Contraseña</label>
+                                        <input type="password" class="form-control" id="password_confirmation"
+                                            name="password_confirmation" placeholder="Repite la contraseña">
                                     </div>
                                 </div>
                             </div>
 
+                            <!-- Sección para asociar líneas -->
+                            <div class="row mt-4">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label class="font-weight-bold">Líneas Asociadas</label>
+                                        <div class="lines-container">
+                                            @if ($lines->count() > 0)
+                                                <div class="row">
+                                                    @foreach ($lines as $line)
+                                                        <div class="col-md-4 mb-2">
+                                                            <div class="custom-control custom-checkbox">
+                                                                <input type="checkbox" class="custom-control-input"
+                                                                    id="line{{ $line->id }}" name="lines[]"
+                                                                    value="{{ $line->id }}"
+                                                                    {{ in_array($line->id, old('lines', $user->lines->pluck('id')->toArray())) ? 'checked' : '' }}>
+                                                                <label class="custom-control-label"
+                                                                    for="line{{ $line->id }}">
+                                                                    {{ $line->name }}
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <div class="alert alert-info">
+                                                    No hay líneas disponibles para asociar.
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @error('lines')
+                                            <span class="text-danger" role="alert">
+                                                <small><strong>{{ $message }}</strong></small>
+                                            </span>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
 
-                        <!-- Sección para asociar estaciones (work centers) -->
+                            <!-- Sección para asociar estaciones (work centers) -->
                             <div class="row mt-4">
                                 <div class="col-md-12">
                                     <div class="form-group">
                                         <label class="font-weight-bold">Estaciones Asociadas</label>
                                         <div class="stations-container">
-                                            @if($workCenters->count() > 0)
+                                            @if ($workCenters->count() > 0)
                                                 <div class="row">
-                                                    @foreach($workCenters as $workCenter)
+                                                    @foreach ($workCenters as $workCenter)
                                                         <div class="col-md-4 mb-2">
                                                             <div class="custom-control custom-checkbox">
-                                                                <input type="checkbox"
-                                                                    class="custom-control-input"
+                                                                <input type="checkbox" class="custom-control-input"
                                                                     id="workCenter{{ $workCenter->id }}"
-                                                                    name="work_centers[]"
-                                                                    value="{{ $workCenter->id }}"
+                                                                    name="work_centers[]" value="{{ $workCenter->id }}"
                                                                     {{ in_array($workCenter->id, old('work_centers', $user->workCenters->pluck('id')->toArray())) ? 'checked' : '' }}>
-                                                                <label class="custom-control-label" for="workCenter{{ $workCenter->id }}">
+                                                                <label class="custom-control-label"
+                                                                    for="workCenter{{ $workCenter->id }}">
                                                                     {{ $workCenter->name }} ({{ $workCenter->number }})
                                                                 </label>
                                                             </div>
@@ -147,9 +188,9 @@
                                             @endif
                                         </div>
                                         @error('work_centers')
-                                        <span class="text-danger" role="alert">
-                                            <small><strong>{{ $message }}</strong></small>
-                                        </span>
+                                            <span class="text-danger" role="alert">
+                                                <small><strong>{{ $message }}</strong></small>
+                                            </span>
                                         @enderror
                                     </div>
                                 </div>
@@ -187,12 +228,19 @@
             padding: 5px;
         }
 
+        .lines-container,
         .stations-container {
             max-height: 300px;
             overflow-y: auto;
             border: 1px solid #ddd;
             border-radius: 4px;
             padding: 10px;
+            margin-bottom: 15px;
+        }
+
+        .custom-control-label::before,
+        .custom-control-label::after {
+            top: .25rem;
         }
     </style>
 @stop

@@ -9,7 +9,7 @@
             <form action="{{ route('users.index') }}" method="GET">
                 <div class="input-group">
                     <input type="text" name="search" class="form-control" placeholder="Buscar..."
-                           value="{{ request('search') }}">
+                        value="{{ request('search') }}">
                     <div class="input-group-append">
                         <button class="btn btn-primary" type="submit">
                             <i class="fas fa-search"></i>
@@ -29,7 +29,7 @@
                     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                         <h3 class="card-title m-0">Lista de Usuarios</h3>
                         @can('create users')
-                            <div class="ml-auto"> <!-- Clase ml-auto añadida aquí -->
+                            <div class="ml-auto">
                                 <a href="{{ route('users.create') }}" class="btn btn-primary">
                                     <i class="fas fa-plus mr-1"></i> Agregar Usuario
                                 </a>
@@ -40,81 +40,94 @@
                         <div class="table-responsive">
                             <table class="table align-middle mb-0">
                                 <thead class="bg-light">
-                                <tr>
-                                    <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Rol') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Creación') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Actualización') }}</th>
-                                    <th class="py-3 text-secondary fw-normal text-center">{{ __('Acciones') }}</th>
-                                </tr>
+                                    <tr>
+                                        <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
+                                        <th class="py-3 text-secondary fw-normal">{{ __('Rol') }}</th>
+                                        <th class="py-3 text-secondary fw-normal">{{ __('Líneas') }}</th>
+                                        <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Creación') }}</th>
+                                        <th class="py-3 text-secondary fw-normal">{{ __('Fecha de Actualización') }}</th>
+                                        <th class="py-3 text-secondary fw-normal text-center">{{ __('Acciones') }}</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
-                                @forelse ($users as $user)
-                                    <tr class="border-top">
-                                        <td class="ps-4 py-3 fw-medium">{{ $user->name }}</td>
-                                        <td class="py-3">
-                                            @if ($user->roles)
-                                                <span class="badge rounded-pill bg-primary text-white px-3 py-2">
-                                                    {{ $user->roles->first()->name ?? '' }}
-                                                </span>
-                                            @else
-                                                <span class="badge rounded-pill bg-secondary px-3 py-2">
-                                                    {{ __('Sin Rol') }}
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td class="py-3 text-muted">
-                                            {{ optional($user->created_at)->format('d-m-Y H:i') ?? '' }}
-                                        </td>
-                                        <td class="py-3 text-muted">
-                                            {{ optional($user->updated_at)->format('d-m-Y H:i') ?? '' }}
-                                        </td>
-                                        <td class="py-3 text-center">
-                                            <div class="btn-group" role="group" aria-label="Acciones">
-                                                <!-- Botón Editar -->
-                                                @can('edit users')
-                                                    <a href="{{ route('users.edit', $user->id) }}"
-                                                       class="btn btn-sm btn-primary d-flex align-items-center"
-                                                       title="Editar">
-                                                        <i class="fas fa-edit mr-1"></i>
-                                                        <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
-                                                    </a>
-                                                @endcan
-                                                <!-- Botón Eliminar -->
-                                                @can('delete users')
-                                                    <form action="{{ route('users.destroy', $user->id) }}"
-                                                          method="POST"
-                                                          style="display: inline-block;"
-                                                          onsubmit="return confirm('¿Estás seguro de eliminar este user?')">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit"
+                                    @forelse ($users as $user)
+                                        <tr class="border-top">
+                                            <td class="ps-4 py-3 fw-medium">{{ $user->name }}</td>
+                                            <td class="py-3">
+                                                @if ($user->roles)
+                                                    <span class="badge rounded-pill bg-primary text-white px-3 py-2">
+                                                        {{ $user->roles->first()->name ?? '' }}
+                                                    </span>
+                                                @else
+                                                    <span class="badge rounded-pill bg-secondary px-3 py-2">
+                                                        {{ __('Sin Rol') }}
+                                                    </span>
+                                                @endif
+                                            </td>
+                                            <td class="py-3">
+                                                @if ($user->lines->count() > 0)
+                                                    @foreach ($user->lines as $line)
+                                                        <span class="badge rounded-pill bg-info text-white px-3 py-2 mb-1">
+                                                            {{ $line->name }}
+                                                        </span>
+                                                    @endforeach
+                                                @else
+                                                    <span class="badge rounded-pill bg-secondary px-3 py-2">
+                                                        {{ __('Sin Líneas') }}
+                                                    </span>
+                                                @endif
+                                            </td>
+                                            <td class="py-3 text-muted">
+                                                {{ optional($user->created_at)->format('d-m-Y H:i') ?? '' }}
+                                            </td>
+                                            <td class="py-3 text-muted">
+                                                {{ optional($user->updated_at)->format('d-m-Y H:i') ?? '' }}
+                                            </td>
+                                            <td class="py-3 text-center">
+                                                <div class="btn-group" role="group" aria-label="Acciones">
+                                                    <!-- Botón Editar -->
+                                                    @can('edit users')
+                                                        <a href="{{ route('users.edit', $user->id) }}"
+                                                            class="btn btn-sm btn-primary d-flex align-items-center"
+                                                            title="Editar">
+                                                            <i class="fas fa-edit mr-1"></i>
+                                                            <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
+                                                        </a>
+                                                    @endcan
+                                                    <!-- Botón Eliminar -->
+                                                    @can('delete users')
+                                                        <form action="{{ route('users.destroy', $user->id) }}" method="POST"
+                                                            style="display: inline-block;"
+                                                            onsubmit="return confirm('¿Estás seguro de eliminar este user?')">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit"
                                                                 class="btn btn-sm btn-danger d-flex align-items-center">
-                                                            <i class="fas fa-trash mr-1"></i>
-                                                            <span class="d-none d-sm-inline">{{ __('Eliminar') }}</span>
-                                                        </button>
-                                                    </form>
-                                                @endcan
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5" class="text-center py-4">
-                                            @if(request()->has('search'))
-                                                No se encontraron líneas que coincidan con "{{ request('search') }}"
-                                            @else
-                                                No hay usuarios registradas
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforelse
+                                                                <i class="fas fa-trash mr-1"></i>
+                                                                <span class="d-none d-sm-inline">{{ __('Eliminar') }}</span>
+                                                            </button>
+                                                        </form>
+                                                    @endcan
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4">
+                                                @if (request()->has('search'))
+                                                    No se encontraron usuarios que coincidan con "{{ request('search') }}"
+                                                @else
+                                                    No hay usuarios registrados
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center w-100">
-                        <div class="text-muted" >
+                        <div class="text-muted">
                             MOSTRANDO {{ $users->firstItem() ?? 0 }} -
                             {{ $users->lastItem() ?? 0 }} DE {{ $users->total() }}
                         </div>

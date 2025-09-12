@@ -79,6 +79,16 @@ class User extends Authenticatable
     }
 
     /**
+     * Relación con las líneas del usuario (muchos a muchos)
+     *
+     * @return BelongsToMany
+     */
+    public function lines(): BelongsToMany
+    {
+        return $this->belongsToMany(Line::class);
+    }
+
+    /**
      * Relación con las validaciones de material del usuario
      *
      * @return HasMany

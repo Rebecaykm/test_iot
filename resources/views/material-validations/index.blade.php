@@ -7,18 +7,12 @@
         <h1 class="m-0 text-dark">Historial de Escaneos</h1>
         <form action="{{ route('material-validations.index') }}" method="GET" class="form-inline">
             <div class="input-group input-group-sm mr-2">
-                <input type="date"
-                       name="date"
-                       class="form-control"
-                       value="{{ request('date') }}"
-                       max="{{ now()->toDateString() }}">
+                <input type="date" name="date" class="form-control" value="{{ request('date') }}"
+                    max="{{ now()->toDateString() }}">
             </div>
             <div class="input-group input-group-sm">
-                <input type="text"
-                       name="search"
-                       class="form-control"
-                       placeholder="Buscar..."
-                       value="{{ request('search') }}">
+                <input type="text" name="search" class="form-control" placeholder="Buscar..."
+                    value="{{ request('search') }}">
                 <div class="input-group-append">
                     <button class="btn btn-outline-secondary" type="submit">
                         <i class="fas fa-search"></i>
@@ -36,26 +30,27 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr class="bg-gray-100">
-                            <th class="w-35">Usuario</th>
+                            <th class="w-25">Usuario</th>
+                            <th class="w-25">Líneas</th>
                             <th class="w-15">Estado</th>
-                            <th class="w-25">Fecha</th>
-                            <th class="w-25 text-right">Acciones</th>
+                            <th class="w-15">Fecha</th>
+                            <th class="w-20">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($materialValidations as $validation)
                             <tr class="border-bottom">
                                 <td>
-                                    @if($validation->user)
+                                    @if ($validation->user)
                                         <div class="d-flex align-items-center">
                                             <div class="mr-2">
                                                 <img src="{{ $validation->user->profile_photo_url }}"
-                                                     alt="{{ $validation->user->name }}"
-                                                     class="rounded-circle img-size-32">
+                                                    alt="{{ $validation->user->name }}" class="rounded-circle img-size-32">
                                             </div>
                                             <div>
                                                 <div class="text-sm font-weight-600">{{ $validation->user->name }}</div>
-                                                <div class="text-xs text-muted">{{ $validation->user->nickname ?? 'Sin alias' }}</div>
+                                                <div class="text-xs text-muted">
+                                                    {{ $validation->user->nickname ?? 'Sin alias' }}</div>
                                             </div>
                                         </div>
                                     @else
@@ -63,13 +58,29 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($validation->validation_status == 'OK')
+                                    @if ($validation->user && $validation->user->lines->count() > 0)
+                                        <div class="user-lines">
+                                            @foreach ($validation->user->lines as $line)
+                                                <span class="badge badge-info mb-1 d-block text-left"
+                                                    style="background-color: {{ $line->color }}; color: white; font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+                                                    {{ $line->name }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="text-muted small">Sin líneas</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if ($validation->validation_status == 'OK')
                                         <span class="badge badge-success-light">
-                                            <i class="fas fa-check-circle text-success mr-1"></i> {{ $validation->validation_status }}
+                                            <i class="fas fa-check-circle text-success mr-1"></i>
+                                            {{ $validation->validation_status }}
                                         </span>
                                     @else
                                         <span class="badge badge-danger-light">
-                                            <i class="fas fa-times-circle text-danger mr-1"></i> {{ $validation->validation_status }}
+                                            <i class="fas fa-times-circle text-danger mr-1"></i>
+                                            {{ $validation->validation_status }}
                                         </span>
                                     @endif
                                 </td>
@@ -77,19 +88,17 @@
                                     <div class="text-sm">{{ $validation->created_at->format('d M Y') }}</div>
                                     <div class="text-xs text-muted">{{ $validation->created_at->format('H:i') }}</div>
                                 </td>
-                                <td class="text-right">
-                                    <button class="btn btn-sm btn-outline-secondary"
-                                            data-toggle="tooltip"
-                                            title="Ver detalles"
-                                            onclick="showDetails({{ json_encode($validation) }})">
+                                <td>
+                                    <button class="btn btn-sm btn-outline-secondary" data-toggle="tooltip"
+                                        title="Ver detalles" onclick="showDetails({{ json_encode($validation) }})">
                                         <i class="fas fa-eye"></i> Detalles
                                     </button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="text-center py-5">
-                                    @if(request('search'))
+                                <td colspan="5" class="text-center py-5">
+                                    @if (request('search'))
                                         <div class="text-muted">
                                             <i class="fas fa-search fa-2x mb-3"></i>
                                             <h5>No se encontraron resultados</h5>
@@ -109,7 +118,7 @@
                 </table>
             </div>
         </div>
-        @if($materialValidations->hasPages())
+        @if ($materialValidations->hasPages())
             <div class="card-footer bg-white">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="text-sm text-muted">
@@ -119,9 +128,9 @@
                     </div>
                     <div>
                         {{ $materialValidations->appends([
-                            'search' => request('search'),
-                            'date' => request('date') // Mantener en paginación
-                        ])->links('pagination::bootstrap-4') }}
+                                'search' => request('search'),
+                                'date' => request('date'), // Mantener en paginación
+                            ])->links('pagination::bootstrap-4') }}
                     </div>
                 </div>
             </div>
@@ -158,6 +167,7 @@
                             <div class="border rounded p-3 h-100">
                                 <h6 class="text-uppercase small text-muted mb-3">Usuario</h6>
                                 <div id="detail-user" class="d-flex align-items-center"></div>
+                                <div class="mt-2" id="detail-user-lines"></div>
                             </div>
                         </div>
                     </div>
@@ -197,7 +207,8 @@
                     <div class="border-top pt-4">
                         <h6 class="text-uppercase small text-muted mb-3">Comentarios</h6>
                         <div class="border rounded p-3 bg-light">
-                            <div id="detail-comment" class="text-break" style="max-height: 150px; overflow-y: auto;"></div>
+                            <div id="detail-comment" class="text-break" style="max-height: 150px; overflow-y: auto;">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -215,57 +226,77 @@
             border-collapse: separate;
             border-spacing: 0;
         }
+
         .table thead th {
             border-top: none;
             border-bottom: 1px solid #e0e0e0;
             font-weight: 500;
             color: #6c757d;
         }
+
         .table tbody tr {
             background-color: #fff;
             border-bottom: 1px solid #f0f0f0;
         }
+
         .table tbody tr:last-child {
             border-bottom: none;
         }
+
         .badge-success-light {
             background-color: rgba(40, 167, 69, 0.1);
             color: #28a745;
         }
+
         .badge-danger-light {
             background-color: rgba(220, 53, 69, 0.1);
             color: #dc3545;
         }
+
         .img-size-32 {
             width: 32px;
             height: 32px;
             object-fit: cover;
         }
+
         .img-size-28 {
             width: 28px;
             height: 28px;
             object-fit: cover;
         }
+
+        .img-size-40 {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+        }
+
         .font-weight-600 {
             font-weight: 600;
         }
+
         .bg-gray-100 {
             background-color: #f8f9fa;
         }
+
         .shadow-sm {
-            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.03) !important;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.03) !important;
         }
+
         .text-break {
             word-break: break-word;
             overflow-wrap: break-word;
         }
-        .align-items-stretch > [class*="col-"] {
+
+        .align-items-stretch>[class*="col-"] {
             display: flex;
             flex-direction: column;
         }
-        .align-items-stretch > [class*="col-"] > div {
+
+        .align-items-stretch>[class*="col-"]>div {
             flex: 1;
         }
+
         .input-group-sm {
             max-width: 300px;
         }
@@ -279,6 +310,19 @@
         /* Separación entre controles */
         .form-inline .input-group {
             margin-left: 5px;
+        }
+
+        /* Estilos para las líneas del usuario */
+        .user-lines {
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        .user-lines .badge {
+            margin-bottom: 2px;
+            white-space: normal;
+            text-align: left;
+            line-height: 1.3;
         }
     </style>
 @stop
@@ -299,13 +343,15 @@
             // Actualizar datos en el modal
             $('#detail-date').text(formattedDate);
             $('#detail-status').html(
-                validation.validation_status === 'OK'
-                    ? '<span class="badge badge-success-light p-2"> OK </span>'
-                    : '<span class="badge badge-danger-light p-2"> NG </span>'
+                validation.validation_status === 'OK' ?
+                '<span class="badge badge-success-light p-2"> OK </span>' :
+                '<span class="badge badge-danger-light p-2"> NG </span>'
             );
 
             // Información de usuario con círculo más pequeño
             let userHtml = '';
+            let linesHtml = '';
+
             if (validation.user) {
                 userHtml = `
                     <div class="mr-2">
@@ -318,10 +364,22 @@
                         <small class="d-block text-muted">${validation.user.nickname || 'N/A'}</small>
                     </div>
                 `;
+
+                // Líneas del usuario en el modal
+                if (validation.user.lines && validation.user.lines.length > 0) {
+                    linesHtml = '<div class="mt-2"><strong>Líneas:</strong><div class="mt-1">';
+                    validation.user.lines.forEach(line => {
+                        linesHtml +=
+                            `<span class="badge mr-1 mb-1" style="background-color: ${line.color}; color: white;">${line.name}</span>`;
+                    });
+                    linesHtml += '</div></div>';
+                }
             } else {
                 userHtml = '<span class="text-muted">Usuario no disponible</span>';
             }
+
             $('#detail-user').html(userHtml);
+            $('#detail-user-lines').html(linesHtml);
 
             // Códigos con manejo de texto largo
             $('#detail-container').text(validation.container_code || 'No escaneado');
