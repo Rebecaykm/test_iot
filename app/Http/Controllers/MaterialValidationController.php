@@ -6,6 +6,7 @@ use App\Models\MaterialValidation;
 use App\Models\Shift;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class MaterialValidationController extends Controller
@@ -18,7 +19,10 @@ class MaterialValidationController extends Controller
         $search = $request->input('search');
         $date = $request->input('date');
 
-        $materialValidations = MaterialValidation::with(['workCenter', 'user'])
+        // Obtener las líneas del usuario autenticado
+        $userLines = Auth::user()->lines->pluck('id')->toArray();
+
+        $materialValidations = MaterialValidation::with(['workCenter', 'user', 'user.lines']) // Cambiado a plural
             ->when($search, function ($query, $search) {
                 return $query->where('container_code', 'like', "%{$search}%")
                     ->orWhere('visual_aid_code', 'like', "%{$search}%")
@@ -30,6 +34,10 @@ class MaterialValidationController extends Controller
             })
             ->when($date, function ($query, $date) {
                 return $query->whereDate('created_at', $date);
+            })
+            // Filtrar por las líneas del usuario - corregido
+            ->whereHas('user.lines', function ($query) use ($userLines) {
+                $query->whereIn('lines.id', $userLines);
             })
             ->orderBy('created_at', 'desc')
             ->paginate(10)

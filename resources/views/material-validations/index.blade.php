@@ -30,11 +30,11 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr class="bg-gray-100">
-                            <th class="w-25">Usuario</th>
-                            <th class="w-25">Líneas</th>
-                            <th class="w-15">Estado</th>
-                            <th class="w-15">Fecha</th>
-                            <th class="w-20">Acciones</th>
+                            <th class="w-20">Usuario</th>
+                            <th class="w-20">Líneas</th>
+                            <th class="w-15 text-center">Estado</th>
+                            <th class="w-20">Fecha</th>
+                            <th class="w-25">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -71,14 +71,14 @@
                                         <span class="text-muted small">Sin líneas</span>
                                     @endif
                                 </td>
-                                <td>
+                                <td class="text-center">
                                     @if ($validation->validation_status == 'OK')
-                                        <span class="badge badge-success-light">
+                                        <span class="badge badge-success-light p-2" style="font-size: 0.9rem;">
                                             <i class="fas fa-check-circle text-success mr-1"></i>
                                             {{ $validation->validation_status }}
                                         </span>
                                     @else
-                                        <span class="badge badge-danger-light">
+                                        <span class="badge badge-danger-light p-2" style="font-size: 0.9rem;">
                                             <i class="fas fa-times-circle text-danger mr-1"></i>
                                             {{ $validation->validation_status }}
                                         </span>
@@ -86,12 +86,12 @@
                                 </td>
                                 <td>
                                     <div class="text-sm">{{ $validation->created_at->format('d M Y') }}</div>
-                                    <div class="text-xs text-muted">{{ $validation->created_at->format('H:i') }}</div>
+                                    <div class="text-xs text-muted">{{ $validation->created_at->format('H:i:s') }}</div>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-secondary" data-toggle="tooltip"
+                                    <button class="btn btn-sm btn-outline-primary" data-toggle="tooltip"
                                         title="Ver detalles" onclick="showDetails({{ json_encode($validation) }})">
-                                        <i class="fas fa-eye"></i> Detalles
+                                        <i class="fas fa-eye mr-1"></i> Detalles
                                     </button>
                                 </td>
                             </tr>
@@ -129,7 +129,7 @@
                     <div>
                         {{ $materialValidations->appends([
                                 'search' => request('search'),
-                                'date' => request('date'), // Mantener en paginación
+                                'date' => request('date'),
                             ])->links('pagination::bootstrap-4') }}
                     </div>
                 </div>
@@ -141,8 +141,8 @@
     <div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title">Detalles de Validación</h5>
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title font-weight-bold">Detalles de Validación</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -153,11 +153,11 @@
                         <div class="col-md-6 mb-3 mb-md-0">
                             <div class="border rounded p-3 h-100">
                                 <h6 class="text-uppercase small text-muted mb-3">Información</h6>
-                                <div class="d-flex mb-2">
+                                <div class="d-flex mb-2 align-items-center">
                                     <div class="w-40 text-muted">Fecha:</div>
                                     <div class="w-60 font-weight-600" id="detail-date"></div>
                                 </div>
-                                <div class="d-flex">
+                                <div class="d-flex align-items-center">
                                     <div class="w-40 text-muted">Estado:</div>
                                     <div class="w-60" id="detail-status"></div>
                                 </div>
@@ -212,8 +212,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cerrar</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
                 </div>
             </div>
         </div>
@@ -229,9 +229,10 @@
 
         .table thead th {
             border-top: none;
-            border-bottom: 1px solid #e0e0e0;
-            font-weight: 500;
-            color: #6c757d;
+            border-bottom: 2px solid #e0e0e0;
+            font-weight: 600;
+            color: #495057;
+            vertical-align: middle;
         }
 
         .table tbody tr {
@@ -244,13 +245,15 @@
         }
 
         .badge-success-light {
-            background-color: rgba(40, 167, 69, 0.1);
+            background-color: rgba(40, 167, 69, 0.15);
             color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.3);
         }
 
         .badge-danger-light {
-            background-color: rgba(220, 53, 69, 0.1);
+            background-color: rgba(220, 53, 69, 0.15);
             color: #dc3545;
+            border: 1px solid rgba(220, 53, 69, 0.3);
         }
 
         .img-size-32 {
@@ -280,7 +283,7 @@
         }
 
         .shadow-sm {
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.03) !important;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.05) !important;
         }
 
         .text-break {
@@ -324,31 +327,49 @@
             text-align: left;
             line-height: 1.3;
         }
+
+        /* Mejoras para el modal */
+        .modal-header {
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .modal-footer {
+            border-top: 1px solid #e9ecef;
+        }
+
+        /* Estado más grande en la tabla */
+        .badge {
+            font-size: 0.9rem;
+            padding: 0.35em 0.65em;
+        }
     </style>
 @stop
 
 @section('js')
     <script>
         function showDetails(validation) {
-            // Formatear fecha
+            // Formatear fecha con segundos
             const date = new Date(validation.created_at);
             const formattedDate = date.toLocaleDateString('es-ES', {
                 day: '2-digit',
                 month: 'long',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
+                minute: '2-digit',
+                second: '2-digit'
             });
 
             // Actualizar datos en el modal
             $('#detail-date').text(formattedDate);
+
+            // Estado más grande en el modal
             $('#detail-status').html(
                 validation.validation_status === 'OK' ?
-                '<span class="badge badge-success-light p-2"> OK </span>' :
-                '<span class="badge badge-danger-light p-2"> NG </span>'
+                '<span class="badge badge-success-light p-2" style="font-size: 1rem;"><i class="fas fa-check-circle text-success mr-1"></i> OK </span>' :
+                '<span class="badge badge-danger-light p-2" style="font-size: 1rem;"><i class="fas fa-times-circle text-danger mr-1"></i> NG </span>'
             );
 
-            // Información de usuario con círculo más pequeño
+            // Información de usuario
             let userHtml = '';
             let linesHtml = '';
 

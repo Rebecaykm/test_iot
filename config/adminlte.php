@@ -412,6 +412,7 @@ return [
                 [
                     'text' => 'Resumen de Producción',
                     'route' => 'production-records.summary',
+                    'can' => 'view production records'
                 ]
             ],
         ],
