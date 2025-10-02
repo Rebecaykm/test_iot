@@ -22,7 +22,7 @@ class MaterialValidationController extends Controller
         // Obtener las líneas del usuario autenticado
         $userLines = Auth::user()->lines->pluck('id')->toArray();
 
-        $materialValidations = MaterialValidation::with(['workCenter', 'user', 'user.lines']) // Cambiado a plural
+        $materialValidations = MaterialValidation::with(['workCenter', 'user', 'user.lines'])
             ->when($search, function ($query, $search) {
                 return $query->where('container_code', 'like', "%{$search}%")
                     ->orWhere('visual_aid_code', 'like', "%{$search}%")
@@ -114,7 +114,7 @@ class MaterialValidationController extends Controller
             // Obtener todos los escaneos del día seleccionado con eager loading
             $scansToday = MaterialValidation::with(['user:id,name,nickname,profile_photo_path'])
                 ->whereDate('created_at', $dateStr)
-                ->select('id', 'user_id', 'validation_status', 'created_at')
+                ->select('id', 'user_id', 'validation_status', 'validation_comment', 'created_at')
                 ->get();
 
             // Inicializar estadísticas por defecto
@@ -132,11 +132,13 @@ class MaterialValidationController extends Controller
                 $shiftStats = $this->getEmptyShiftStats($shiftsToShow['shifts'], $emptyStats);
                 $userStats = collect();
                 $hourlyStats = $this->getEmptyHourlyStats();
+                $ngTypes = collect();
             } else {
                 $dailyStats = $this->getDailyStats($scansToday);
                 $shiftStats = $this->getShiftStats($shiftsToShow['shiftInfos']);
                 $userStats = $this->getUserStats($scansToday);
                 $hourlyStats = $this->getHourlyStats($scansToday);
+                $ngTypes = $this->getNgTypesStats($scansToday);
             }
 
             // CORRECCIÓN: Definir las variables antes de pasarlas al compact
@@ -150,7 +152,8 @@ class MaterialValidationController extends Controller
                 'hourlyStats',
                 'shiftInfos',
                 'shifts',
-                'isToday'
+                'isToday',
+                'ngTypes'
             ));
         } catch (\Exception $e) {
             // Log del error
@@ -159,6 +162,26 @@ class MaterialValidationController extends Controller
             // Redirigir con mensaje de error
             return redirect()->back()->with('error', 'Error al cargar las estadísticas. Inténtalo nuevamente.');
         }
+    }
+
+    private function getNgTypesStats($scans)
+    {
+        return $scans->where('validation_status', 'NG')
+            ->groupBy('validation_comment')
+            ->map(function ($ngScans, $comment) {
+                return [
+                    'comment' => $comment ?: 'Sin comentario',
+                    'count' => $ngScans->count(),
+                    'percentage' => 0
+                ];
+            })
+            ->sortByDesc('count')
+            ->values()
+            ->map(function ($item, $index) use ($scans) {
+                $totalNg = $scans->where('validation_status', 'NG')->count();
+                $item['percentage'] = $totalNg > 0 ? round(($item['count'] / $totalNg) * 100, 1) : 0;
+                return $item;
+            });
     }
 
     /**
@@ -435,6 +458,9 @@ class MaterialValidationController extends Controller
         return $stats;
     }
 
+    /**
+     * Obtener estadísticas por usuario
+     */
     private function getUserStats($scans)
     {
         return $scans->groupBy('user_id')
@@ -457,6 +483,7 @@ class MaterialValidationController extends Controller
                     'total' => $total,
                     'ok_percentage' => $total > 0 ? round(($ok / $total) * 100, 2) : 0,
                     'ng_percentage' => $total > 0 ? round(($ng / $total) * 100, 2) : 0,
+                    'ng_breakdown' => $this->getNgBreakdown($userScans)
                 ];
             })
             ->filter() // Remover valores null
@@ -464,6 +491,9 @@ class MaterialValidationController extends Controller
             ->values();
     }
 
+    /**
+     * Obtener estadísticas diarias
+     */
     private function getDailyStats($scans)
     {
         $total = $scans->count();
@@ -476,9 +506,13 @@ class MaterialValidationController extends Controller
             'ng' => $ng,
             'ok_percentage' => $total > 0 ? round(($ok / $total) * 100, 2) : 0,
             'ng_percentage' => $total > 0 ? round(($ng / $total) * 100, 2) : 0,
+            'ng_breakdown' => $this->getNgBreakdown($scans)
         ];
     }
 
+    /**
+     * Obtener escaneos para un turno específico
+     */
     private function getScansForShift($shiftInfo)
     {
         if (!$shiftInfo || !$shiftInfo->shift || !$shiftInfo->timeRange) {
@@ -489,10 +523,13 @@ class MaterialValidationController extends Controller
             $shiftInfo->timeRange->startDateTime,
             $shiftInfo->timeRange->endDateTime
         ])
-            ->select('id', 'validation_status', 'created_at')
+            ->select('id', 'validation_status', 'validation_comment', 'created_at')
             ->get();
     }
 
+    /**
+     * Obtener estadísticas por hora
+     */
     private function getHourlyStats($scans)
     {
         // Inicializar array con 24 horas
@@ -529,6 +566,9 @@ class MaterialValidationController extends Controller
         return array_values($hourlyData);
     }
 
+    /**
+     * Obtener estadísticas por hora vacías
+     */
     private function getEmptyHourlyStats()
     {
         $data = [];
@@ -541,5 +581,47 @@ class MaterialValidationController extends Controller
             ];
         }
         return $data;
+    }
+
+    /**
+     * Obtener el desglose de tipos de NG
+     */
+    private function getNgBreakdown($scans)
+    {
+        $ngScans = $scans->where('validation_status', 'NG');
+
+        if ($ngScans->isEmpty()) {
+            return [];
+        }
+
+        return $ngScans->groupBy('validation_comment')
+            ->map(function ($group, $comment) use ($ngScans) {
+                $count = $group->count();
+                $percentage = $ngScans->count() > 0 ? round(($count / $ngScans->count()) * 100, 2) : 0;
+
+                return [
+                    'comment' => $comment ?: 'Sin comentario',
+                    'count' => $count,
+                    'percentage' => $percentage
+                ];
+            })
+            ->sortByDesc('count')
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * Obtener el desglose de NG por turno
+     */
+    private function getShiftNgBreakdown($shiftInfos)
+    {
+        $breakdown = [];
+
+        foreach ($shiftInfos as $shiftInfo) {
+            $shiftScans = $this->getScansForShift($shiftInfo);
+            $breakdown[$shiftInfo->shift->abbreviation] = $this->getNgBreakdown($shiftScans);
+        }
+
+        return $breakdown;
     }
 }

@@ -35,7 +35,7 @@ class RolePermissionSeeder extends Seeder
         Permission::firstOrCreate(['name' => 'view work centers map']);
 
         // Asignar permisos
-        $adminRole = Role::findByName('Administrador');
+        $adminRole = User::find(1);
         $adminRole->syncPermissions(Permission::all());
 
         // Asignar role

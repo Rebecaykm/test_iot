@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ECL;
 use App\Models\MaterialValidation;
 use App\Models\PartNumber;
 use Carbon\Carbon;
@@ -46,7 +47,7 @@ class MaterialValidationController extends Controller
 
             $user = $request->user();
 
-            $partNumber = PartNumber::where('number', $request->part_number)->first();
+            $partNumber = PartNumber::where('number', trim($request->part_number))->first();
 
             if ($request->filled('part_number') && !$partNumber) {
                 $accessErrors[] = 'El número de parte no existe';
@@ -124,7 +125,7 @@ class MaterialValidationController extends Controller
                 'container_code' => $request->container_code,
                 'visual_aid_code' => $request->visual_aid_code,
                 'final_label_code' => $request->final_label_code,
-                'part_number' => $request->part_number,
+                'part_number' => trim($request->part_number),
                 'validation_status' => $request->validation_status,
                 'validation_comment' => $request->validation_comment,
                 'validation_details' => [
@@ -221,6 +222,146 @@ class MaterialValidationController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener el historial'
+            ], 500);
+        }
+    }
+
+    /**
+     * Validar secuencia de etiqueta final
+     */
+    public function validateSequence(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'final_label_code' => 'required|string|max:255',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'isValid' => false,
+                    'validationComment' => 'Código de etiqueta final inválido',
+                ], 422);
+            }
+
+            $finalLabelCode = $request->final_label_code;
+
+            // Verificar longitud mínima
+            if (strlen($finalLabelCode) <= 30) {
+                return response()->json([
+                    'isValid' => false,
+                    'validationComment' => 'La etiqueta final debe tener más de 30 caracteres',
+                ]);
+            }
+
+            // Descomponer la etiqueta final
+            $order = substr($finalLabelCode, 0, 7);
+            $sequence = substr($finalLabelCode, 7, 3);
+            $partNumber = trim(substr($finalLabelCode, 10, 10));
+            $quantity = substr($finalLabelCode, 20, 6);
+
+            Log::info('Etiqueta final descompuesta', [
+                'final_label_code' => $finalLabelCode,
+                'order' => $order,
+                'sequence' => $sequence,
+                'part_number' => $partNumber,
+                'quantity' => $quantity
+            ]);
+
+            // Consultar en ECL con la fecha actual
+            $today = Carbon::now()->format('Ymd');
+            Log::info('Consultando ECL con fecha', ['today' => $today, 'part_number' => $partNumber]);
+
+            $eclRecords = ECL::select('CLIDNO', 'CLCARD', 'LPROD')
+                ->whereRaw('TRIM(LPROD) LIKE ?', [trim($partNumber) . '%'])
+                ->where('CLCARD', '>=', $today)
+                ->orderBy('CLIDNO', 'asc')
+                ->get();
+
+            Log::info('Registros ECL encontrados', ['count' => $eclRecords->count()]);
+
+            if ($eclRecords->isEmpty()) {
+                return response()->json([
+                    'isValid' => false,
+                    'validationComment' => 'No se encontraron registros en ECL para el número de parte: ' . $partNumber,
+                ]);
+            }
+
+            // Buscar el registro actual
+            $currentRecord = null;
+            $currentIndex = -1;
+
+            foreach ($eclRecords as $index => $record) {
+                if (strpos($record->CLIDNO, Carbon::now()->format('y') . $order) !== false) {
+                    $currentRecord = $record;
+                    $currentIndex = $index;
+                    break;
+                }
+            }
+
+            if (!$currentRecord) {
+                return response()->json([
+                    'isValid' => false,
+                    'validationComment' => 'No se encontró la orden ' . $order . ' en los registros ECL',
+                ]);
+            }
+
+            Log::info('Registro actual encontrado', [
+                'CLIDNO' => $currentRecord->CLIDNO,
+                'CLCARD' => $currentRecord->CLCARD,
+                'index' => $currentIndex
+            ]);
+
+            // Buscar registro anterior
+            if ($currentIndex > 0) {
+                $previousRecord = $eclRecords[$currentIndex - 1];
+                $previousCLIDNO = trim($previousRecord->CLIDNO);
+
+                // Quitar los dos primeros dígitos
+                $previousOrder = substr($previousCLIDNO, 2);
+
+                Log::info('Registro anterior encontrado', [
+                    'previousCLIDNO' => $previousCLIDNO,
+                    'previousOrder' => $previousOrder
+                ]);
+
+                // Verificar en material_validations si el registro anterior fue escaneado
+                $previousValidation = MaterialValidation::where('final_label_code', 'like', '%' . $previousOrder . '%')
+                    ->where('validation_status', 'OK')
+                    ->first();
+
+                if (!$previousValidation) {
+                    return response()->json([
+                        'isValid' => false,
+                        'validationComment' => 'No se ha escaneado el registro anterior: ' . $previousOrder . '. Debe escanearse en orden secuencial.',
+                    ]);
+                }
+
+                Log::info('Registro anterior validado', ['previous_validation_id' => $previousValidation->id]);
+            } else {
+                Log::info('No hay registro anterior, es el primer registro de la secuencia');
+            }
+
+            // Si pasa todas las validaciones
+            return response()->json([
+                'isValid' => true,
+                'validationComment' => null,
+                'parsedData' => [
+                    'order' => $order,
+                    'sequence' => $sequence,
+                    'part_number' => $partNumber,
+                    'quantity' => $quantity
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en validación de secuencia', [
+                'error' => $e->getMessage(),
+                'final_label_code' => $request->final_label_code ?? 'N/A',
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'isValid' => false,
+                'validationComment' => 'Error interno en la validación de secuencia: ' . $e->getMessage(),
             ], 500);
         }
     }
