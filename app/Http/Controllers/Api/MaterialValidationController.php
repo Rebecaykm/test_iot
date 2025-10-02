@@ -239,7 +239,7 @@ class MaterialValidationController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'isValid' => false,
-                    'validationComment' => 'Código de etiqueta final inválido',
+                    'validationComment' => 'Orden Incorrecto',
                 ], 422);
             }
 
@@ -249,7 +249,15 @@ class MaterialValidationController extends Controller
             if (strlen($finalLabelCode) <= 30) {
                 return response()->json([
                     'isValid' => false,
-                    'validationComment' => 'La etiqueta final debe tener más de 30 caracteres',
+                    'validationComment' => 'Orden Incorrecto',
+                ]);
+            }
+
+            $exists = MaterialValidation::where('final_label_code', $finalLabelCode)->where('validation_status', 'OK')->exists();
+            if ($exists) {
+                return response()->json([
+                    'isValid' => false,
+                    'validationComment' => 'Registrado Anteriormente',
                 ]);
             }
 
@@ -282,7 +290,7 @@ class MaterialValidationController extends Controller
             if ($eclRecords->isEmpty()) {
                 return response()->json([
                     'isValid' => false,
-                    'validationComment' => 'No se encontraron registros en ECL para el número de parte: ' . $partNumber,
+                    'validationComment' => 'Secuencia Incorrecta',
                 ]);
             }
 
@@ -301,7 +309,7 @@ class MaterialValidationController extends Controller
             if (!$currentRecord) {
                 return response()->json([
                     'isValid' => false,
-                    'validationComment' => 'No se encontró la orden ' . $order . ' en los registros ECL',
+                    'validationComment' => 'Secuencia Incorrecta',
                 ]);
             }
 
@@ -332,7 +340,7 @@ class MaterialValidationController extends Controller
                 if (!$previousValidation) {
                     return response()->json([
                         'isValid' => false,
-                        'validationComment' => 'No se ha escaneado el registro anterior: ' . $previousOrder . '. Debe escanearse en orden secuencial.',
+                        'validationComment' => 'Secuencia Incorrecta',
                     ]);
                 }
 
@@ -361,7 +369,7 @@ class MaterialValidationController extends Controller
 
             return response()->json([
                 'isValid' => false,
-                'validationComment' => 'Error interno en la validación de secuencia: ' . $e->getMessage(),
+                'validationComment' => 'Secuencia Incorrecta',
             ], 500);
         }
     }

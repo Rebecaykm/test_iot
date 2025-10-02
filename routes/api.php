@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MaterialValidationController;
-use App\Http\Controllers\Api\TestController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,8 +17,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
-    Route::get('/check-token', [AuthController::class, 'checkToken']); // Nueva ruta
+    Route::get('/check-token', [AuthController::class, 'checkToken']);
 
+    Route::post('/validate-sequence', [MaterialValidationController::class, 'validateSequence']);
     Route::post('/material-validations', [MaterialValidationController::class, 'store']);
     Route::get('/material-validations', [MaterialValidationController::class, 'index']);
     Route::get('/material-validations/statistics', [MaterialValidationController::class, 'statistics']);
