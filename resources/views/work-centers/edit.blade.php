@@ -22,10 +22,9 @@
                         </h3>
                     </div>
 
-                    <!-- Acción y método del formulario cambiados -->
                     <form action="{{ route('work-centers.update', $workCenter->id) }}" method="POST">
                         @csrf
-                        @method('PUT') <!-- Método PUT para actualización -->
+                        @method('PUT')
 
                         <div class="card-body">
                             <div class="row">
@@ -65,7 +64,7 @@
                                                 class="text-danger">*</span></label>
                                         <input type="text" class="form-control @error('ip') is-invalid @enderror"
                                                id="ip" name="ip" value="{{ old('ip', $workCenter->ip) }}"
-                                               placeholder="Ej: 127.0.0.1" required>
+                                               placeholder="Ej: 127.0.0.1" >
                                         @error('ip')
                                         <span class="invalid-feedback" role="alert">
                                             <strong>{{ $message }}</strong>
