@@ -282,7 +282,7 @@ class MaterialValidationController extends Controller
             $eclRecords = ECL::select('CLIDNO', 'CLCARD', 'LPROD')
                 ->whereRaw('TRIM(LPROD) LIKE ?', [trim($partNumber) . '%'])
                 ->where('CLCARD', '>=', $today)
-                ->orderBy('CLIDNO', 'asc')
+                ->orderBy('CLCARD', 'asc')
                 ->get();
 
             Log::info('Registros ECL encontrados', ['count' => $eclRecords->count()]);

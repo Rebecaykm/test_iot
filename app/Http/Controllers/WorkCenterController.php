@@ -81,7 +81,7 @@ class WorkCenterController extends Controller
     {
         // Validar solo el campo IP
         $validated = $request->validate([
-            'ip' => 'required|string|max:45|unique:work_centers,ip,' . $workCenter->id
+            'ip' => 'nullable|string|max:45'
         ]);
 
         // Actualizar solo el campo IP

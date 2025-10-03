@@ -22,6 +22,7 @@ class ProductionRecordController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $date = $request->input('date');
         $workCentersArray = Auth::user()->workCenters->pluck('name')->toArray();
 
         $productionRecords = ProductionRecord::query()
@@ -46,21 +47,31 @@ class ProductionRecordController extends Controller
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->join('lines', 'work_centers.line_id', '=', 'lines.id')
             ->where('production_records.synced_to_infor', false)
-            // ->where('statuses.name', 'LIKE', 'Completado')
             ->whereIn('work_centers.name', $workCentersArray)
-            ->whereBetween('production_records.planned_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
+            ->when($date, function ($query, $date) {
+                // Filtrar por fecha específica si se proporciona
+                return $query->whereDate('production_records.planned_date', $date);
+            }, function ($query) {
+                // Si no hay fecha, usar el filtro semanal por defecto
+                return $query->whereBetween('production_records.planned_date', [
+                    Carbon::now()->startOfWeek(),
+                    Carbon::now()->endOfWeek()
+                ]);
+            })
             ->when($search, function ($query, $search) {
                 return $query->where(function ($q) use ($search) {
                     $q->where('part_numbers.number', 'like', "%{$search}%")
                         ->orWhere('part_numbers.name', 'like', "%{$search}%")
                         ->orWhere('work_centers.name', 'like', "%{$search}%")
                         ->orWhere('shifts.abbreviation', 'like', "%{$search}%")
-                        ->orWhere('statuses.name', 'like', "%{$search}%");
+                        ->orWhere('statuses.name', 'like', "%{$search}%")
+                        ->orWhere('production_records.shop_order_number', 'like', "%{$search}%");
                 });
             })
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         return view('production-records.index', compact('productionRecords'));
     }
@@ -181,6 +192,7 @@ class ProductionRecordController extends Controller
             'scrap_quantity' => $validated['scrap_quantity'],
         ]);
 
+
         try {
 
             $now = Carbon::now();
@@ -201,7 +213,7 @@ class ProductionRecordController extends Controller
                         ? Carbon::parse($productionRecord->planned_date)->format('Ymd')
                         : '',
                     'YFSHFT' => $productionRecord->shift->abbreviation ?? '',
-                    'YFPPNO' => '', // ¿Este campo debería tener un valor?
+                    'YFPPNO' => '',
                     'YFSORD' => $productionRecord->shop_order_number ?? '',
                     'YFPROD' => $productionRecord->partNumber->number ?? '',
                     'YFSTIM' => $productionStart ? $productionStart->format('Hi') : '',
@@ -209,7 +221,7 @@ class ProductionRecordController extends Controller
                     'YFSDT' => $productionStart ? $productionStart->format('YmdHi') : '',
                     'YFEDT' => $productionEnd ? $productionEnd->format('YmdHi') : '',
                     'YFQPLA' => $productionRecord->planned_quantity ?? 0,
-                    'YFQPRO' => $productionRecord->produced_quantity ?? 0,
+                    'YFQPRO' => $productionRecord->produced_quantity - $productionRecord->scrap_quantity,
                     'YFQSCR' => $productionRecord->scrap_quantity ?? 0,
                     'YFSCRE' => ($productionRecord->scrap_quantity ?? 0) == 0 ? '' : 'RJ',
                     'YFCRDT' => $now->format('Ymd'),
