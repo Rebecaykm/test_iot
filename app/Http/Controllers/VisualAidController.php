@@ -29,24 +29,29 @@ class VisualAidController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // Configurar para archivos grandes (50MB por seguridad)
+        ini_set('upload_max_filesize', '50M');
+        ini_set('post_max_size', '50M');
+        ini_set('max_execution_time', '300');
+
+        // Validación mínima
+        $request->validate([
             'part_number_id' => 'required|exists:part_numbers,id',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
-            'alt_text' => 'nullable|string|max:255',
-            'is_active' => 'sometimes|boolean'
+            'image' => 'required|file', // Solo verifica que sea un archivo
         ]);
 
+        // Subir la imagen
         $path = $request->file('image')->store('visual_aids', 'public');
 
-        // La lógica de desactivación ahora está en el modelo (creating event)
-        $visualAid = VisualAid::create([
-            'part_number_id' => $validated['part_number_id'],
+        // Crear el registro
+        VisualAid::create([
+            'part_number_id' => $request->part_number_id,
             'path' => $path,
-            'alt_text' => $validated['alt_text'],
-            'is_active' => $validated['is_active'] ?? false
+            'alt_text' => $request->alt_text,
+            'is_active' => $request->is_active ?? false
         ]);
 
-        return redirect()->route('part-numbers.edit', $validated['part_number_id'])
+        return redirect()->route('part-numbers.edit', $request->part_number_id)
             ->with('success', 'Imagen agregada correctamente');
     }
 

@@ -231,146 +231,151 @@ class MaterialValidationController extends Controller
      */
     public function validateSequence(Request $request): JsonResponse
     {
-        try {
-            $validator = Validator::make($request->all(), [
-                'final_label_code' => 'required|string|max:255',
-            ]);
+        return response()->json([
+            'isValid' => true,
+            'validationComment' => null,
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'isValid' => false,
-                    'validationComment' => 'Orden Incorrecto',
-                ], 422);
-            }
+        // try {
+        //     $validator = Validator::make($request->all(), [
+        //         'final_label_code' => 'required|string|max:255',
+        //     ]);
 
-            $finalLabelCode = $request->final_label_code;
+        //     if ($validator->fails()) {
+        //         return response()->json([
+        //             'isValid' => false,
+        //             'validationComment' => 'Orden Incorrecto',
+        //         ], 422);
+        //     }
 
-            // Verificar longitud mínima
-            if (strlen($finalLabelCode) <= 30) {
-                return response()->json([
-                    'isValid' => false,
-                    'validationComment' => 'Orden Incorrecto',
-                ]);
-            }
+        //     $finalLabelCode = $request->final_label_code;
 
-            $exists = MaterialValidation::where('final_label_code', $finalLabelCode)->where('validation_status', 'OK')->exists();
-            if ($exists) {
-                return response()->json([
-                    'isValid' => false,
-                    'validationComment' => 'Registrado Anteriormente',
-                ]);
-            }
+        //     // Verificar longitud mínima
+        //     if (strlen($finalLabelCode) <= 30) {
+        //         return response()->json([
+        //             'isValid' => false,
+        //             'validationComment' => 'Orden Incorrecto',
+        //         ]);
+        //     }
 
-            // Descomponer la etiqueta final
-            $order = substr($finalLabelCode, 0, 7);
-            $sequence = substr($finalLabelCode, 7, 3);
-            $partNumber = trim(substr($finalLabelCode, 10, 10));
-            $quantity = substr($finalLabelCode, 20, 6);
+        //     $exists = MaterialValidation::where('final_label_code', $finalLabelCode)->where('validation_status', 'OK')->exists();
+        //     if ($exists) {
+        //         return response()->json([
+        //             'isValid' => false,
+        //             'validationComment' => 'Registrado Anteriormente',
+        //         ]);
+        //     }
 
-            Log::info('Etiqueta final descompuesta', [
-                'final_label_code' => $finalLabelCode,
-                'order' => $order,
-                'sequence' => $sequence,
-                'part_number' => $partNumber,
-                'quantity' => $quantity
-            ]);
+        //     // Descomponer la etiqueta final
+        //     $order = substr($finalLabelCode, 0, 7);
+        //     $sequence = substr($finalLabelCode, 7, 3);
+        //     $partNumber = trim(substr($finalLabelCode, 10, 10));
+        //     $quantity = substr($finalLabelCode, 20, 6);
 
-            // Consultar en ECL con la fecha actual
-            $today = Carbon::now()->format('Ymd');
-            Log::info('Consultando ECL con fecha', ['today' => $today, 'part_number' => $partNumber]);
+        //     Log::info('Etiqueta final descompuesta', [
+        //         'final_label_code' => $finalLabelCode,
+        //         'order' => $order,
+        //         'sequence' => $sequence,
+        //         'part_number' => $partNumber,
+        //         'quantity' => $quantity
+        //     ]);
 
-            $eclRecords = ECL::select('CLIDNO', 'CLCARD', 'LPROD')
-                ->whereRaw('TRIM(LPROD) LIKE ?', [trim($partNumber) . '%'])
-                ->where('CLCARD', '>=', $today)
-                ->orderBy('CLCARD', 'asc')
-                ->get();
+        //     // Consultar en ECL con la fecha actual
+        //     $today = Carbon::now()->format('Ymd');
+        //     Log::info('Consultando ECL con fecha', ['today' => $today, 'part_number' => $partNumber]);
 
-            Log::info('Registros ECL encontrados', ['count' => $eclRecords->count()]);
+        //     $eclRecords = ECL::select('CLIDNO', 'CLCARD', 'LPROD')
+        //         ->whereRaw('TRIM(LPROD) LIKE ?', [trim($partNumber) . '%'])
+        //         ->where('CLCARD', '>=', $today)
+        //         ->orderBy('CLIDNO', 'asc')
+        //         ->get();
 
-            if ($eclRecords->isEmpty()) {
-                return response()->json([
-                    'isValid' => false,
-                    'validationComment' => 'Secuencia Incorrecta',
-                ]);
-            }
+        //     Log::info('Registros ECL encontrados', ['count' => $eclRecords->count()]);
 
-            // Buscar el registro actual
-            $currentRecord = null;
-            $currentIndex = -1;
+        //     if ($eclRecords->isEmpty()) {
+        //         return response()->json([
+        //             'isValid' => false,
+        //             'validationComment' => 'Secuencia Incorrecta',
+        //         ]);
+        //     }
 
-            foreach ($eclRecords as $index => $record) {
-                if (strpos($record->CLIDNO, Carbon::now()->format('y') . $order) !== false) {
-                    $currentRecord = $record;
-                    $currentIndex = $index;
-                    break;
-                }
-            }
+        //     // Buscar el registro actual
+        //     $currentRecord = null;
+        //     $currentIndex = -1;
 
-            if (!$currentRecord) {
-                return response()->json([
-                    'isValid' => false,
-                    'validationComment' => 'Secuencia Incorrecta',
-                ]);
-            }
+        //     foreach ($eclRecords as $index => $record) {
+        //         if (strpos($record->CLIDNO, Carbon::now()->format('y') . $order) !== false) {
+        //             $currentRecord = $record;
+        //             $currentIndex = $index;
+        //             break;
+        //         }
+        //     }
 
-            Log::info('Registro actual encontrado', [
-                'CLIDNO' => $currentRecord->CLIDNO,
-                'CLCARD' => $currentRecord->CLCARD,
-                'index' => $currentIndex
-            ]);
+        //     if (!$currentRecord) {
+        //         return response()->json([
+        //             'isValid' => false,
+        //             'validationComment' => 'Secuencia Incorrecta',
+        //         ]);
+        //     }
 
-            // Buscar registro anterior
-            if ($currentIndex > 0) {
-                $previousRecord = $eclRecords[$currentIndex - 1];
-                $previousCLIDNO = trim($previousRecord->CLIDNO);
+        //     Log::info('Registro actual encontrado', [
+        //         'CLIDNO' => $currentRecord->CLIDNO,
+        //         'CLCARD' => $currentRecord->CLCARD,
+        //         'index' => $currentIndex
+        //     ]);
 
-                // Quitar los dos primeros dígitos
-                $previousOrder = substr($previousCLIDNO, 2);
+        //     // Buscar registro anterior
+        //     if ($currentIndex > 0) {
+        //         $previousRecord = $eclRecords[$currentIndex - 1];
+        //         $previousCLIDNO = trim($previousRecord->CLIDNO);
 
-                Log::info('Registro anterior encontrado', [
-                    'previousCLIDNO' => $previousCLIDNO,
-                    'previousOrder' => $previousOrder
-                ]);
+        //         // Quitar los dos primeros dígitos
+        //         $previousOrder = substr($previousCLIDNO, 2);
 
-                // Verificar en material_validations si el registro anterior fue escaneado
-                $previousValidation = MaterialValidation::where('final_label_code', 'like', '%' . $previousOrder . '%')
-                    ->where('validation_status', 'OK')
-                    ->first();
+        //         Log::info('Registro anterior encontrado', [
+        //             'previousCLIDNO' => $previousCLIDNO,
+        //             'previousOrder' => $previousOrder
+        //         ]);
 
-                if (!$previousValidation) {
-                    return response()->json([
-                        'isValid' => false,
-                        'validationComment' => 'Secuencia Incorrecta',
-                    ]);
-                }
+        //         // Verificar en material_validations si el registro anterior fue escaneado
+        //         $previousValidation = MaterialValidation::where('final_label_code', 'like', '%' . $previousOrder . '%')
+        //             ->where('validation_status', 'OK')
+        //             ->first();
 
-                Log::info('Registro anterior validado', ['previous_validation_id' => $previousValidation->id]);
-            } else {
-                Log::info('No hay registro anterior, es el primer registro de la secuencia');
-            }
+        //         if (!$previousValidation) {
+        //             return response()->json([
+        //                 'isValid' => false,
+        //                 'validationComment' => 'Secuencia Incorrecta',
+        //             ]);
+        //         }
 
-            // Si pasa todas las validaciones
-            return response()->json([
-                'isValid' => true,
-                'validationComment' => null,
-                'parsedData' => [
-                    'order' => $order,
-                    'sequence' => $sequence,
-                    'part_number' => $partNumber,
-                    'quantity' => $quantity
-                ]
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error en validación de secuencia', [
-                'error' => $e->getMessage(),
-                'final_label_code' => $request->final_label_code ?? 'N/A',
-                'trace' => $e->getTraceAsString()
-            ]);
+        //         Log::info('Registro anterior validado', ['previous_validation_id' => $previousValidation->id]);
+        //     } else {
+        //         Log::info('No hay registro anterior, es el primer registro de la secuencia');
+        //     }
 
-            return response()->json([
-                'isValid' => false,
-                'validationComment' => 'Secuencia Incorrecta',
-            ], 500);
-        }
+        //     // Si pasa todas las validaciones
+        //     return response()->json([
+        //         'isValid' => true,
+        //         'validationComment' => null,
+        //         'parsedData' => [
+        //             'order' => $order,
+        //             'sequence' => $sequence,
+        //             'part_number' => $partNumber,
+        //             'quantity' => $quantity
+        //         ]
+        //     ]);
+        // } catch (\Exception $e) {
+        //     Log::error('Error en validación de secuencia', [
+        //         'error' => $e->getMessage(),
+        //         'final_label_code' => $request->final_label_code ?? 'N/A',
+        //         'trace' => $e->getTraceAsString()
+        //     ]);
+
+        //     return response()->json([
+        //         'isValid' => false,
+        //         'validationComment' => 'Secuencia Incorrecta',
+        //     ], 500);
+        // }
     }
 }

@@ -49,6 +49,8 @@ Route::middleware([
     Route::resource('production-records', ProductionRecordController::class);
     Route::get('production-records-summary', [ProductionRecordController::class, 'summary'])->name('production-records.summary');
 
+    Route::get('/production/export-pdf', [ProductionRecordController::class, 'exportProductionReport'])->name('production.export-pdf');
+
     // Escaneo de Tres Puntos
     Route::resource('material-validations', MaterialValidationController::class);
     Route::get('statistics', [MaterialValidationController::class, 'statistics'])->name('material-validations.statistics');

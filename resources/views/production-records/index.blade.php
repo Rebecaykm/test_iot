@@ -33,28 +33,23 @@
 @stop
 
 @section('content')
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
-            <div class="table-responsive">
+            <!-- Tabla integrada sin bordes -->
+            <div class="table-container-integrated">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
+                    <thead>
                         <tr>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Estación') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">
-                                {{ __('Número de Parte') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Orden') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Fecha') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Turno') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">
-                                {{ __('Planeada') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">
-                                {{ __('Producida') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">
-                                {{ __('Scrap') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">
-                                {{ __('Estado') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">
-                                {{ __('Acciones') }}</th>
+                            <th>Estación</th>
+                            <th>N° de Parte</th>
+                            <th>Orden</th>
+                            <th>Fecha</th>
+                            <th>Turno</th>
+                            <th class="text-end">Planeada</th>
+                            <th class="text-end">Producida</th>
+                            <th class="text-end">Scrap</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -63,55 +58,49 @@
                                 $prod = $record->produced_quantity;
                                 $plan = $record->planned_quantity;
                                 $scrap = $record->scrap_quantity;
-                                $color = $prod < $plan ? 'bg-danger' : ($prod == $plan ? 'bg-success' : 'bg-warning');
+                                $color = $prod < $plan ? 'danger' : ($prod == $plan ? 'success' : 'warning');
                                 $formId = 'form-' . $record->production_id;
                             @endphp
-                            <tr class="border-light-subtle">
+                            <tr>
                                 <!-- Estación/Centro de Trabajo -->
-                                <td class="py-3 text-start">
-                                    <div class="fw-500">{{ $record->work_number }}</div>
-                                    <div class="text-muted small">{{ $record->work_name }}</div>
+                                <td>
+                                    <div class="fw-medium text-dark">{{ $record->work_number }}</div>
+                                    <small class="text-muted">{{ $record->work_name }}</small>
                                 </td>
 
                                 <!-- Número de Parte -->
-                                <td class="py-3 text-start">
-                                    <div class="fw-500">{{ $record->part_number }}</div>
-                                    <div class="text-muted small">{{ $record->part_name }}</div>
+                                <td>
+                                    <div class="fw-medium text-dark">{{ $record->part_number }}</div>
+                                    <small class="text-muted">{{ $record->part_name }}</small>
                                 </td>
 
                                 <!-- Número de Orden -->
-                                <td class="py-3 text-start">
+                                <td>
                                     {{ $record->shop_order_number }}
                                 </td>
 
                                 <!-- Fecha -->
-                                <td class="py-3 text-start">
-                                    {{ \Carbon\Carbon::parse($record->planned_date)->format('d-m-Y') }}
+                                <td>
+                                    {{ \Carbon\Carbon::parse($record->planned_date)->format('d/m/Y') }}
                                 </td>
 
                                 <!-- Turno -->
-                                <td class="py-3 text-start">
-                                    <span class="badge-status bg-primary text-primary">
-                                        {{ $record->shift_name }}
-                                    </span>
+                                <td>
+                                    <span class="badge bg-primary">{{ $record->shift_name }}</span>
                                 </td>
 
                                 <!-- Cantidad Planeada -->
-                                <td class="py-3 text-center">
-                                    <span class="badge-status bg-primary">
-                                        {{ number_format($plan) }}
-                                    </span>
+                                <td class="text-end">
+                                    <span class="badge bg-secondary">{{ number_format($plan) }}</span>
                                 </td>
 
                                 <!-- Cantidad Producida -->
-                                <td class="py-3 text-center">
-                                    <span class="badge-status {{ $color }}">
-                                        {{ number_format($prod) }}
-                                    </span>
+                                <td class="text-end">
+                                    <span class="badge bg-{{ $color }}">{{ number_format($prod) }}</span>
                                 </td>
 
                                 <!-- SCRAP -->
-                                <td class="py-3 text-center">
+                                <td class="text-end">
                                     <form action="{{ route('production-records.update', $record->production_id) }}"
                                         method="POST" class="confirm-save d-inline-block" id="{{ $formId }}"
                                         data-planned="{{ $plan }}" data-produced="{{ $prod }}"
@@ -120,120 +109,205 @@
                                         @method('PUT')
 
                                         <input type="number" name="scrap_quantity" value="{{ $scrap }}"
-                                            class="form-control form-control-sm border-primary text-center shadow-sm scrap-input"
+                                            class="form-control form-control-sm border-0 text-center shadow-sm scrap-input"
                                             style="width: 80px; display:inline-block;" min="0"
                                             max="{{ $prod }}" data-form-id="{{ $formId }}" required>
                                     </form>
                                 </td>
 
                                 <!-- Estado -->
-                                <td class="py-3 text-center">
-                                    <span
-                                        class="badge-status
-                                            @if ($record->status_name == 'Completado') bg-success text-success
-                                            @elseif($record->status_name == 'En progreso') bg-primary text-primary
-                                            @elseif($record->status_name == 'No planeado') bg-warning text-warning
-                                            @else bg-secondary text-secondary @endif">
+                                <td>
+                                    <span class="badge
+                                        @if ($record->status_name == 'Completado') bg-success
+                                        @elseif($record->status_name == 'En progreso') bg-primary
+                                        @elseif($record->status_name == 'No planeado') bg-warning
+                                        @else bg-secondary @endif">
                                         {{ $record->status_name }}
                                     </span>
                                 </td>
 
-                                <td class="py-3 text-center">
+                                <td class="text-center">
                                     <button type="submit" form="{{ $formId }}"
-                                        class="btn btn-sm btn-outline-primary rounded-3 save-btn"
+                                        class="btn btn-sm btn-outline-primary save-btn"
                                         data-form-id="{{ $formId }}"
                                         {{ $prod == 0 || $scrap == 0 || $record->status_name == 'En progreso' ? 'disabled' : '' }}>
-                                        <i class="fas fa-check me-2"></i>
+                                        <i class="fas fa-check me-1"></i>
                                         Guardar
                                     </button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center py-4">
-                                    <div class="d-flex flex-column align-items-center">
-                                        <i class="fas fa-clipboard-list fa-2x text-muted mb-2"></i>
-                                        <span class="text-secondary">
-                                            No se encontraron registros de producción
-                                        </span>
-                                        @if (request()->has('search') || request()->has('date'))
-                                            <a href="{{ route('production-records.index') }}"
-                                                class="btn btn-sm btn-link mt-2">
-                                                Limpiar búsqueda
-                                            </a>
-                                        @endif
-                                    </div>
+                                <td colspan="10" class="text-center py-5 text-muted">
+                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                    No se encontraron registros
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-        </div>
 
-        @if ($productionRecords->hasPages())
-            <div class="card-footer bg-white border-0 py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="text-muted small">
-                        Mostrando {{ $productionRecords->firstItem() }} a {{ $productionRecords->lastItem() }} de
-                        {{ $productionRecords->total() }} registros
+            <!-- Paginación -->
+            @if ($productionRecords->hasPages())
+                <div class="card-footer bg-white border-0 py-3 px-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Mostrando {{ $productionRecords->firstItem() }} a {{ $productionRecords->lastItem() }} de
+                            {{ $productionRecords->total() }} registros
+                        </div>
+                        {{ $productionRecords->links() }}
                     </div>
-                    {{ $productionRecords->links() }}
                 </div>
-            </div>
-        @endif
+            @endif
+        </div>
     </div>
 @stop
 
 @section('css')
-    <!-- Fuente Google Roboto -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* Fuente moderna */
         body,
-        .main-header,
-        .main-sidebar,
-        .content-wrapper,
         .card,
         .btn,
         .form-control,
         .table,
         h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6 {
-            font-family: 'Roboto', sans-serif !important;
+        .main-header,
+        .main-sidebar,
+        .content-wrapper {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
         }
 
-        .border-light-subtle {
-            border-color: #f0f0f0 !important;
+        /* Card mejorada sin bordes visibles */
+        .card {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
-        .table-hover tbody tr:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            transform: translateY(-1px);
-            transition: all 0.2s ease;
+        /* Tabla completamente integrada sin bordes */
+        .table-container-integrated {
+            max-height: 650px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border-radius: 12px;
+            position: relative;
         }
 
-        .rounded-3 {
-            border-radius: 12px !important;
+        .table-container-integrated:hover::-webkit-scrollbar {
+            height: 8px;
         }
 
+        /* Encabezados sticky sin bordes */
         .table thead th {
-            font-weight: 700 !important;
-            font-size: 0.85rem;
+            position: sticky;
+            top: 0;
+            background: linear-gradient(to bottom, #f9fafb 0%, #f3f4f6 100%);
+            font-weight: 600;
+            font-size: 0.813rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            color: #6b7280;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1rem 0.75rem;
+            z-index: 10;
+        }
+
+        /* Filas de la tabla sin bordes */
+        .table tbody tr {
+            border-bottom: 1px solid #f3f4f6;
+            transition: all 0.15s ease;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f9fafb;
         }
 
         .table tbody td {
-            font-size: 0.875rem;
+            padding: 0.875rem 0.75rem;
+            vertical-align: middle;
+            border: none;
         }
 
+        /* Eliminar bordes de la tabla */
+        .table {
+            border: none;
+            margin-bottom: 0;
+        }
+
+        .table th,
+        .table td {
+            border: none;
+        }
+
+        /* Badges mejorados */
+        .badge {
+            padding: 0.375rem 0.75rem;
+            font-weight: 500;
+            font-size: 0.813rem;
+            border-radius: 6px;
+            min-width: 60px;
+            display: inline-block;
+        }
+
+        /* Botón */
+        .btn-outline-primary {
+            border: 1px solid #3b82f6;
+            color: #3b82f6;
+            border-radius: 8px;
+            padding: 0.35rem 0.75rem;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: all 0.15s ease;
+        }
+
+        .btn-outline-primary:hover {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* Scrollbar personalizada */
+        .table-container-integrated::-webkit-scrollbar {
+            width: 8px;
+            height: 0px;
+        }
+
+        .table-container-integrated::-webkit-scrollbar-track {
+            background: #f3f4f6;
+            border-radius: 0 12px 12px 0;
+        }
+
+        .table-container-integrated::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+
+        .table-container-integrated::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* Ajustes para el input de scrap */
+        .scrap-input {
+            border: 1px solid #e5e7eb !important;
+            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.813rem;
+            text-align: center;
+        }
+
+        .scrap-input:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        /* Estilos para el filtro original */
         .search-box .input-group {
-            width: 480px; /* Aumentado para acomodar el calendario */
+            width: 480px;
         }
 
         .search-box .form-control {
@@ -242,6 +316,7 @@
             padding: 0.5rem 1rem;
             height: 42px;
             font-size: 0.95rem;
+            border: 1px solid #e5e7eb;
         }
 
         .search-box .form-control:first-child {
@@ -253,9 +328,14 @@
         }
 
         .search-box .form-control:focus {
-            border-color: #dee2e6 !important;
+            border-color: #e5e7eb !important;
             box-shadow: none !important;
             outline: none !important;
+        }
+
+        .search-box .input-group-text {
+            border: 1px solid #e5e7eb;
+            background: white;
         }
 
         /* Estilos específicos para el input de fecha */
@@ -276,45 +356,15 @@
             width: auto;
         }
 
-        .badge-status {
-            display: inline-block;
-            min-width: 60px;
-            padding: 0.35em 0.65em;
-            text-align: center;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .btn i {
-            margin-right: 0.5rem;
-        }
-
-        .btn-sm {
-            padding: 0.35rem 0.75rem;
-            font-size: 0.85rem;
-        }
-
-        .fw-500 {
-            font-weight: 500 !important;
-        }
-
-        .badge {
-            min-width: 60px;
-            font-weight: 500;
-        }
-
         /* Estilos para el botón de limpiar */
         .search-box .input-group-text.text-danger:hover {
             background-color: #f8f9fa;
             color: #dc3545 !important;
+        }
+
+        /* Estado vacío centrado */
+        .table tbody tr td.text-center {
+            border: none !important;
         }
     </style>
 @stop
@@ -359,7 +409,7 @@
                 });
             });
 
-            // Confirmación de envío de formularios
+            // Confirmación de envío de formularios y bloqueo del botón
             document.querySelectorAll('form.confirm-save').forEach(form => {
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
@@ -369,6 +419,7 @@
                     const scrapInput = form.querySelector('input[name="scrap_quantity"]');
                     const scrap = Number(scrapInput.value);
                     const status = (form.dataset.status || '').trim();
+                    const button = document.querySelector(`.save-btn[data-form-id="${form.id}"]`);
 
                     // Nueva validación cliente: si status == 'En progreso' bloquear y mostrar alerta
                     if (status === 'En progreso') {
@@ -392,6 +443,12 @@
                         return;
                     }
 
+                    // Bloquear el botón
+                    if (button) {
+                        button.disabled = true;
+                        button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Guardando...';
+                    }
+
                     // Si son iguales, enviar directo
                     if (produced === planned) {
                         form.submit();
@@ -410,7 +467,15 @@
                         confirmButtonText: 'Sí, confirmar',
                         cancelButtonText: 'Cancelar'
                     }).then(result => {
-                        if (result.isConfirmed) form.submit();
+                        if (result.isConfirmed) {
+                            form.submit();
+                        } else {
+                            // Rehabilitar el botón si se cancela
+                            if (button) {
+                                button.disabled = false;
+                                button.innerHTML = '<i class="fas fa-check me-1"></i> Guardar';
+                            }
+                        }
                     });
                 });
             });

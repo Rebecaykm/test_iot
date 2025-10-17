@@ -6,6 +6,7 @@ use App\Models\History;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use App\Models\YF013;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -73,6 +74,67 @@ class ProductionRecordController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+
+        // Calcular las variables fuera de la consulta para mejor legibilidad
+        // $currentShift = Shift::getShift(Carbon::now());
+        // $currentShiftDate = Shift::calculateCurrentShiftDate($currentShift, Carbon::now());
+        // $workCentersArray = Auth::user()->workCenters->pluck('name')->toArray();
+
+        // $productionRecords = ProductionRecord::query()
+        //     ->select([
+        //         'production_records.id AS production_id',
+        //         'lines.name AS line_name',
+        //         'work_centers.number AS work_number',
+        //         'work_centers.name AS work_name',
+        //         'part_numbers.number AS part_number',
+        //         'part_numbers.name AS part_name',
+        //         'part_numbers.production_rate AS production_rate',
+        //         'part_numbers.efficiency AS efficiency',
+        //         'production_records.shop_order_number AS shop_order_number',
+        //         'production_records.planned_date AS planned_date',
+        //         'production_records.planned_quantity AS planned_quantity',
+        //         'production_records.produced_quantity AS produced_quantity',
+        //         'production_records.scrap_quantity AS scrap_quantity',
+        //         'shifts.abbreviation AS shift_abbreviation',
+        //         'shifts.name AS shift_name',
+        //         'shifts.start_time AS shift_start_time',
+        //         'shifts.end_time AS shift_end_time',
+        //         'statuses.name AS status_name',
+        //         'production_records.production_start AS production_start',
+        //         'production_records.production_end AS production_end'
+        //     ])
+        //     ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+        //     ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+        //     ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+        //     ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+        //     ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+        //     ->whereIn('work_centers.name', $workCentersArray)
+        //     ->where('production_records.planned_date', $currentShiftDate->toDateString())
+        //     ->where('shifts.abbreviation', $currentShift->abbreviation)
+        //     ->orderBy('work_centers.number', 'asc')
+        //     ->orderBy('part_numbers.production_order', 'asc')
+        //     ->orderBy('production_records.planned_date', 'asc')
+        //     ->orderBy('shifts.abbreviation', 'asc')
+        //     ->get();
+
+        // // Agrupar por número de estación
+        // $groupedByWorkStation = $productionRecords->groupBy('work_number');
+
+        // Para usar en tu vista/documento:
+        // foreach ($groupedByWorkStation as $workNumber => $records) {
+        //     echo "<br>";
+        //     echo "Estación #$workNumber:\n";
+
+        //     foreach ($records as $record) {
+        //         echo "<br>";
+        //         echo "  - Parte: {$record->part_number} | Cantidad: {$record->planned_quantity}\n";
+        //         // Más detalles aquí...
+        //     }
+        //     echo "<br>";
+        // }
+
+        // dd("Fin");
+
         return view('production-records.index', compact('productionRecords'));
     }
 
@@ -81,68 +143,80 @@ class ProductionRecordController extends Controller
      */
     public function summary(Request $request)
     {
-        // Obtener estaciones asociadas al usuario actual
-        $user = Auth::user();
-        $workCenters = $user->workCenters; // colección de WorkCenter
-        $workCenterNames = $workCenters->pluck('name')->toArray();
+        try {
+            $user = Auth::user();
 
-        // Parámetros de filtro
-        $filterCenter = $request->input('work_center');    // nombre de la estación
-        $searchPart   = $request->input('search');         // parte
-        $startDate    = $request->input('startDate')
-            ? Carbon::parse($request->input('startDate'))->toDateString()
-            : Carbon::now()->toDateString();
-        $endDate      = $request->input('endDate')
-            ? Carbon::parse($request->input('endDate'))->toDateString()
-            : Carbon::now()->addDay()->toDateString();
+            // Cargar work centers una sola vez
+            $workCenters = $user->workCenters;
+            $workCenterNames = $workCenters->pluck('name')->toArray();
 
-        // Construcción de la consulta
-        $query = ProductionRecord::query()
-            // Joins para traer datos relacionados
-            ->select([
-                'work_centers.number                    AS work_number',
-                'work_centers.name                      AS work_name',
-                'part_numbers.number                    AS part_number',
-                'part_numbers.name                      AS part_name',
-                'production_records.planned_date        AS planned_date',
-                'shifts.abbreviation                    AS shift_name',
-                'production_records.planned_quantity    AS planned_quantity',
-                'production_records.produced_quantity   AS produced_quantity',
-                'production_records.scrap_quantity      AS scrap_quantity',
-                'production_records.production_start    AS production_start',
-                'production_records.production_end      AS production_end',
-            ])
-            ->join('part_numbers',     'production_records.part_number_id', '=', 'part_numbers.id')
-            ->join('work_centers',     'part_numbers.work_center_id',   '=', 'work_centers.id')
-            ->join('shifts',           'production_records.shift_id',   '=', 'shifts.id')
-            // Sólo estaciones del usuario
-            ->whereIn('work_centers.name', $workCenterNames)
-            // Filtro de estación (opcional)
-            ->when($filterCenter, function ($q) use ($filterCenter) {
-                $q->where('work_centers.name', $filterCenter);
-            })
-            // Rango de fecha planeada
-            ->whereBetween('production_records.planned_date', [$startDate, $endDate])
-            // Filtro por número de parte (opcional)
-            ->when($searchPart, function ($q) use ($searchPart) {
-                $q->where('part_numbers.number', 'like', "%{$searchPart}%");
-            })
-            // Ordenamiento: fecha, turno, número de parte
-            ->orderBy('production_records.planned_date', 'asc')
-            ->orderBy('shifts.start_time', 'asc')
-            ->orderBy('part_numbers.number', 'asc');
-        // ->withQueryString();
-        //
-        $productionRecords = $query->get();
+            // Validar y procesar filtros
+            $filterCenter = $request->input('work_center');
+            $searchPart = $request->input('search');
 
-        return view('production-records.summary', [
-            'productionRecords' => $productionRecords,
-            'workCenters'       => $workCenters,
-            'selectedCenter'    => $filterCenter,
-            'search'            => $searchPart,
-            'startDate'         => $startDate,
-            'endDate'           => $endDate,
-        ]);
+            // Manejo de fechas mejorado
+            $startDate = $request->input('startDate')
+                ? Carbon::parse($request->input('startDate'))->startOfDay()
+                : Carbon::now()->startOfDay();
+
+            $endDate = $request->input('endDate')
+                ? Carbon::parse($request->input('endDate'))->endOfDay()
+                : Carbon::now()->endOfDay();
+
+            // Validar rango de fechas
+            if ($startDate->gt($endDate)) {
+                $endDate = $startDate->copy()->endOfDay();
+            }
+
+            // Consulta optimizada
+            $query = ProductionRecord::with(['partNumber.workCenter', 'shift'])
+                ->select([
+                    'work_centers.number AS work_number',
+                    'work_centers.name AS work_name',
+                    'part_numbers.number AS part_number',
+                    'part_numbers.name AS part_name',
+                    'production_records.planned_date',
+                    'shifts.abbreviation AS shift_name',
+                    'production_records.planned_quantity',
+                    'production_records.produced_quantity',
+                    'production_records.scrap_quantity',
+                    'production_records.production_start',
+                    'production_records.production_end',
+                ])
+                ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+                ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+                ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+                ->whereIn('work_centers.name', $workCenterNames)
+                ->whereBetween('production_records.planned_date', [
+                    $startDate->toDateString(),
+                    $endDate->toDateString()
+                ])
+                ->when($filterCenter, function ($q, $filterCenter) {
+                    return $q->where('work_centers.name', $filterCenter);
+                })
+                ->when($searchPart, function ($q, $searchPart) {
+                    return $q->where('part_numbers.number', 'like', "%{$searchPart}%");
+                })
+                ->orderBy('production_records.planned_date', 'asc')
+                ->orderBy('shifts.start_time', 'asc')
+                ->orderBy('part_numbers.number', 'asc');
+
+            $productionRecords = $query->get();
+
+            return view('production-records.summary', [
+                'productionRecords' => $productionRecords,
+                'workCenters' => $workCenters,
+                'selectedCenter' => $filterCenter,
+                'search' => $searchPart,
+                'startDate' => $startDate->toDateString(),
+                'endDate' => $endDate->toDateString(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en resumen de producción: ' . $e->getMessage());
+
+            return redirect()->back()
+                ->with('error', 'Ocurrió un error al cargar el resumen. Por favor, intenta nuevamente.');
+        }
     }
 
     /**
@@ -220,7 +294,7 @@ class ProductionRecordController extends Controller
                     'YFETIM' => $productionEnd ? $productionEnd->format('Hi') : '',
                     'YFSDT' => $productionStart ? $productionStart->format('YmdHi') : '',
                     'YFEDT' => $productionEnd ? $productionEnd->format('YmdHi') : '',
-                    'YFQPLA' => $productionRecord->planned_quantity ?? 0,
+                    'YFQPLA' => $productionRecord->planned_quantity ?: $productionRecord->produced_quantity,
                     'YFQPRO' => $productionRecord->produced_quantity - $productionRecord->scrap_quantity,
                     'YFQSCR' => $productionRecord->scrap_quantity ?? 0,
                     'YFSCRE' => ($productionRecord->scrap_quantity ?? 0) == 0 ? '' : 'RJ',
@@ -578,5 +652,70 @@ class ProductionRecordController extends Controller
         return view('chart_test', [
             'chartData' => $chartData
         ]);
+    }
+
+    public function exportProductionReport()
+    {
+        $currentShift = Shift::getShift(Carbon::now());
+        $currentShiftDate = Shift::calculateCurrentShiftDate($currentShift, Carbon::now());
+        $workCentersArray = Auth::user()->workCenters->pluck('name')->toArray();
+
+        $productionRecords = ProductionRecord::query()
+            ->select([
+                'production_records.id AS production_id',
+                'lines.name AS line_name',
+                'work_centers.number AS work_number',
+                'work_centers.name AS work_name',
+                'part_numbers.number AS part_number',
+                'part_numbers.name AS part_name',
+                'part_numbers.production_rate AS production_rate',
+                'part_numbers.efficiency AS efficiency',
+                'production_records.shop_order_number AS shop_order_number',
+                'production_records.planned_date AS planned_date',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'production_records.scrap_quantity AS scrap_quantity',
+                'shifts.abbreviation AS shift_abbreviation',
+                'shifts.name AS shift_name',
+                'shifts.start_time AS shift_start_time',
+                'shifts.end_time AS shift_end_time',
+                'statuses.name AS status_name',
+                'production_records.production_start AS production_start',
+                'production_records.production_end AS production_end'
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->whereIn('work_centers.name', $workCentersArray)
+            ->where('production_records.planned_date', $currentShiftDate->toDateString())
+            ->where('shifts.abbreviation', $currentShift->abbreviation)
+            ->orderBy('work_centers.number', 'asc')
+            ->orderBy('part_numbers.production_order', 'asc')
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('shifts.abbreviation', 'asc')
+            ->get();
+
+        // Agrupar por número de estación
+        $groupedByWorkStation = $productionRecords->groupBy('work_number');
+
+        // Generar el PDF
+        $pdf = Pdf::loadView('production.report-pdf', [
+            'groupedByWorkStation' => $groupedByWorkStation,
+            'currentShiftDate' => $currentShiftDate
+        ]);
+
+        // Configurar el PDF en orientación horizontal (landscape)
+        $pdf->setPaper('letter', 'landscape');
+
+        // Opcional: configurar márgenes si es necesario
+        // $pdf->setOption('margin-top', 10);
+        // $pdf->setOption('margin-bottom', 10);
+        // $pdf->setOption('margin-left', 10);
+        // $pdf->setOption('margin-right', 10);
+
+        // Descargar el PDF
+        return $pdf->download('reporte-produccion-' . $currentShiftDate->format('Y-m-d') . '.pdf');
     }
 }
