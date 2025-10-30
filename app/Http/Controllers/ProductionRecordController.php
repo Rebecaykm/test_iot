@@ -319,7 +319,7 @@ class ProductionRecordController extends Controller
                     Log::info("Conexión a Infor establecida correctamente en " . date('Y-m-d H:i:s'));
                 }
 
-                $query = "CALL LX834OU02.YSF013C";
+                $query = "CALL LX834OU.YSF013C";
                 $result = odbc_exec($conn, $query);
 
                 if ($result) {
@@ -700,6 +700,39 @@ class ProductionRecordController extends Controller
         // Agrupar por número de estación
         $groupedByWorkStation = $productionRecords->groupBy('work_number');
 
+        // Procesar cada grupo para agregar cálculos
+        $groupedByWorkStation = $groupedByWorkStation->map(function ($records) {
+            return $records->map(function ($record) {
+                // Calcular tiempo ciclo: 60 / production_rate
+                $cycletime = ($record->production_rate > 0)
+                    ? round(60 / $record->production_rate, 2)
+                    : 0;
+
+                // Calcular tiempo planeado: (tiempo ciclo * cantidad planeada) / 60
+                $plannedTime = ($cycletime > 0 && $record->planned_quantity > 0)
+                    ? round(($cycletime * $record->planned_quantity) / 60, 2)
+                    : 0;
+
+                // Calcular tiempo total en minutos
+                $startTime = $record->production_start ? \Carbon\Carbon::parse($record->production_start) : null;
+                $endTime = $record->production_end ? \Carbon\Carbon::parse($record->production_end) : null;
+                $totalMinutes = ($startTime && $endTime) ? $startTime->diffInMinutes($endTime) : 0;
+
+                // Calcular eficiencia: (tiempo planeado / tiempo total) * efficiency
+                $calculatedEfficiency = ($totalMinutes > 0 && $plannedTime > 0)
+                    ? round(($plannedTime / $totalMinutes) * $record->efficiency, 2)
+                    : 0;
+
+                // Agregar los cálculos al registro
+                $record->calculated_cycletime = $cycletime;
+                $record->calculated_planned_time = $plannedTime;
+                $record->calculated_total_minutes = $totalMinutes;
+                $record->calculated_efficiency = $calculatedEfficiency;
+
+                return $record;
+            });
+        });
+
         // Generar el PDF
         $pdf = Pdf::loadView('production.report-pdf', [
             'groupedByWorkStation' => $groupedByWorkStation,
@@ -708,12 +741,6 @@ class ProductionRecordController extends Controller
 
         // Configurar el PDF en orientación horizontal (landscape)
         $pdf->setPaper('letter', 'landscape');
-
-        // Opcional: configurar márgenes si es necesario
-        // $pdf->setOption('margin-top', 10);
-        // $pdf->setOption('margin-bottom', 10);
-        // $pdf->setOption('margin-left', 10);
-        // $pdf->setOption('margin-right', 10);
 
         // Descargar el PDF
         return $pdf->download('reporte-produccion-' . $currentShiftDate->format('Y-m-d') . '.pdf');

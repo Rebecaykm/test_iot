@@ -398,6 +398,30 @@ return [
                     'icon' => 'fas fa-fw fa-clock',
                     'can' => 'view shifts'
                 ],
+                [
+                    'text' => 'Tipos de Scrap',
+                    'route' => 'type-scraps.index',
+                    'icon' => 'fas fa-fw fa-trash-alt',
+                    'can' => 'view type scraps'
+                ],
+                [
+                    'text' => 'Scrap',
+                    'route' => 'scraps.index',
+                    'icon' => 'fas fa-fw fa-recycle',
+                    'can' => 'view scraps'
+                ],
+                [
+                    'text' => 'Tipos de Paro de Línea',
+                    'route' => 'type-line-stoppages.index',
+                    'icon' => 'fas fa-fw fa-tags',
+                    'can' => 'view type line stoppages'
+                ],
+                [
+                    'text' => 'Paros de Línea',
+                    'route' => 'line-stoppages.index',
+                    'icon' => 'fas fa-fw fa-stop-circle',
+                    'can' => 'view line stoppages'
+                ],
             ]
         ],
         [
@@ -407,13 +431,27 @@ return [
                 [
                     'text' => 'Registro de Producción',
                     'route'  => 'production-records.index',
+                    'icon' => 'fas fa-fw fa-clipboard-check',
                     'can' => 'view production records'
                 ],
                 [
                     'text' => 'Resumen de Producción',
                     'route' => 'production-records.summary',
+                    'icon' => 'fas fa-fw fa-chart-bar',
                     'can' => 'view production records'
-                ]
+                ],
+                // [
+                //     'text' => 'Registro de Scrap',
+                //     'route' => 'scrap-records.index',
+                //     'icon' => 'fas fa-fw fa-trash',
+                //     'can' => 'view scrap records'
+                // ],
+                // [
+                //     'text' => 'Registro de Paros',
+                //     'route' => 'line-stoppage-records.index',
+                //     'icon' => 'fas fa-fw fa-stopwatch',
+                //     'can' => 'view line stoppage records'
+                // ],
             ],
         ],
         [

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,135 +15,139 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif !important;
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: Arial, Helvetica, sans-serif !important;
             font-size: 10px;
             padding: 12px;
+            color: #222;
         }
 
-        table {
+        /* ===== TABLAS CON BORDES REDONDEADOS ===== */
+        .card-table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            margin-bottom: 10px;
-            border: 1px solid #666;
+            border: 0.5px solid #666;
             border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
         }
 
-        th, td {
-            border-right: 1px solid #666;
-            border-bottom: 1px solid #666;
-            padding: 6px 8px;
+        .card-table table {
+            width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
         }
 
-        /* Eliminar bordes duplicados en última columna */
-        th:last-child,
-        td:last-child {
-            border-right: none;
-        }
-
-        /* Eliminar borde inferior en última fila */
-        tr:last-child td,
-        tr:last-child th {
-            border-bottom: none;
-        }
-
-        /* Células con colspan o rowspan no deben mostrar bordes internos */
-        .title-cell {
-            border-right: 1px solid #666 !important;
-        }
-
-        /* Redondear esquinas de las celdas en las esquinas de la tabla */
-        table tr:first-child th:first-child,
-        table tr:first-child td:first-child {
-            border-top-left-radius: 7px;
-        }
-
-        table tr:first-child th:last-child,
-        table tr:first-child td:last-child {
-            border-top-right-radius: 7px;
-        }
-
-        table tr:last-child td:first-child,
-        table tr:last-child th:first-child {
-            border-bottom-left-radius: 7px;
-        }
-
-        table tr:last-child td:last-child,
-        table tr:last-child th:last-child {
-            border-bottom-right-radius: 7px;
-        }
-
-        /* Header principal */
-        .main-header td {
+        .card-table th,
+        .card-table td {
+            padding: 5px 6px;
+            border: 0.5px solid #666;
+            font-size: 8px;
             vertical-align: middle;
+            text-align: center;
+            font-family: Arial, Helvetica, sans-serif !important;
+        }
+
+        /* ===== TABLA INTERNA (sin bordes) ===== */
+        .inner-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .inner-table td {
+            border: none;
+            padding: 2px 4px;
+            font-size: 8px;
+            vertical-align: middle;
+            font-family: Arial, Helvetica, sans-serif !important;
+        }
+
+        .inner-table td:first-child {
+            font-weight: 700;
+            text-align: left;
+            width: 70%;
+        }
+
+        .inner-table td:last-child {
+            font-weight: 400;
+            text-align: right;
+            width: 30%;
+            padding-right: 8px;
+        }
+
+        /* ===== ESTILOS DEL ENCABEZADO ===== */
+        .code-cell {
+            text-align: center !important;
+            padding: 6px !important;
+            font-weight: 700;
+        }
+
+        .header-title {
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.5px;
             text-align: center;
         }
 
-        .logo-cell {
-            width: 15%;
-        }
-
-        .logo-cell img {
+        .header-logo {
             width: 85px;
             display: block;
             margin: 0 auto;
         }
 
-        .code-cell {
-            font-weight: bold;
-            font-size: 10px;
-        }
-
-        .title-cell {
-            font-weight: bold;
-            font-size: 14px;
-            letter-spacing: 0.5px;
-        }
-
-        .metadata-label {
-            font-size: 8px;
-            font-weight: bold;
-            text-align: right;
-            width: 12%;
-            padding-right: 8px;
-        }
-
-        .metadata-value {
-            font-size: 8px;
-            text-align: left;
-            width: 13%;
-        }
-
         /* Información de línea y turno */
+        .info-table {
+            width: 100%;
+            border: 0.5px solid #666;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            border-collapse: collapse;
+        }
+
         .info-table th {
             background-color: #f5f5f5;
             font-weight: bold;
             font-size: 9px;
             text-align: left;
             width: 15%;
+            padding: 6px 8px;
+            border: 0.5px solid #666;
         }
 
         .info-table td {
             font-size: 9px;
             text-align: left;
+            padding: 6px 8px;
+            border: 0.5px solid #666;
         }
 
         /* Tabla de producción */
+        .data-table {
+            width: 100%;
+            border: 0.5px solid #666;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            border-collapse: collapse;
+        }
+
         .data-table thead th {
             background-color: #e8e8e8;
             font-weight: bold;
             font-size: 9px;
             text-align: center;
             padding: 8px 6px;
+            border: 0.5px solid #666;
         }
 
         .data-table tbody td {
             font-size: 9px;
             text-align: center;
             padding: 7px 4px;
+            border: 0.5px solid #666;
         }
 
         /* Salto de página */
@@ -155,64 +160,96 @@
         }
     </style>
 </head>
+
 <body>
-    @foreach($groupedByWorkStation as $workNumber => $records)
+    @php
+        $stationIndex = 0;
+    @endphp
+    @foreach ($groupedByWorkStation as $workNumber => $records)
+        @php
+            $stationIndex++;
+            $totalStations = $groupedByWorkStation->count();
+        @endphp
         <div class="page-break no-break">
             <!-- Header Principal -->
-            <table class="main-header">
-                <tr>
-                    <!-- Logo (3 filas) -->
-                    <td class="logo-cell" rowspan="3">
-                        <img src="{{ public_path('images/ykm.png') }}" alt="Logo">
-                    </td>
+            <div class="card-table">
+                <table>
+                    <tbody>
+                        <tr>
+                            <td rowspan="3" style="width: 20%;">
+                                <img src="{{ public_path('images/ykm.png') }}" alt="Logo YKM" class="header-logo">
+                            </td>
 
-                    <!-- Título (3 columnas, 4 filas) -->
-                    <td class="title-cell" colspan="3" rowspan="4">
-                        REPORTE DE PRODUCCIÓN Y PAROS DE LÍNEA
-                    </td>
+                            <td colspan="4" rowspan="4" class="header-title"
+                                style="vertical-align: middle; text-align: center;">
+                                REPORTE DE PRODUCCIÓN Y PAROS DE LÍNEA
+                            </td>
 
-                    <!-- Metadatos Fila 1 -->
-                    <td class="metadata-label">Revisión:</td>
-                    <td class="metadata-value">4</td>
-                </tr>
-                <tr>
-                    <!-- Metadatos Fila 2 -->
-                    <td class="metadata-label">Fecha Elaboración:</td>
-                    <td class="metadata-value">{{ $currentShiftDate->format('d/m/Y') }}</td>
-                </tr>
-                <tr>
-                    <!-- Metadatos Fila 3 -->
-                    <td class="metadata-label">Última Revisión:</td>
-                    <td class="metadata-value">-</td>
-                </tr>
-                <tr>
-                    <!-- FOR-MA-75 (1 fila) -->
-                    <td class="code-cell">FOR-MA-75</td>
+                            <td>
+                                <table class="inner-table">
+                                    <tr>
+                                        <td>REVISIÓN</td>
+                                        <td>4</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
 
-                    <!-- Metadatos Fila 4 -->
-                    <td class="metadata-label">Página / Área:</td>
-                    <td class="metadata-value">1 de {{ $groupedByWorkStation->count() }} / MANUFACTURA</td>
-                </tr>
-            </table>
+                        <tr>
+                            <td>
+                                <table class="inner-table">
+                                    <tr>
+                                        <td>FECHA DE ELABORACIÓN</td>
+                                        <td>{{ $currentShiftDate->format('d/m/Y') }}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
 
-            <!-- Información de Línea y Estación -->
+                        <tr>
+                            <td>
+                                <table class="inner-table">
+                                    <tr>
+                                        <td>ÚLTIMA REVISIÓN</td>
+                                        <td>-</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td class="code-cell">FOR-MA-75</td>
+                            <td>
+                                <table class="inner-table">
+                                    <tr>
+                                        <td>PÁGINA / ÁREA</td>
+                                        <td>{{ $stationIndex }} de {{ $totalStations }} / MANUFACTURA</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Información de Línea, Estación y Turno -->
             <table class="info-table">
                 <tr>
                     <th>Línea</th>
                     <td>{{ $records->first()->line_name }}</td>
                     <th>Estación</th>
                     <td>{{ $records->first()->work_name }}</td>
+                    <th></th>
+                    <td></td>
                 </tr>
-            </table>
-
-            <!-- Información de Turno -->
-            <table class="info-table">
                 <tr>
                     <th>Turno</th>
                     <td>{{ $records->first()->shift_name }}</td>
-                    <th>Inicio Turno</th>
+                    <th>Fecha</th>
+                    <td>{{ $currentShiftDate->format('d/m/Y') }}</td>
+                    <th>Hora de Inicio</th>
                     <td>{{ \Carbon\Carbon::parse($records->first()->shift_start_time)->format('H:i') }}</td>
-                    <th>Fin Turno</th>
+                    <th>Hora de Termino</th>
                     <td>{{ \Carbon\Carbon::parse($records->first()->shift_end_time)->format('H:i') }}</td>
                 </tr>
             </table>
@@ -223,32 +260,46 @@
                     <tr>
                         <th>No. Parte</th>
                         <th>No. Orden</th>
-                        <th>Cant. Planeada</th>
-                        <th>Tiempo Ciclo</th>
+                        <th>Cant Planeada</th>
+                        <th>C.T. / SPM</th>
+                        <th>Tiempo Planeado</th>
                         <th>Hora Inicio</th>
-                        <th>Hora Fin</th>
+                        <th>Hora Termino</th>
                         <th>Tiempo Total</th>
-                        <th>Eficiencia (%)</th>
+                        <th>Eficiencia</th>
                         <th>Cant. Producida</th>
+                        <th>Piezas OK</th>
+                        <th>Piezas Semidestructivas</th>
+                        <th>Piezas Destructivas</th>
+                        <th>Retrabajo</th>
+                        <th>Código de Retrabajo</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($records as $record)
+                    @foreach ($records as $record)
                         @php
-                            $startTime = $record->production_start ? \Carbon\Carbon::parse($record->production_start) : null;
+                            $startTime = $record->production_start
+                                ? \Carbon\Carbon::parse($record->production_start)
+                                : null;
                             $endTime = $record->production_end ? \Carbon\Carbon::parse($record->production_end) : null;
-                            $totalMinutes = ($startTime && $endTime) ? $startTime->diffInMinutes($endTime) : 0;
+                            $totalMinutes = $startTime && $endTime ? $startTime->diffInMinutes($endTime) : 0;
                         @endphp
                         <tr>
                             <td>{{ $record->part_number }}</td>
                             <td>{{ $record->shop_order_number }}</td>
                             <td>{{ $record->planned_quantity }}</td>
-                            <td>{{ number_format($record->production_rate, 2) }}</td>
+                            <td>{{ number_format($record->calculated_cycletime, 2) }}</td>
+                            <td>{{ $record->calculated_planned_time }}</td>
                             <td>{{ $startTime ? $startTime->format('H:i') : '-' }}</td>
                             <td>{{ $endTime ? $endTime->format('H:i') : '-' }}</td>
-                            <td>{{ $totalMinutes }} Min(s)</td>
-                            <td>{{ number_format($record->efficiency, 2) }}%</td>
+                            <td>{{ number_format($totalMinutes, 2) }}</td>
+                            <td>{{ number_format($record->calculated_efficiency, 2) }}%</td>
                             <td>{{ $record->produced_quantity }}</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -256,4 +307,5 @@
         </div>
     @endforeach
 </body>
+
 </html>

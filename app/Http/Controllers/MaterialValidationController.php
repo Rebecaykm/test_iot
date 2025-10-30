@@ -22,6 +22,13 @@ class MaterialValidationController extends Controller
         // Obtener las líneas del usuario autenticado
         $userLines = Auth::user()->lines->pluck('id')->toArray();
 
+        // Si el usuario no tiene líneas asignadas, no mostrar nada
+        if (empty($userLines)) {
+            return view('material-validations.index', [
+                'materialValidations' => \Illuminate\Pagination\LengthAwarePaginator::make([])
+            ]);
+        }
+
         $materialValidations = MaterialValidation::with(['workCenter', 'user', 'user.lines'])
             ->when($search, function ($query, $search) {
                 return $query->where('container_code', 'like', "%{$search}%")
@@ -100,6 +107,14 @@ class MaterialValidationController extends Controller
     public function statistics(Request $request)
     {
         try {
+            // Obtener las líneas del usuario autenticado
+            $userLines = Auth::user()->lines->pluck('id')->toArray();
+
+            // Si el usuario no tiene líneas asignadas, mostrar estadísticas vacías
+            if (empty($userLines)) {
+                return $this->returnEmptyStatistics($request);
+            }
+
             // Validar y obtener fecha
             $date = $request->input('date')
                 ? Carbon::parse($request->input('date'))
@@ -111,9 +126,12 @@ class MaterialValidationController extends Controller
             // Obtener turnos para mostrar
             $shiftsToShow = $this->getShiftsToShow($date, $isToday);
 
-            // Obtener todos los escaneos del día seleccionado con eager loading
+            // Obtener todos los escaneos del día seleccionado FILTRADOS POR LÍNEAS DEL USUARIO
             $scansToday = MaterialValidation::with(['user:id,name,nickname,profile_photo_path'])
                 ->whereDate('created_at', $dateStr)
+                ->whereHas('user.lines', function ($query) use ($userLines) {
+                    $query->whereIn('lines.id', $userLines);
+                })
                 ->select('id', 'user_id', 'validation_status', 'validation_comment', 'created_at')
                 ->get();
 
@@ -135,7 +153,7 @@ class MaterialValidationController extends Controller
                 $ngTypes = collect();
             } else {
                 $dailyStats = $this->getDailyStats($scansToday);
-                $shiftStats = $this->getShiftStats($shiftsToShow['shiftInfos']);
+                $shiftStats = $this->getShiftStats($shiftsToShow['shiftInfos'], $userLines);
                 $userStats = $this->getUserStats($scansToday);
                 $hourlyStats = $this->getHourlyStats($scansToday);
                 $ngTypes = $this->getNgTypesStats($scansToday);
@@ -162,6 +180,41 @@ class MaterialValidationController extends Controller
             // Redirigir con mensaje de error
             return redirect()->back()->with('error', 'Error al cargar las estadísticas. Inténtalo nuevamente.');
         }
+    }
+
+    /**
+     * Retornar estadísticas vacías cuando el usuario no tiene líneas asignadas
+     */
+    private function returnEmptyStatistics(Request $request)
+    {
+        $date = $request->input('date')
+            ? Carbon::parse($request->input('date'))
+            : Carbon::now();
+
+        $isToday = $date->isToday();
+        $shiftsToShow = $this->getShiftsToShow($date, $isToday);
+
+        $emptyStats = [
+            'total' => 0,
+            'ok' => 0,
+            'ng' => 0,
+            'ok_percentage' => 0,
+            'ng_percentage' => 0
+        ];
+
+        $shiftInfos = $shiftsToShow['shiftInfos'];
+        $shifts = $shiftsToShow['shifts'];
+
+        return view('material-validations.statistics', [
+            'dailyStats' => $emptyStats,
+            'shiftStats' => $this->getEmptyShiftStats($shifts, $emptyStats),
+            'userStats' => collect(),
+            'hourlyStats' => $this->getEmptyHourlyStats(),
+            'shiftInfos' => $shiftInfos,
+            'shifts' => $shifts,
+            'isToday' => $isToday,
+            'ngTypes' => collect()
+        ]);
     }
 
     private function getNgTypesStats($scans)
@@ -432,12 +485,12 @@ class MaterialValidationController extends Controller
     /**
      * Obtener estadísticas de turnos
      */
-    private function getShiftStats($shiftInfos)
+    private function getShiftStats($shiftInfos, $userLines = [])
     {
         $stats = [];
 
         foreach ($shiftInfos as $shiftInfo) {
-            $shiftScans = $this->getScansForShift($shiftInfo);
+            $shiftScans = $this->getScansForShift($shiftInfo, $userLines);
             $stats[$shiftInfo->shift->abbreviation] = $this->getDailyStats($shiftScans);
         }
 
@@ -511,9 +564,9 @@ class MaterialValidationController extends Controller
     }
 
     /**
-     * Obtener escaneos para un turno específico
+     * Obtener escaneos para un turno específico FILTRADOS POR LÍNEAS DEL USUARIO
      */
-    private function getScansForShift($shiftInfo)
+    private function getScansForShift($shiftInfo, $userLines = [])
     {
         if (!$shiftInfo || !$shiftInfo->shift || !$shiftInfo->timeRange) {
             return collect();
@@ -523,6 +576,9 @@ class MaterialValidationController extends Controller
             $shiftInfo->timeRange->startDateTime,
             $shiftInfo->timeRange->endDateTime
         ])
+            ->whereHas('user.lines', function ($query) use ($userLines) {
+                $query->whereIn('lines.id', $userLines);
+            })
             ->select('id', 'validation_status', 'validation_comment', 'created_at')
             ->get();
     }

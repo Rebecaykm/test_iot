@@ -19,11 +19,34 @@ class RolePermissionSeeder extends Seeder
         $roles = ['Administrador', 'Gerente', 'Lider', 'Soporte', 'Operador'];
 
         foreach ($roles as $roleName) {
-            $role = Role::firstOrCreate(['name' => $roleName]);
+            Role::firstOrCreate(['name' => $roleName]);
         }
 
         // Crear permisos
-        $modules = ['part numbers', 'work centers', 'lines', 'areas', 'users', 'roles', 'permissions', 'tag types', 'tags', 'statuses', 'shifts', 'clients', 'projects', 'production records', 'material validations'];
+        $modules = [
+            'part numbers',
+            'work centers',
+            'lines',
+            'areas',
+            'users',
+            'roles',
+            'permissions',
+            'tag types',
+            'tags',
+            'statuses',
+            'shifts',
+            'clients',
+            'projects',
+            'production records',
+            'material validations',
+            'type scraps',
+            'scraps',
+            'scrap records',
+            'type line stoppages',
+            'line stoppages',
+            'line stoppage records'
+        ];
+
         $actions = ['create', 'view', 'edit', 'delete'];
 
         foreach ($modules as $module) {
@@ -34,13 +57,13 @@ class RolePermissionSeeder extends Seeder
 
         Permission::firstOrCreate(['name' => 'view work centers map']);
 
-        // Asignar permisos
-        $adminRole = User::find(1);
+        // Asignar permisos al admin
+        $adminRole = Role::where('name', 'Administrador')->first();
         $adminRole->syncPermissions(Permission::all());
 
-        // Asignar role
+        // Asignar role al usuario admin
         $user = User::find(1);
-        if (!$user->hasRole('Administrador')) {
+        if ($user && !$user->hasRole('Administrador')) {
             $user->assignRole('Administrador');
         }
     }

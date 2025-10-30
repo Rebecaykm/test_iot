@@ -3,15 +3,21 @@
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\LineController;
+use App\Http\Controllers\LineStoppageController;
+use App\Http\Controllers\LineStoppageRecordController;
 use App\Http\Controllers\MaterialValidationController;
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProductionRecordController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\ScrapController;
+use App\Http\Controllers\ScrapRecordController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagTypeController;
+use App\Http\Controllers\TypeLineStoppageController;
+use App\Http\Controllers\TypeScrapController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VisualAidController;
 use App\Http\Controllers\WorkCenterController;
@@ -46,6 +52,12 @@ Route::middleware([
     Route::resource('clients', ClientController::class)->except('show');
     Route::resource('projects', ProjectController::class)->except('show');
     Route::resource('visual-aids', VisualAidController::class);
+    Route::resource('type-scraps', TypeScrapController::class);
+    Route::resource('scraps', ScrapController::class);
+    Route::resource('scrap-records', ScrapRecordController::class);
+    Route::resource('type-line-stoppages', TypeLineStoppageController::class);
+    Route::resource('line-stoppages', LineStoppageController::class);
+    Route::resource('line-stoppage-records', LineStoppageRecordController::class);
     Route::resource('production-records', ProductionRecordController::class);
     Route::get('production-records-summary', [ProductionRecordController::class, 'summary'])->name('production-records.summary');
 
