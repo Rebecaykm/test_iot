@@ -130,6 +130,19 @@ return [
             'password' => "LXSECOFR"
         ],
 
+        'dbEmba' => [
+            'driver' => 'sqlsrv',
+            'host' => '192.168.130.7',
+            'port' => '1433',
+            'database' => 'dbEmba',
+            'username' => 'sa',
+            'password' => 'Password9',
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            // 'encrypt' => env('DB_EMBA_ENCRYPT', 'yes'),
+            // 'trust_server_certificate' => env('DB_EMBA_TRUST_SERVER_CERT', 'true'),
+        ],
     ],
 
     /*

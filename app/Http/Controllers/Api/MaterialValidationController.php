@@ -9,6 +9,7 @@ use App\Models\PartNumber;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -258,7 +259,7 @@ class MaterialValidationController extends Controller
             ]);
         }
 
-        if (count($userLines) === 1 && in_array('Miniceldas', $userLines)) {
+        if (count($userLines) === 1 && in_array('Bumper 59', $userLines)) {
             try {
                 // Descomponer la etiqueta final
                 $order = substr($finalLabelCode, 0, 7);
@@ -266,96 +267,116 @@ class MaterialValidationController extends Controller
                 $partNumber = trim(substr($finalLabelCode, 10, 10));
                 $quantity = substr($finalLabelCode, 20, 6);
 
-                Log::info('Etiqueta final descompuesta', [
-                    'final_label_code' => $finalLabelCode,
-                    'order' => $order,
-                    'sequence' => $sequence,
-                    'part_number' => $partNumber,
-                    'quantity' => $quantity
-                ]);
-
-                // Consultar en ECL con la fecha actual
                 $today = Carbon::now();
-
-                $targetDate = $today->isWeekday() && !$today->isMonday()
+                $startDate = $today->isWeekday() && !$today->isMonday()
                     ? $today->copy()->subDay()
                     : $today->copy()->previous(Carbon::FRIDAY);
 
-                $formattedDate = $targetDate->format('Ymd');
-                Log::info('Consultando ECL con fecha', ['today' => $formattedDate, 'part_number' => $partNumber]);
+                $endDate = $today->copy();
+                $daysAdded = 0;
+                while ($daysAdded < 2) {
+                    $endDate->addDay();
+                    // Si no es fin de semana, contar como día hábil
+                    if ($endDate->isWeekday()) {
+                        $daysAdded++;
+                    }
+                }
 
-                $eclRecords = ECL::select('CLIDNO', 'CLCARD', 'LPROD')
-                    ->whereRaw('TRIM(LPROD) LIKE ?', [trim($partNumber) . '%'])
-                    ->where('CLCARD', '>=', $formattedDate)
-                    ->orderBy('CLIDNO', 'asc')
+                $formattedStartDate = $startDate->format('Y-m-d\T00:00:00');
+                $formattedEndDate = $endDate->format('Y-m-d\T23:59:59');
+
+                Log::info('Consultando ORDERS con rango de fechas', [
+                    'start_date' => $formattedStartDate,
+                    'end_date' => $formattedEndDate,
+                    'part_number' => $partNumber
+                ]);
+
+                $orders = DB::connection('dbEmba')
+                    ->table('ORDERS')
+                    ->select('ORDER_ID', 'DELIVERY_DATE')
+                    ->whereRaw("RTRIM(LTRIM(PART_ID)) LIKE ?", [trim($partNumber) . '%'])
+                    ->whereBetween('DELIVERY_DATE', [$formattedStartDate, $formattedEndDate])
+                    ->orderBy('DELIVERY_DATE', 'asc')
                     ->get();
 
-                Log::info('Registros ECL encontrados', ['count' => $eclRecords->count()]);
+                Log::info('Registros ORDERS encontrados', ['count' => $orders->count()]);
 
-                if ($eclRecords->isEmpty()) {
+                if ($orders->isEmpty()) {
                     return response()->json([
                         'isValid' => false,
                         'validationComment' => 'Secuencia Incorrecta',
                     ]);
                 }
 
-                // Buscar el registro actual
-                $currentRecord = null;
+                // Buscar la orden actual
+                $currentOrder = null;
                 $currentIndex = -1;
 
-                foreach ($eclRecords as $index => $record) {
-                    if (strpos($record->CLIDNO, Carbon::now()->format('y') . $order) !== false) {
-                        $currentRecord = $record;
+                foreach ($orders as $index => $orderRecord) {
+                    if (strpos($orderRecord->ORDER_ID, $order) !== false) {
+                        $currentOrder = $orderRecord;
                         $currentIndex = $index;
                         break;
                     }
                 }
 
-                if (!$currentRecord) {
+                if (!$currentOrder) {
                     return response()->json([
                         'isValid' => false,
                         'validationComment' => 'Secuencia Incorrecta',
                     ]);
                 }
 
-                Log::info('Registro actual encontrado', [
-                    'CLIDNO' => $currentRecord->CLIDNO,
-                    'CLCARD' => $currentRecord->CLCARD,
+                Log::info('Orden actual encontrada', [
+                    'ORDER_ID' => $currentOrder->ORDER_ID,
+                    'DELIVERY_DATE' => $currentOrder->DELIVERY_DATE,
                     'index' => $currentIndex
                 ]);
-
-                // Buscar registro anterior
+                dump($currentOrder->ORDER_ID);
+                // Buscar órdenes anteriores no escaneadas
+                // Buscar órdenes anteriores no escaneadas
                 if ($currentIndex > 0) {
-                    $previousRecord = $eclRecords[$currentIndex - 1];
-                    $previousCLIDNO = trim($previousRecord->CLIDNO);
+                    $mostRecentMissing = null;
 
-                    // Quitar los dos primeros dígitos
-                    $previousOrder = substr($previousCLIDNO, 2);
+                    // Revisar todas las órdenes anteriores desde la actual hacia atrás
+                    for ($i = $currentIndex - 1; $i >= 0; $i--) {
+                        $previousOrder = $orders[$i];
+                        $previousOrderId = trim($previousOrder->ORDER_ID);
 
-                    Log::info('Registro anterior encontrado', [
-                        'previousCLIDNO' => $previousCLIDNO,
-                        'previousOrder' => $previousOrder
-                    ]);
+                        Log::info('Verificando orden anterior', ['previousOrderId' => $previousOrderId]);
 
-                    // Verificar en material_validations si el registro anterior fue escaneado
-                    $previousValidation = MaterialValidation::where('final_label_code', 'like', '%' . $previousOrder . '%')
-                        ->where('validation_status', 'OK')
-                        ->first();
+                        // Consultar si la orden anterior fue escaneada
+                        $barcodeRecord = DB::connection('dbEmba')
+                            ->table('BARCODES')
+                            ->where('BARCODE_M', 'like', '%25' . $previousOrderId . '%')
+                            ->first();
 
-                    if (!$previousValidation) {
+                        if (!$barcodeRecord || empty($barcodeRecord->SCANNED_M)) {
+                            // Orden no escaneada, guardamos esta como la más reciente faltante
+                            $mostRecentMissing = $previousOrderId;
+                            Log::info('Orden no escaneada encontrada', ['missing_order' => $previousOrderId]);
+                        } else {
+                            // Encontramos una orden escaneada, detenemos la búsqueda
+                            Log::info('Orden escaneada encontrada', ['scanned_order' => $previousOrderId]);
+                            break;
+                        }
+                    }
+
+                    // Si encontramos una orden faltante, mostrar solo esa
+                    if ($mostRecentMissing) {
                         return response()->json([
                             'isValid' => false,
                             'validationComment' => 'Secuencia Incorrecta',
-                            'expectedOrder' => $previousOrder,
-                            'displayMessage' => 'Falta escanear la orden: ' . $previousOrder,
+                            'expectedOrder' => $mostRecentMissing,
+                            'displayMessage' => 'Falta escanear la orden: ' . $mostRecentMissing,
                         ]);
                     }
 
-                    Log::info('Registro anterior validado', ['previous_validation_id' => $previousValidation->id]);
+                    Log::info('Todas las órdenes anteriores han sido escaneadas correctamente');
                 } else {
-                    Log::info('No hay registro anterior, es el primer registro de la secuencia');
+                    Log::info('No hay órdenes anteriores, es la primera orden de la secuencia');
                 }
-
+                dd("fin");
                 // Si pasa todas las validaciones
                 return response()->json([
                     'isValid' => true,
