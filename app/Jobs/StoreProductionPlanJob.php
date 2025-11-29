@@ -39,14 +39,14 @@ class StoreProductionPlanJob implements ShouldQueue
         $partNumber = PartNumber::query()->where('number', $this->part_number)->first();
 
         if (!$partNumber) {
-            Log::error("Part number not found: " . $this->part_number);
+            // Log::error("Part number not found: " . $this->part_number);
             return;
         }
 
         $shift = Shift::query()->where('abbreviation', $this->planned_shift)->first();
 
         if (!$shift) {
-            Log::error("Shift not found: " . $this->planned_shift);
+            // Log::error("Shift not found: " . $this->planned_shift);
             return;
         }
 
@@ -57,13 +57,13 @@ class StoreProductionPlanJob implements ShouldQueue
             'shop_order_number' => $this->shop_order_number
         ])->first();
 
-        if ($existingRecord) {
-            Log::info("Se ha encontrado un registro de producción duplicado. Número de Orden: " . $this->shop_order_number .
-                ", Part: " . $this->part_number .
-                ", Date: " . $this->planned_date .
-                ", Shift: " . $this->planned_shift);
-            return;
-        }
+        // if ($existingRecord) {
+        //     Log::info("Se ha encontrado un registro de producción duplicado. Número de Orden: " . $this->shop_order_number .
+        //         ", Part: " . $this->part_number .
+        //         ", Date: " . $this->planned_date .
+        //         ", Shift: " . $this->planned_shift);
+        //     return;
+        // }
 
         ProductionRecord::store($partNumber->id, intval($this->planned_quantity), $this->planned_date, $shift->id, $this->shop_order_number);
     }

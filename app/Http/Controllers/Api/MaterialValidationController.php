@@ -244,26 +244,27 @@ class MaterialValidationController extends Controller
 
         $finalLabelCode = $request->final_label_code;
 
-        if (strlen($finalLabelCode) <= 30) {
-            return response()->json([
-                'isValid' => false,
-                'validationComment' => 'Orden Incorrecto',
-            ]);
-        }
+        // if (strlen($finalLabelCode) <= 30) {
+        //     return response()->json([
+        //         'isValid' => false,
+        //         'validationComment' => 'Orden Incorrecto',
+        //     ]);
+        // }
 
-        $exists = MaterialValidation::where('final_label_code', $finalLabelCode)->where('validation_status', 'OK')->exists();
-        if ($exists) {
-            return response()->json([
-                'isValid' => false,
-                'validationComment' => 'Registrado Anteriormente',
-            ]);
-        }
+        // $exists = MaterialValidation::where('final_label_code', $finalLabelCode)->where('validation_status', 'OK')->exists();
+        // if ($exists) {
+        //     return response()->json([
+        //         'isValid' => false,
+        //         'validationComment' => 'Registrado Anteriormente',
+        //     ]);
+        // }
 
-        if (count($userLines) === 1 && in_array('Bumper 59', $userLines)) {
+        $allowedLines = ['Miniceldas', 'Index', 'InPanel J', 'Body Cross', 'Poka-Yoke'];
+        if (count($userLines) === 1 && in_array($userLines[0], $allowedLines)) {
             try {
                 // Descomponer la etiqueta final
                 $order = substr($finalLabelCode, 0, 7);
-                $sequence = substr($finalLabelCode, 7, 3);
+                $sequenceFromLabel = substr($finalLabelCode, 7, 3);
                 $partNumber = trim(substr($finalLabelCode, 10, 10));
                 $quantity = substr($finalLabelCode, 20, 6);
 
@@ -276,7 +277,6 @@ class MaterialValidationController extends Controller
                 $daysAdded = 0;
                 while ($daysAdded < 2) {
                     $endDate->addDay();
-                    // Si no es fin de semana, contar como día hábil
                     if ($endDate->isWeekday()) {
                         $daysAdded++;
                     }
@@ -284,36 +284,96 @@ class MaterialValidationController extends Controller
 
                 $formattedStartDate = $startDate->format('Y-m-d\T00:00:00');
                 $formattedEndDate = $endDate->format('Y-m-d\T23:59:59');
+                $currentYear = Carbon::now()->format('y');
 
-                Log::info('Consultando ORDERS con rango de fechas', [
+                Log::info('Consultando datos combinados ORDERS y BARCODES', [
                     'start_date' => $formattedStartDate,
                     'end_date' => $formattedEndDate,
-                    'part_number' => $partNumber
+                    'part_number' => $partNumber,
+                    'current_year' => $currentYear
                 ]);
 
-                $orders = DB::connection('dbEmba')
+                $combinedData = DB::connection('dbEmba')
                     ->table('ORDERS')
-                    ->select('ORDER_ID', 'DELIVERY_DATE')
-                    ->whereRaw("RTRIM(LTRIM(PART_ID)) LIKE ?", [trim($partNumber) . '%'])
-                    ->whereBetween('DELIVERY_DATE', [$formattedStartDate, $formattedEndDate])
-                    ->orderBy('DELIVERY_DATE', 'asc')
+                    ->join('BARCODES', 'ORDERS.ORDER_ID', '=', 'BARCODES.ORDER_ID')
+                    ->select(
+                        'ORDERS.ORDER_ID',
+                        'ORDERS.DELIVERY_DATE',
+                        'ORDERS.PART_ID',
+                        'BARCODES.BARCODE_ID',
+                        'BARCODES.BARCODE_E',
+                        'BARCODES.BARCODE_M',
+                        'BARCODES.SEQUENCE',
+                        'BARCODES.SNP',
+                        'BARCODES.STATUS',
+                        'BARCODES.QTY',
+                        'BARCODES.SCANNED_M'
+                    )
+                    ->whereRaw("RTRIM(LTRIM(ORDERS.PART_ID)) LIKE ?", [trim($partNumber) . '%'])
+                    ->where('ORDERS.DELIVERY_DATE', '>=', $formattedStartDate)
+                    ->where('BARCODES.BARCODE_M', 'like', $currentYear . '%')
+                    ->orderBy('ORDERS.DELIVERY_DATE', 'asc')
+                    ->orderBy('BARCODES.SEQUENCE', 'asc')
                     ->get();
 
-                Log::info('Registros ORDERS encontrados', ['count' => $orders->count()]);
+                Log::info('Registros combinados encontrados', ['count' => $combinedData->count()]);
 
-                if ($orders->isEmpty()) {
+                if ($combinedData->isEmpty()) {
                     return response()->json([
                         'isValid' => false,
                         'validationComment' => 'Secuencia Incorrecta',
                     ]);
                 }
 
+                // Procesar datos en memoria
+                $ordersMap = [];
+                foreach ($combinedData as $record) {
+                    $orderId = $record->ORDER_ID;
+
+                    if (!isset($ordersMap[$orderId])) {
+                        $ordersMap[$orderId] = [
+                            'order_id' => $orderId,
+                            'delivery_date' => $record->DELIVERY_DATE,
+                            'part_id' => $record->PART_ID,
+                            'barcodes' => [],
+                            'all_scanned' => true,
+                            'sequences' => []
+                        ];
+                    }
+
+                    // Convertir la secuencia de la BD a 3 dígitos
+                    $threeDigitSequence = $this->convertSequenceToThreeDigits($record->SEQUENCE);
+
+                    // Agregar información del barcode
+                    $ordersMap[$orderId]['barcodes'][] = [
+                        'barcode_id' => $record->BARCODE_ID,
+                        'barcode_m' => $record->BARCODE_M,
+                        'sequence' => $threeDigitSequence,
+                        'original_sequence' => $record->SEQUENCE,
+                        'scanned_m' => $record->SCANNED_M
+                    ];
+
+                    // Verificar si todos los códigos de barras están escaneados
+                    if (empty($record->SCANNED_M)) {
+                        $ordersMap[$orderId]['all_scanned'] = false;
+                    }
+
+                    // Almacenar secuencias para validación
+                    $ordersMap[$orderId]['sequences'][] = $threeDigitSequence;
+                }
+
+                // Convertir a array y ordenar por fecha
+                $orders = array_values($ordersMap);
+                usort($orders, function ($a, $b) {
+                    return strcmp($a['delivery_date'], $b['delivery_date']);
+                });
+
                 // Buscar la orden actual
                 $currentOrder = null;
                 $currentIndex = -1;
 
                 foreach ($orders as $index => $orderRecord) {
-                    if (strpos($orderRecord->ORDER_ID, $order) !== false) {
+                    if (strpos($orderRecord['order_id'], $order) !== false) {
                         $currentOrder = $orderRecord;
                         $currentIndex = $index;
                         break;
@@ -328,47 +388,50 @@ class MaterialValidationController extends Controller
                 }
 
                 Log::info('Orden actual encontrada', [
-                    'ORDER_ID' => $currentOrder->ORDER_ID,
-                    'DELIVERY_DATE' => $currentOrder->DELIVERY_DATE,
+                    'ORDER_ID' => $currentOrder['order_id'],
+                    'DELIVERY_DATE' => $currentOrder['delivery_date'],
+                    'all_scanned' => $currentOrder['all_scanned'],
                     'index' => $currentIndex
                 ]);
-                dump($currentOrder->ORDER_ID);
-                // Buscar órdenes anteriores no escaneadas
-                // Buscar órdenes anteriores no escaneadas
-                if ($currentIndex > 0) {
-                    $mostRecentMissing = null;
 
-                    // Revisar todas las órdenes anteriores desde la actual hacia atrás
+                // VALIDACIÓN 1: Buscar órdenes anteriores no escaneadas
+                if ($currentIndex > 0) {
+                    // Recorrer TODAS las órdenes anteriores para encontrar la más antigua sin escanear
+                    $oldestMissingOrder = null;
+
                     for ($i = $currentIndex - 1; $i >= 0; $i--) {
                         $previousOrder = $orders[$i];
-                        $previousOrderId = trim($previousOrder->ORDER_ID);
 
-                        Log::info('Verificando orden anterior', ['previousOrderId' => $previousOrderId]);
-
-                        // Consultar si la orden anterior fue escaneada
-                        $barcodeRecord = DB::connection('dbEmba')
-                            ->table('BARCODES')
-                            ->where('BARCODE_M', 'like', '%25' . $previousOrderId . '%')
-                            ->first();
-
-                        if (!$barcodeRecord || empty($barcodeRecord->SCANNED_M)) {
-                            // Orden no escaneada, guardamos esta como la más reciente faltante
-                            $mostRecentMissing = $previousOrderId;
-                            Log::info('Orden no escaneada encontrada', ['missing_order' => $previousOrderId]);
-                        } else {
-                            // Encontramos una orden escaneada, detenemos la búsqueda
-                            Log::info('Orden escaneada encontrada', ['scanned_order' => $previousOrderId]);
-                            break;
+                        // Si encontramos una orden con secuencias sin escanear
+                        if (!$previousOrder['all_scanned']) {
+                            // Guardar esta orden (la última que encontremos será la más antigua)
+                            $oldestMissingOrder = $previousOrder;
                         }
                     }
 
-                    // Si encontramos una orden faltante, mostrar solo esa
-                    if ($mostRecentMissing) {
+                    // Si encontramos alguna orden sin escanear
+                    if ($oldestMissingOrder) {
+                        // Buscar la primera secuencia sin escanear en la orden más antigua
+                        $missingSequence = null;
+
+                        foreach ($oldestMissingOrder['barcodes'] as $barcode) {
+                            if (empty($barcode['scanned_m'])) {
+                                $missingSequence = $barcode['sequence'];
+                                break; // Tomamos la primera secuencia sin escanear
+                            }
+                        }
+
+                        Log::info('Orden más antigua no escaneada encontrada', [
+                            'missing_order' => $oldestMissingOrder['order_id'],
+                            'missing_sequence' => $missingSequence,
+                            'all_sequences' => $oldestMissingOrder['sequences']
+                        ]);
+
                         return response()->json([
                             'isValid' => false,
                             'validationComment' => 'Secuencia Incorrecta',
-                            'expectedOrder' => $mostRecentMissing,
-                            'displayMessage' => 'Falta escanear la orden: ' . $mostRecentMissing,
+                            'expectedOrder' => $oldestMissingOrder['order_id'],
+                            'displayMessage' => 'Falta escanear la secuencia: ' . $missingSequence . ' de la orden: ' . $oldestMissingOrder['order_id'],
                         ]);
                     }
 
@@ -376,14 +439,52 @@ class MaterialValidationController extends Controller
                 } else {
                     Log::info('No hay órdenes anteriores, es la primera orden de la secuencia');
                 }
-                dd("fin");
+
+                // VALIDACIÓN 2: Validar secuencias dentro de la orden actual
+                $currentSequenceNumber = intval($sequenceFromLabel);
+
+                Log::info('Validando secuencias de la orden actual', [
+                    'sequence_from_label' => $sequenceFromLabel,
+                    'sequence_number' => $currentSequenceNumber,
+                    'barcodes_in_order' => count($currentOrder['barcodes'])
+                ]);
+
+                // Si la secuencia escaneada no es la primera (001), validar que las anteriores estén escaneadas
+                if ($currentSequenceNumber > 1) {
+                    // Buscar la primera secuencia sin escanear en la orden actual
+                    foreach ($currentOrder['barcodes'] as $barcode) {
+                        $barcodeSequenceNumber = intval($barcode['sequence']);
+
+                        // Solo verificar secuencias menores a la que se está escaneando
+                        if ($barcodeSequenceNumber < $currentSequenceNumber) {
+                            // Si esta secuencia no está escaneada
+                            if (empty($barcode['scanned_m'])) {
+                                Log::info('Secuencia anterior no escaneada en orden actual', [
+                                    'missing_sequence' => $barcode['sequence'],
+                                    'current_sequence' => $sequenceFromLabel,
+                                    'order' => $order
+                                ]);
+
+                                return response()->json([
+                                    'isValid' => false,
+                                    'validationComment' => 'Secuencia Incorrecta',
+                                    'expectedOrder' => $order,
+                                    'displayMessage' => 'Falta escanear la secuencia: ' . $barcode['sequence'] . ' de la orden: ' . $order,
+                                ]);
+                            }
+                        }
+                    }
+
+                    Log::info('Todas las secuencias anteriores están escaneadas correctamente en la orden actual');
+                }
+
                 // Si pasa todas las validaciones
                 return response()->json([
                     'isValid' => true,
                     'validationComment' => null,
                     'parsedData' => [
                         'order' => $order,
-                        'sequence' => $sequence,
+                        'sequence' => $sequenceFromLabel,
                         'part_number' => $partNumber,
                         'quantity' => $quantity
                     ]
@@ -406,5 +507,15 @@ class MaterialValidationController extends Controller
                 'validationComment' => null,
             ]);
         }
+    }
+
+    /**
+     * Convierte una secuencia de la BD a formato de 3 dígitos
+     */
+    private function convertSequenceToThreeDigits($sequence): string
+    {
+        $completeSequence = str_pad($sequence, 6, "0", STR_PAD_LEFT);
+        $firstThree = substr((string) $completeSequence, 0, 3);
+        return str_pad($firstThree, 3, '0', STR_PAD_LEFT);
     }
 }
