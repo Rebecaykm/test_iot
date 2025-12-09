@@ -475,4 +475,183 @@ class ProductionRecordController extends Controller
 
         return $pdf->download('reporte-produccion-' . $currentShiftDate->format('Y-m-d') . '.pdf');
     }
+
+    /**
+     * Mostrar formulario para filtrar reporte PDF
+     */
+    public function showExportForm()
+    {
+        $user = Auth::user();
+
+        // Obtener las líneas a las que tiene acceso el usuario
+        $lines = $user->lines()->orderBy('name')->get();
+
+        // Obtener los centros de trabajo a los que tiene acceso el usuario
+        $workCenters = $user->workCenters()->orderBy('name')->get();
+
+        // Obtener todos los turnos
+        $shifts = Shift::orderBy('start_time')->get();
+
+        return view('production-records.export-form', compact('lines', 'workCenters', 'shifts'));
+    }
+
+    /**
+     * Exportar reporte de producción filtrado
+     */
+    /**
+     * Exportar reporte de producción filtrado
+     */
+    public function exportProductionReportFiltered(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'lines' => 'nullable|array',
+            'lines.*' => 'exists:lines,id',
+            'work_centers' => 'nullable|array',
+            'work_centers.*' => 'exists:work_centers,id',
+            'shifts' => 'nullable|array',
+            'shifts.*' => 'exists:shifts,id',
+        ]);
+
+        // Validar que al menos se seleccione una línea, estación o turno
+        if (empty($request->lines) && empty($request->work_centers) && empty($request->shifts)) {
+            return redirect()->back()->withErrors('Debe seleccionar al menos una línea, una estación o un turno.');
+        }
+
+        $user = Auth::user();
+        $workCentersArray = $user->workCenters->pluck('name')->toArray();
+
+        $startDate = Carbon::parse($request->start_date)->startOfDay();
+        $endDate = Carbon::parse($request->end_date)->endOfDay();
+
+        // Construir la consulta base con área
+        $query = ProductionRecord::query()
+            ->select([
+                'production_records.id AS production_id',
+                'lines.name AS line_name',
+                'areas.name AS area_name', // Añadir área
+                'lines.color AS line_color',
+                'work_centers.number AS work_number',
+                'work_centers.name AS work_name',
+                'part_numbers.number AS part_number',
+                'part_numbers.name AS part_name',
+                'part_numbers.production_rate AS production_rate',
+                'part_numbers.efficiency AS efficiency',
+                'production_records.shop_order_number AS shop_order_number',
+                'production_records.planned_date AS planned_date',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'production_records.scrap_quantity AS scrap_quantity',
+                'shifts.abbreviation AS shift_abbreviation',
+                'shifts.name AS shift_name',
+                'shifts.start_time AS shift_start_time',
+                'shifts.end_time AS shift_end_time',
+                'statuses.name AS status_name',
+                'production_records.production_start AS production_start',
+                'production_records.production_end AS production_end'
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->join('areas', 'lines.area_id', '=', 'areas.id') // Unir con áreas
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->whereIn('work_centers.name', $workCentersArray)
+            ->whereBetween('production_records.planned_date', [
+                $startDate->toDateString(),
+                $endDate->toDateString()
+            ]);
+
+        // Filtrar por líneas si se proporcionan
+        if (!empty($request->lines)) {
+            $query->whereIn('lines.id', $request->lines);
+        }
+
+        // Filtrar por centros de trabajo si se proporcionan
+        if (!empty($request->work_centers)) {
+            $query->whereIn('work_centers.id', $request->work_centers);
+        }
+
+        // Filtrar por turnos si se proporcionan
+        if (!empty($request->shifts)) {
+            $query->whereIn('shifts.id', $request->shifts);
+        }
+
+        $productionRecords = $query->orderBy('work_centers.number', 'asc')
+            ->orderBy('part_numbers.production_order', 'asc')
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('shifts.abbreviation', 'asc')
+            ->get();
+
+        // Agrupar por work_center, planned_date y shift_id
+        $grouped = $productionRecords->groupBy(function ($record) {
+            return $record->work_number . '|' . $record->planned_date . '|' . $record->shift_abbreviation;
+        });
+
+        $groups = [];
+        foreach ($grouped as $key => $records) {
+            $firstRecord = $records->first();
+
+            // Calcular los campos adicionales para cada registro
+            $records = $records->map(function ($record) {
+                $cycletime = ($record->production_rate > 0)
+                    ? round(60 / $record->production_rate, 2)
+                    : 0;
+
+                $plannedTime = ($cycletime > 0 && $record->planned_quantity > 0)
+                    ? round(($cycletime * $record->planned_quantity) / 60, 2)
+                    : 0;
+
+                $startTime = $record->production_start ? \Carbon\Carbon::parse($record->production_start) : null;
+                $endTime = $record->production_end ? \Carbon\Carbon::parse($record->production_end) : null;
+                $totalMinutes = ($startTime && $endTime) ? $startTime->diffInMinutes($endTime) : 0;
+
+                $calculatedEfficiency = ($totalMinutes > 0 && $plannedTime > 0)
+                    ? round(($plannedTime / $totalMinutes) * $record->efficiency, 2)
+                    : 0;
+
+                $record->calculated_cycletime = $cycletime;
+                $record->calculated_planned_time = $plannedTime;
+                $record->calculated_total_minutes = $totalMinutes;
+                $record->calculated_efficiency = $calculatedEfficiency;
+
+                return $record;
+            });
+
+            $groups[] = [
+                'work_number' => $firstRecord->work_number,
+                'work_name' => $firstRecord->work_name,
+                'line_name' => $firstRecord->line_name,
+                'area_name' => $firstRecord->area_name, // Incluir área
+                'shift_name' => $firstRecord->shift_name,
+                'shift_abbreviation' => $firstRecord->shift_abbreviation,
+                'shift_start_time' => $firstRecord->shift_start_time,
+                'shift_end_time' => $firstRecord->shift_end_time,
+                'planned_date' => $firstRecord->planned_date,
+                'records' => $records,
+            ];
+        }
+
+        // Ordenar los grupos
+        usort($groups, function ($a, $b) {
+            if ($a['work_number'] == $b['work_number']) {
+                if ($a['planned_date'] == $b['planned_date']) {
+                    return $a['shift_abbreviation'] <=> $b['shift_abbreviation'];
+                }
+                return $a['planned_date'] <=> $b['planned_date'];
+            }
+            return $a['work_number'] <=> $b['work_number'];
+        });
+
+        $pdf = Pdf::loadView('production.report-pdf-filtered', [
+            'groups' => $groups,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]);
+
+        $pdf->setPaper('letter', 'landscape');
+
+        return $pdf->download('FOR-IOT-01' . Carbon::now()->format('YmdHis') . '.pdf');
+    }
 }

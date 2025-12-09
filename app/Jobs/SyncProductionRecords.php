@@ -71,7 +71,6 @@ class SyncProductionRecords implements ShouldQueue
 
             // 4. Log de resultados
             $this->logResults($successCount, $errorCount, $errors);
-
         } catch (Exception $e) {
             Log::error('Error en el job de sincronización masiva: ' . $e->getMessage());
             throw $e;
@@ -83,9 +82,9 @@ class SyncProductionRecords implements ShouldQueue
      */
     protected function getEligibleProductionRecords()
     {
-        $workCentersArray = WorkCenter::with('line')
-            ->whereHas('line', function ($q) {
-                $q->where('name', 'Miniceldas');
+        $workCentersArray = WorkCenter::with('line.area')
+            ->whereHas('line.area', function ($q) {
+                $q->where('name', 'Carrocería');
             })
             ->pluck('number')
             ->toArray();
@@ -216,7 +215,6 @@ class SyncProductionRecords implements ShouldQueue
 
             odbc_close($conn);
             Log::info('Conexión a Infor cerrada correctamente');
-
         } catch (Exception $e) {
             Log::error("Error ejecutando procedimiento Infor: " . $e->getMessage());
             throw $e; // Relanzar para que el job falle si esto es crítico

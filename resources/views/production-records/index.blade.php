@@ -6,28 +6,12 @@
     <div class="d-flex justify-content-between align-items-center">
         <h1 class="m-0">{{ __('Registros de Producción') }}</h1>
 
-        <div class="search-box">
-            <form method="GET" action="{{ route('production-records.index') }}" id="searchForm">
-                <div class="input-group">
-                    <input type="text" name="search" class="form-control border-end-0" placeholder="Buscar..."
-                        value="{{ request('search') }}">
-
-                    <input type="date" name="date" class="form-control border-start-0 border-end-0"
-                        value="{{ request('date') }}" style="width: 150px;">
-
-                    <button type="submit" class="input-group-text bg-white border-start-0">
-                        <i class="fas fa-search text-secondary"></i>
-                    </button>
-
-                    @if (request()->has('search') || request()->has('date'))
-                        <a href="{{ route('production-records.index') }}"
-                            class="input-group-text bg-white border-start-0 text-danger">
-                            <i class="fas fa-times"></i>
-                        </a>
-                    @endif
-                </div>
-            </form>
-        </div>
+        <!-- Botón de descarga PDF simplificado -->
+        <a href="{{ route('production.export-pdf-form') }}" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm"
+            style="border-radius: 20px; padding: 0.5rem 1.5rem;">
+            <i class="fas fa-file-pdf"></i>
+            <span>Descargar reporte</span>
+        </a>
     </div>
 @stop
 
@@ -48,7 +32,33 @@
 
     <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
 
-        <!-- Cuerpo con tabla -->
+        <!-- Buscador reubicado arriba de la tabla -->
+        <div class="p-3 d-flex justify-content-center justify-content-md-end">
+            <div class="search-box">
+                <form method="GET" action="{{ route('production-records.index') }}" id="searchForm">
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control border-end-0" placeholder="Buscar..."
+                            value="{{ request('search') }}">
+
+                        <input type="date" name="date" class="form-control border-start-0 border-end-0"
+                            value="{{ request('date') }}" style="width:150px;">
+
+                        <button type="submit" class="input-group-text bg-white border-start-0">
+                            <i class="fas fa-search text-secondary"></i>
+                        </button>
+
+                        @if (request()->has('search') || request()->has('date'))
+                            <a href="{{ route('production-records.index') }}"
+                                class="input-group-text bg-white border-start-0 text-danger">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        @endif
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tabla -->
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
@@ -61,19 +71,20 @@
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle">Turno</th>
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle text-end">Planeada</th>
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle text-end">Producida</th>
-                            {{-- <th class="fw-bold text-secondary text-uppercase border-light-subtle text-end">Scrap</th> --}}
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle">Estado</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Sincronización</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Sincronización
+                            </th>
                         </tr>
                     </thead>
+
                     <tbody>
                         @forelse($productionRecords as $record)
                             @php
                                 $prod = $record->produced_quantity;
                                 $plan = $record->planned_quantity;
-                                $scrap = $record->scrap_quantity;
                                 $color = $prod < $plan ? 'danger' : ($prod == $plan ? 'success' : 'warning');
                             @endphp
+
                             <tr class="border-light-subtle">
                                 <td class="py-3">
                                     <div class="fw-500">{{ $record->work_number }}</div>
@@ -90,42 +101,47 @@
                                 </td>
 
                                 <td class="py-3 small">
-                                    <div class="fw-500">{{ \Carbon\Carbon::parse($record->planned_date)->format('d/m/Y') }}
+                                    <div class="fw-500">
+                                        {{ \Carbon\Carbon::parse($record->planned_date)->format('d/m/Y') }}
                                     </div>
                                 </td>
 
                                 <td class="py-3">
-                                    <span
-                                        class="badge-status bg-primary bg-opacity-10 text-primary">{{ $record->shift_name }}</span>
+                                    <span class="badge-status bg-primary bg-opacity-10 text-primary">
+                                        {{ $record->shift_name }}
+                                    </span>
+                                </td>
+
+                                <td class="py-3 text-end">
+                                    <span class="badge-status bg-secondary bg-opacity-10 text-secondary">
+                                        {{ number_format($plan) }}
+                                    </span>
                                 </td>
 
                                 <td class="py-3 text-end">
                                     <span
-                                        class="badge-status bg-secondary bg-opacity-10 text-secondary">{{ number_format($plan) }}</span>
+                                        class="badge-status bg-{{ $color }} bg-opacity-10 text-{{ $color }}">
+                                        {{ number_format($prod) }}
+                                    </span>
                                 </td>
-
-                                <td class="py-3 text-end">
-                                    <span
-                                        class="badge-status bg-{{ $color }} bg-opacity-10 text-{{ $color }}">{{ number_format($prod) }}</span>
-                                </td>
-
-                                {{-- <td class="py-3 text-end">
-                                    <span class="badge-status bg-secondary bg-opacity-10 text-secondary">{{ number_format($scrap) }}</span>
-                                </td> --}}
 
                                 <td class="py-3">
                                     @if ($record->status_name == 'Completado')
-                                        <span
-                                            class="badge-status bg-success bg-opacity-10 text-success">{{ $record->status_name }}</span>
-                                    @elseif($record->status_name == 'En progreso')
-                                        <span
-                                            class="badge-status bg-primary bg-opacity-10 text-primary">{{ $record->status_name }}</span>
-                                    @elseif($record->status_name == 'No planeado')
-                                        <span
-                                            class="badge-status bg-warning bg-opacity-10 text-warning">{{ $record->status_name }}</span>
+                                        <span class="badge-status bg-success bg-opacity-10 text-success">
+                                            {{ $record->status_name }}
+                                        </span>
+                                    @elseif ($record->status_name == 'En progreso')
+                                        <span class="badge-status bg-primary bg-opacity-10 text-primary">
+                                            {{ $record->status_name }}
+                                        </span>
+                                    @elseif ($record->status_name == 'No planeado')
+                                        <span class="badge-status bg-warning bg-opacity-10 text-warning">
+                                            {{ $record->status_name }}
+                                        </span>
                                     @else
-                                        <span
-                                            class="badge-status bg-secondary bg-opacity-10 text-secondary">{{ $record->status_name }}</span>
+                                        <span class="badge-status bg-secondary bg-opacity-10 text-secondary">
+                                            {{ $record->status_name }}
+                                        </span>
                                     @endif
                                 </td>
 
@@ -136,7 +152,7 @@
                                                 <i class="fas fa-check-circle me-1"></i>
                                                 Enviado a Infor
                                             </span>
-                                            @if($record->synced_at)
+                                            @if ($record->synced_at)
                                                 <span class="text-muted" style="font-size: 0.7rem;">
                                                     {{ \Carbon\Carbon::parse($record->synced_at)->format('d/m/Y H:i') }}
                                                 </span>
@@ -156,7 +172,8 @@
                                     <div class="d-flex flex-column align-items-center">
                                         <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
                                         <span class="text-secondary">No se encontraron registros</span>
-                                        @if(request()->has('search') || request()->has('date'))
+
+                                        @if (request()->has('search') || request()->has('date'))
                                             <a href="{{ route('production-records.index') }}"
                                                 class="btn btn-sm btn-link mt-2">
                                                 Limpiar búsqueda
@@ -176,8 +193,8 @@
             <div class="card-footer bg-white border-0 py-3">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="text-muted small">
-                        Mostrando {{ $productionRecords->firstItem() ?? 0 }} a {{ $productionRecords->lastItem() ?? 0 }}
-                        de
+                        Mostrando {{ $productionRecords->firstItem() ?? 0 }} a
+                        {{ $productionRecords->lastItem() ?? 0 }} de
                         {{ $productionRecords->total() }} resultados
                     </div>
                     @if ($productionRecords->hasPages())
@@ -324,28 +341,45 @@
             background-size: 0.75rem;
             padding: 0.5rem;
         }
+
+        /* Botón de PDF */
+        .btn-danger {
+            background-color: #dc3545;
+            border: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
     </style>
 @stop
 
 @section('js')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Cerrar alertas automáticamente después de 5 segundos
+            // Cerrar alertas después de 5s
             setTimeout(() => {
                 const alerts = document.querySelectorAll('.alert');
                 alerts.forEach(alert => {
-                    if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
-                        const bsAlert = new bootstrap.Alert(alert);
-                        bsAlert.close();
+                    if (typeof bootstrap !== "undefined" && bootstrap.Alert) {
+                        new bootstrap.Alert(alert).close();
                     }
                 });
             }, 5000);
 
-            // Configurar fecha máxima en el input de fecha
+            // Fecha máxima del input date
             const dateInput = document.querySelector('input[name="date"]');
             if (dateInput) {
-                const today = new Date().toISOString().split('T')[0];
-                dateInput.setAttribute('max', today);
+                const today = new Date().toISOString().split("T")[0];
+                dateInput.setAttribute("max", today);
             }
         });
     </script>
