@@ -190,7 +190,7 @@
 
                             <td colspan="4" rowspan="4" class="header-title"
                                 style="vertical-align: middle; text-align: center;">
-                                REPORTE DE PRODUCCIÓN IoT
+                                REPORTE DE PRODUCCIÓN IOT
                             </td>
 
                             <td>
@@ -226,7 +226,7 @@
                         </tr>
 
                         <tr>
-                            <td class="code-cell">FOR-IoT-01</td>
+                            <td class="code-cell">FOR-IOT-01</td>
                             <td>
                                 <table class="inner-table">
                                     <tr>

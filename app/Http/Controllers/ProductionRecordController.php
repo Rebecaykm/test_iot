@@ -623,7 +623,7 @@ class ProductionRecordController extends Controller
                 'work_number' => $firstRecord->work_number,
                 'work_name' => $firstRecord->work_name,
                 'line_name' => $firstRecord->line_name,
-                'area_name' => $firstRecord->area_name, // Incluir área
+                'area_name' => $firstRecord->area_name,
                 'shift_name' => $firstRecord->shift_name,
                 'shift_abbreviation' => $firstRecord->shift_abbreviation,
                 'shift_start_time' => $firstRecord->shift_start_time,

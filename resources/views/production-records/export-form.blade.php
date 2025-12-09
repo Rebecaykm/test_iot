@@ -1,6 +1,6 @@
 @extends('adminlte::page')
 
-@section('title', 'Generar Reporte FOR-MA-75')
+@section('title', 'Reporte de Producción')
 
 @section('content_header')
     <h1 class="m-0">{{ __('Reporte de Producción') }}</h1>

@@ -36,12 +36,18 @@ class LineStoppageRecordController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
         $lineStoppages = LineStoppage::all();
         $workCenters = Auth::user()->workCenters()->orderBy('name')->get();
 
-        return view('line-stoppage-records.create', compact('lineStoppages', 'workCenters'));
+        // Obtener la ruta de origen del parámetro o de la sesión
+        $source = $request->get('source', session('previous_route', 'line-stoppage-records.index'));
+
+        // Guardar en sesión para uso posterior
+        session(['stoppage_create_source' => $source]);
+
+        return view('line-stoppage-records.create', compact('lineStoppages', 'workCenters', 'source'));
     }
 
     /**
@@ -64,7 +70,11 @@ class LineStoppageRecordController extends Controller
 
         LineStoppageRecord::create($data);
 
-        return redirect()->route('line-stoppage-records.index')
+        // Redirigir según la fuente
+        $redirectRoute = session('stoppage_create_source', 'line-stoppage-records.index');
+        session()->forget('stoppage_create_source');
+
+        return redirect()->route($redirectRoute)
             ->with('success', 'Registro de parada creado exitosamente.');
     }
 
@@ -83,6 +93,10 @@ class LineStoppageRecordController extends Controller
     {
         $lineStoppages = LineStoppage::all();
         $workCenters = Auth::user()->workCenters()->orderBy('name')->get();
+
+        // Guardar la ruta actual para el botón de cancelar
+        session(['stoppage_edit_source' => url()->previous()]);
+
         return view('line-stoppage-records.edit', compact('lineStoppageRecord', 'lineStoppages', 'workCenters'));
     }
 
@@ -106,7 +120,11 @@ class LineStoppageRecordController extends Controller
 
         $lineStoppageRecord->update($data);
 
-        return redirect()->route('line-stoppage-records.index')
+        // Redirigir según la fuente guardada
+        $redirectRoute = session('stoppage_edit_source', 'line-stoppage-records.index');
+        session()->forget('stoppage_edit_source');
+
+        return redirect()->to($redirectRoute)
             ->with('success', 'Registro de parada actualizado exitosamente.');
     }
 

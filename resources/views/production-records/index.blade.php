@@ -6,12 +6,26 @@
     <div class="d-flex justify-content-between align-items-center">
         <h1 class="m-0">{{ __('Registros de Producción') }}</h1>
 
-        <!-- Botón de descarga PDF simplificado -->
-        <a href="{{ route('production.export-pdf-form') }}" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm"
-            style="border-radius: 20px; padding: 0.5rem 1.5rem;">
-            <i class="fas fa-file-pdf"></i>
-            <span>Descargar reporte</span>
-        </a>
+        <!-- Botones de acción -->
+        <div class="d-flex gap-2">
+            <a href="{{ route('line-stoppage-records.create', ['source' => 'production-records.index']) }}"
+                class="btn btn-outline-warning d-flex align-items-center px-3">
+                <i class="fas fa-pause-circle"></i>
+                <span class="ml-2">Paro de Línea</span>
+            </a>
+
+            <a href="{{ route('scrap-records.create', ['source' => 'production-records.index']) }}"
+                class="btn btn-outline-danger d-flex align-items-center px-3">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span class="ml-2">Scrap</span>
+            </a>
+
+            <a href="{{ route('production.export-pdf-form') }}"
+                class="btn btn-outline-primary d-flex align-items-center px-3">
+                <i class="fas fa-file-pdf"></i>
+                <span class="ml-2">Descargar Reporte</span>
+            </a>
+        </div>
     </div>
 @stop
 
@@ -342,18 +356,52 @@
             padding: 0.5rem;
         }
 
-        /* Botón de PDF */
-        .btn-danger {
-            background-color: #dc3545;
-            border: none;
+        /* Botones nuevos con outline */
+        .btn-outline-warning,
+        .btn-outline-danger,
+        .btn-outline-primary {
+            border: 1.5px solid;
+            background-color: transparent;
             font-weight: 500;
             transition: all 0.3s ease;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
         }
 
-        .btn-danger:hover {
-            background-color: #c82333;
+        .btn-outline-warning {
+            border-color: #ffc107;
+            color: #ffc107;
+        }
+
+        .btn-outline-warning:hover {
+            background-color: #ffc107;
+            color: #000;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+        }
+
+        .btn-outline-danger {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .btn-outline-danger:hover {
+            background-color: #dc3545;
+            color: white;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
+        .btn-outline-primary {
+            border-color: #007bff;
+            color: #007bff;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #007bff;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
         }
 
         .gap-2 {
