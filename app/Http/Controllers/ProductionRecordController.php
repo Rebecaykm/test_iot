@@ -86,7 +86,7 @@ class ProductionRecordController extends Controller
             $workCenters = $user->workCenters;
             $workCenterNames = $workCenters->pluck('name')->toArray();
 
-            $filterCenter = $request->input('work_center');
+            $selectedCenters = $request->input('work_centers', []);
             $searchPart = $request->input('search');
 
             $startDate = $request->input('startDate')
@@ -123,8 +123,8 @@ class ProductionRecordController extends Controller
                     $startDate->toDateString(),
                     $endDate->toDateString()
                 ])
-                ->when($filterCenter, function ($q, $filterCenter) {
-                    return $q->where('work_centers.name', $filterCenter);
+                ->when($selectedCenters, function ($q, $selectedCenters) {
+                    return $q->whereIn('work_centers.name', $selectedCenters);
                 })
                 ->when($searchPart, function ($q, $searchPart) {
                     return $q->where('part_numbers.number', 'like', "%{$searchPart}%");
@@ -138,7 +138,7 @@ class ProductionRecordController extends Controller
             return view('production-records.summary', [
                 'productionRecords' => $productionRecords,
                 'workCenters' => $workCenters,
-                'selectedCenter' => $filterCenter,
+                'selectedCenters' => $selectedCenters,
                 'search' => $searchPart,
                 'startDate' => $startDate->toDateString(),
                 'endDate' => $endDate->toDateString(),

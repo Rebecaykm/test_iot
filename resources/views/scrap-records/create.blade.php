@@ -65,9 +65,6 @@
                                 <strong>{{ $message }}</strong>
                             </span>
                         @enderror
-                        <small class="text-muted">
-                            Ingrese la cantidad de scrap generado. Use decimales si es necesario.
-                        </small>
                     </div>
                 </div>
 

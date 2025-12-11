@@ -3,123 +3,129 @@
 @section('title', 'Registros de Paros de Línea')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center">
-        <h1 class="m-0 text-dark">{{ __('Registros de Paros de Línea') }}</h1>
-        <div class="d-flex align-items-center gap-3">
-            <div class="search-box">
-                <form method="GET" action="{{ route('line-stoppage-records.index') }}" id="searchForm">
-                    <div class="input-group">
-                        <input type="text" name="search" class="form-control border-end-0" placeholder="Buscar..."
-                            value="{{ request('search') }}">
-                        <button type="submit" class="input-group-text bg-white border-start-0">
-                            <i class="fas fa-search text-secondary"></i>
-                        </button>
-                        @if (request()->has('search'))
-                            <a href="{{ route('line-stoppage-records.index') }}"
-                                class="input-group-text bg-white border-start-0 text-danger">
-                                <i class="fas fa-times"></i>
-                            </a>
-                        @endif
-                    </div>
-                </form>
-            </div>
-            @can('create line stoppage records')
-                <a href="{{ route('line-stoppage-records.create') }}" class="btn btn-primary">
-                    <i class="fas fa-plus mr-1"></i> {{ __('Agregar Registro') }}
-                </a>
-            @endcan
-        </div>
-    </div>
+    <h1>{{ __('Registros de Paros de Línea') }}</h1>
 @stop
 
 @section('content')
-    <div class="card border-0 shadow-sm">
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        <!-- Header con buscador -->
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <!-- Buscador -->
+                <div class="search-box">
+                    <form method="GET" action="{{ route('line-stoppage-records.index') }}">
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control border-end-0" placeholder="Buscar..."
+                                aria-label="Buscar" value="{{ $search ?? '' }}">
+                            <button type="submit" class="input-group-text bg-white border-start-0">
+                                <i class="fas fa-search text-secondary"></i>
+                            </button>
+                            @if (!empty($search))
+                                <a href="{{ route('line-stoppage-records.index') }}" class="input-group-text bg-white border-start-0">
+                                    <i class="fas fa-times text-danger"></i>
+                                </a>
+                            @endif
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Botón Agregar -->
+                @can('create line stoppage records')
+                    <a href="{{ route('line-stoppage-records.create') }}" class="btn btn-primary rounded-3">
+                        <i class="fas fa-plus me-2"></i>
+                        <span>Agregar nuevo</span>
+                    </a>
+                @endcan
+            </div>
+        </div>
+
+        <!-- Cuerpo con tabla -->
         <div class="card-body p-0">
-            <!-- Tabla integrada sin bordes -->
-            <div class="table-container-integrated">
+            <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead>
+                    <thead class="bg-light sticky-top">
                         <tr>
-                            <th>Paro de Línea</th>
-                            <th>Centro de Trabajo</th>
-                            <th>Inicio</th>
-                            <th>Fin</th>
-                            <th class="text-center">Minutos</th>
-                            <th>Fecha de Creación</th>
-                            <th class="text-center">Acciones</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Paro de Línea') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Centro de Trabajo') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Inicio') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Fin') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">{{ __('Minutos') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Creado') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">{{ __('Acciones') }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($lineStoppageRecords as $record)
-                            <tr>
+                            <tr class="border-light-subtle">
                                 <!-- Paro de Línea -->
-                                <td>
-                                    <div class="fw-medium text-dark">{{ $record->lineStoppage->name }}</div>
+                                <td class="py-3">
+                                    <div class="fw-500">{{ $record->lineStoppage->name }}</div>
                                 </td>
 
                                 <!-- Centro de Trabajo -->
-                                <td>
+                                <td class="py-3">
                                     @if ($record->workCenter)
-                                        <div class="fw-medium text-dark">{{ $record->workCenter->name }}</div>
+                                        <div class="fw-500">{{ $record->workCenter->number ?? '-' }}</div>
+                                        <div class="text-muted small">{{ $record->workCenter->name }}</div>
                                     @else
-                                        <span class="text-muted">N/A</span>
+                                        <span class="text-muted">-</span>
                                     @endif
                                 </td>
 
                                 <!-- Hora de Inicio -->
-                                <td>
-                                    @if ($record->start_time)
-                                        @if ($record->start_time instanceof \Carbon\Carbon)
-                                            {{ $record->start_time->format('d-m-Y H:i') }}
-                                        @else
-                                            {{ \Carbon\Carbon::parse($record->start_time)->format('d-m-Y H:i') }}
-                                        @endif
-                                    @else
-                                        N/A
-                                    @endif
+                                <td class="py-3 small">
+                                    {{ $record->start_time ? \Carbon\Carbon::parse($record->start_time)->format('Y-m-d H:i') : '-' }}
                                 </td>
 
                                 <!-- Hora de Fin -->
-                                <td>
-                                    @if ($record->end_time)
-                                        @if ($record->end_time instanceof \Carbon\Carbon)
-                                            {{ $record->end_time->format('d-m-Y H:i') }}
-                                        @else
-                                            {{ \Carbon\Carbon::parse($record->end_time)->format('d-m-Y H:i') }}
-                                        @endif
-                                    @else
-                                        N/A
-                                    @endif
+                                <td class="py-3 small">
+                                    {{ $record->end_time ? \Carbon\Carbon::parse($record->end_time)->format('Y-m-d H:i') : '-' }}
                                 </td>
 
                                 <!-- Minutos -->
-                                <td class="text-center">
-                                    <span class="badge bg-warning text-dark">{{ $record->minutes_stoppage }} min</span>
+                                <td class="py-3 text-center">
+                                    <span class="badge-status bg-warning bg-opacity-10 text-dark">
+                                        {{ $record->minutes_stoppage }} min
+                                    </span>
                                 </td>
 
                                 <!-- Fecha de Creación -->
-                                <td class="text-muted">
-                                    {{ optional($record->created_at)->format('d-m-Y H:i') }}
+                                <td class="py-3 small">
+                                    <div class="fw-500">{{ $record->created_at->format('Y-m-d') }}</div>
+                                    <div class="text-muted">{{ $record->created_at->format('H:i') }}</div>
                                 </td>
 
                                 <!-- Acciones -->
-                                <td class="text-center">
+                                <td class="py-3 text-center">
                                     <div class="d-flex justify-content-center gap-2">
                                         @can('edit line stoppage records')
-                                            <a href="{{ route('line-stoppage-records.edit', $record->id) }}"
-                                                class="btn btn-sm btn-outline-primary" title="Editar">
-                                                <i class="fas fa-edit"></i>
+                                            <a href="{{ route('line-stoppage-records.edit', $record) }}" class="btn btn-sm btn-outline-primary rounded-3">
+                                                <i class="fas fa-edit me-1"></i>
+                                                <span>Editar</span>
                                             </a>
                                         @endcan
 
                                         @can('delete line stoppage records')
-                                            <form action="{{ route('line-stoppage-records.destroy', $record->id) }}"
-                                                method="POST" class="d-inline"
-                                                onsubmit="return confirm('¿Estás seguro de eliminar este registro?')">
+                                            <form action="{{ route('line-stoppage-records.destroy', $record) }}" method="POST" style="display:inline;" class="delete-form">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                    <i class="fas fa-trash"></i>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-3">
+                                                    <i class="fas fa-trash me-1"></i>
+                                                    <span>Eliminar</span>
                                                 </button>
                                             </form>
                                         @endcan
@@ -128,222 +134,275 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-5 text-muted">
-                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
-                                    @if (request('search'))
-                                        {{ __('No se encontraron registros de paros de línea que coincidan con') }}
-                                        "{{ request('search') }}"
-                                    @else
-                                        {{ __('No hay registros de paros de línea registrados') }}
-                                    @endif
+                                <td colspan="7" class="text-center py-4">
+                                    <div class="d-flex flex-column align-items-center">
+                                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                                        <span class="text-secondary">
+                                            @if (!empty($search))
+                                                No se encontraron resultados para "{{ $search }}"
+                                            @else
+                                                No hay registros de paros de línea
+                                            @endif
+                                        </span>
+                                        @if (!empty($search))
+                                            <a href="{{ route('line-stoppage-records.index') }}" class="btn btn-sm btn-link mt-2">
+                                                Limpiar búsqueda
+                                            </a>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-
-            <!-- Paginación -->
-            @if ($lineStoppageRecords->hasPages())
-                <div class="card-footer bg-white border-0 py-3 px-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="text-muted small">
-                            Mostrando {{ $lineStoppageRecords->firstItem() ?? 0 }} a
-                            {{ $lineStoppageRecords->lastItem() ?? 0 }} de
-                            {{ $lineStoppageRecords->total() }} registros
-                        </div>
-                        {{ $lineStoppageRecords->links() }}
-                    </div>
-                </div>
-            @endif
         </div>
+
+        <!-- Pie de página con paginación -->
+        @if ($lineStoppageRecords->hasPages() || $lineStoppageRecords->total() > 0)
+            <div class="card-footer bg-white border-0 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <!-- Información de resultados -->
+                    <div class="text-muted small">
+                        Mostrando {{ $lineStoppageRecords->firstItem() ?? 0 }} a {{ $lineStoppageRecords->lastItem() ?? 0 }} de
+                        {{ $lineStoppageRecords->total() }} resultados
+                    </div>
+
+                    <!-- Controles de paginación -->
+                    @if ($lineStoppageRecords->hasPages())
+                        {{ $lineStoppageRecords->links('pagination::bootstrap-4') }}
+                    @endif
+                </div>
+            </div>
+        @endif
     </div>
 @stop
 
 @section('css')
+    <!-- Fuente Google Roboto -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Fuente moderna */
-        body,
+        /* Aplicar fuente a elementos específicos sin afectar AdminLTE */
         .card,
         .btn,
         .form-control,
         .table,
-        h1,
-        .main-header,
-        .main-sidebar,
-        .content-wrapper {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+        .content-header h1 {
+            font-family: 'Roboto', sans-serif !important;
         }
 
-        /* Card mejorada sin bordes visibles */
-        .card {
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        /* Estilos adicionales para la tabla */
+        .border-light-subtle {
+            border-color: #f0f0f0 !important;
         }
 
-        /* Tabla completamente integrada sin bordes */
-        .table-container-integrated {
-            max-height: 650px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            border-radius: 12px;
-            position: relative;
+        .table-hover tbody tr:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transform: translateY(-1px);
+            transition: all 0.2s ease;
         }
 
-        .table-container-integrated:hover::-webkit-scrollbar {
-            height: 8px;
+        .rounded-3 {
+            border-radius: 12px !important;
         }
 
-        /* Encabezados sticky sin bordes */
+        /* Mejoras en jerarquía tipográfica */
         .table thead th {
-            position: sticky;
-            top: 0;
-            background: linear-gradient(to bottom, #f9fafb 0%, #f3f4f6 100%);
-            font-weight: 600;
-            font-size: 0.813rem;
-            text-transform: uppercase;
-            letter-spacing: 0.025em;
-            color: #6b7280;
-            border-bottom: 1px solid #e5e7eb;
-            padding: 1rem 0.75rem;
-            z-index: 10;
-        }
-
-        /* Filas de la tabla sin bordes */
-        .table tbody tr {
-            border-bottom: 1px solid #f3f4f6;
-            transition: all 0.15s ease;
-        }
-
-        .table tbody tr:hover {
-            background-color: #f9fafb;
+            font-weight: 700 !important;
+            font-size: 0.85rem;
         }
 
         .table tbody td {
-            padding: 0.875rem 0.75rem;
-            vertical-align: middle;
-            border: none;
+            font-size: 0.875rem;
         }
 
-        /* Eliminar bordes de la tabla */
-        .table {
-            border: none;
-            margin-bottom: 0;
-        }
-
-        .table th,
-        .table td {
-            border: none;
-        }
-
-        /* Badges mejorados */
-        .badge {
-            padding: 0.375rem 0.75rem;
-            font-weight: 500;
-            font-size: 0.813rem;
-            border-radius: 6px;
-            min-width: 60px;
-            display: inline-block;
-        }
-
-        /* Botones */
-        .btn-outline-primary {
-            border: 1px solid #3b82f6;
-            color: #3b82f6;
-            border-radius: 8px;
-            padding: 0.35rem 0.75rem;
-            font-weight: 500;
-            font-size: 0.85rem;
-            transition: all 0.15s ease;
-        }
-
-        .btn-outline-primary:hover {
-            background: #3b82f6;
-            color: white;
-        }
-
-        .btn-outline-danger {
-            border: 1px solid #dc3545;
-            color: #dc3545;
-            border-radius: 8px;
-            padding: 0.35rem 0.75rem;
-            font-weight: 500;
-            font-size: 0.85rem;
-            transition: all 0.15s ease;
-        }
-
-        .btn-outline-danger:hover {
-            background: #dc3545;
-            color: white;
-        }
-
-        /* Scrollbar personalizada */
-        .table-container-integrated::-webkit-scrollbar {
-            width: 8px;
-            height: 0px;
-        }
-
-        .table-container-integrated::-webkit-scrollbar-track {
-            background: #f3f4f6;
-            border-radius: 0 12px 12px 0;
-        }
-
-        .table-container-integrated::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 4px;
-        }
-
-        .table-container-integrated::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
-        }
-
-        /* Estilos para el filtro */
+        /* Buscador sin contorno azul */
         .search-box .input-group {
-            width: 350px;
+            width: 380px;
         }
 
         .search-box .form-control {
-            border-radius: 0 !important;
+            border-radius: 20px 0 0 20px !important;
             border-right: none;
-            padding: 0.5rem 1rem;
+            padding: 0.5rem 1.5rem;
             height: 42px;
             font-size: 0.95rem;
-            border: 1px solid #e5e7eb;
         }
 
-        .search-box .form-control:first-child {
-            border-radius: 20px 0 0 20px !important;
-        }
-
-        .search-box .input-group-text:last-child {
+        .search-box .input-group-text {
             border-radius: 0 20px 20px 0 !important;
+            border-left: none;
+            background-color: white;
+            padding: 0 1.25rem;
+            font-size: 1rem;
         }
 
+        /* Botón de limpiar búsqueda */
+        .search-box .input-group-text .fa-times {
+            transition: all 0.2s ease;
+        }
+
+        .search-box .input-group-text:hover .fa-times {
+            transform: scale(1.1);
+        }
+
+        /* Quitar contorno azul al enfocar */
         .search-box .form-control:focus {
-            border-color: #e5e7eb !important;
+            border-color: #dee2e6 !important;
             box-shadow: none !important;
             outline: none !important;
         }
 
-        .search-box .input-group-text {
-            border: 1px solid #e5e7eb;
-            background: white;
+        /* Badges simétricos */
+        .badge-status {
+            display: inline-block;
+            min-width: 60px;
+            padding: 0.5em 0.75em;
+            text-align: center;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
         }
 
-        /* Estilos para el botón de limpiar */
-        .search-box .input-group-text.text-danger:hover {
+        .badge-status.bg-warning {
+            background-color: rgba(255, 193, 7, 0.1) !important;
+            color: #856404 !important;
+        }
+
+        /* Estilos para la paginación */
+        .pagination {
+            margin-bottom: 0;
+        }
+
+        .page-item .page-link {
+            border-radius: 8px;
+            margin: 0 3px;
+            border: none;
+            color: #6c757d;
+            font-size: 0.9rem;
+            min-width: 32px;
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            padding: 6px 12px;
+        }
+
+        .page-item.active .page-link {
+            background-color: #1a73e8;
+            color: white;
+        }
+
+        .page-item:not(.active) .page-link:hover {
             background-color: #f8f9fa;
-            color: #dc3545 !important;
+            color: #1a73e8;
         }
 
-        /* Estado vacío centrado */
-        .table tbody tr td.text-center {
-            border: none !important;
+        .page-item.disabled .page-link {
+            opacity: 0.5;
+        }
+
+        /* Estilos para el contador de resultados */
+        .text-muted.small {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        /* Ajustes de espaciado para paginación */
+        .card-footer .pagination {
+            margin-bottom: 0;
+        }
+
+        /* Estilos para los botones de acción */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn i {
+            margin-right: 0.5rem;
+        }
+
+        .btn-sm {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.85rem;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        /* Alertas */
+        .alert {
+            border-radius: 8px;
+        }
+
+        .btn-close {
+            background-size: 0.75rem;
+            padding: 0.5rem;
+        }
+
+        .fw-500 {
+            font-weight: 500;
+        }
+
+        /* Asegurar que los botones de acción mantengan su tamaño */
+        .btn-outline-primary,
+        .btn-outline-danger {
+            white-space: nowrap;
         }
     </style>
+@stop
+
+@section('js')
+    <script>
+        // Confirmación antes de eliminar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Agregar event listener a todos los formularios de eliminación
+            document.querySelectorAll('.delete-form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    // Usar SweetAlert2 si está disponible, sino usar confirm nativo
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: '¿Estás seguro?',
+                            text: "¡No podrás revertir esta acción!",
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3085d6',
+                            cancelButtonColor: '#d33',
+                            confirmButtonText: 'Sí, eliminar',
+                            cancelButtonText: 'Cancelar'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                this.submit();
+                            }
+                        });
+                    } else {
+                        // Fallback a confirm nativo
+                        if (confirm(
+                                '¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.'
+                            )) {
+                            this.submit();
+                        }
+                    }
+                });
+            });
+
+            // Cerrar alertas automáticamente después de 5 segundos
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(alert => {
+                    if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    }
+                });
+            }, 5000);
+        });
+    </script>
 @stop
