@@ -83,7 +83,10 @@ class ScrapRecordController extends Controller
     public function edit(ScrapRecord $scrapRecord)
     {
         $scraps = Scrap::all();
-        $partNumbers = PartNumber::all();
+        $userWorkCenterIds = Auth::user()->workCenters->pluck('id');
+        $partNumbers = PartNumber::whereIn('work_center_id', $userWorkCenterIds)
+            ->orderBy('number', 'asc')
+            ->get();
 
         // Guardar la ruta actual para el botón de cancelar
         session(['scrap_edit_source' => url()->previous()]);

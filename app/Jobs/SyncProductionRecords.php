@@ -200,11 +200,11 @@ class SyncProductionRecords implements ShouldQueue
                 throw new Exception("Error al conectar con la base de datos Infor: " . $error);
             }
 
-            $query = "CALL LX834OU.YSF013C";
+            $query = "CALL LX834OU02.YSF013C";
             $result = odbc_exec($conn, $query);
 
             if ($result) {
-                Log::info("Procedimiento LX834OU.YSF013C ejecutado con éxito");
+                Log::info("Procedimiento LX834OU02.YSF013C ejecutado con éxito");
 
                 // Obtener información del resultado si es necesario
                 odbc_free_result($result);

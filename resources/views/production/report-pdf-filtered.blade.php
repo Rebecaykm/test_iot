@@ -139,12 +139,42 @@
             font-weight: 400 !important;
         }
 
+        .no-data-row {
+            background-color: #f8f8f8;
+            font-style: italic;
+            color: #666;
+            text-align: center;
+            padding: 15px !important;
+        }
+
+        .section-title {
+            font-weight: bold;
+            font-size: 10px;
+            margin: 15px 0 5px 0;
+            background-color: #f0f0f0;
+            padding: 5px;
+            border-left: 3px solid #333;
+        }
+
+        .section-subtitle {
+            font-weight: 600;
+            font-size: 9px;
+            margin: 10px 0 5px 0;
+            color: #444;
+            padding: 3px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
         .page-break {
             page-break-after: always;
         }
 
         .no-break:last-child {
             page-break-after: auto;
+        }
+
+        .uppercase {
+            text-transform: uppercase;
         }
 
         @media print {
@@ -167,71 +197,50 @@
 <body>
     @foreach ($groups as $group)
         @php
-            $records = $group['records'];
-            $line_name = $group['line_name'];
-            $work_name = $group['work_name'];
-            $shift_name = $group['shift_name'];
-            $planned_date = $group['planned_date'];
-            $shift_start_time = $group['shift_start_time'];
-            $shift_end_time = $group['shift_end_time'];
-            $work_number = $group['work_number'];
-            $area_name = $group['area_name'] ?? 'MANUFACTURA'; // Asumiendo que viene del controlador
+            $records = $group['records'] ?? collect();
+            $line_name = $group['line_name'] ?? '-';
+            $work_name = $group['work_name'] ?? '-';
+            $shift_name = $group['shift_name'] ?? '-';
+            $planned_date = $group['planned_date'] ?? '-';
+            $shift_start_time = $group['shift_start_time'] ?? '-';
+            $shift_end_time = $group['shift_end_time'] ?? '-';
+            $work_number = $group['work_number'] ?? '-';
+            $area_name = $group['area_name'] ?? 'MANUFACTURA';
+            $scrap_records = $group['scrap_records'] ?? collect();
+            $line_stoppage_records = $group['line_stoppage_records'] ?? collect();
         @endphp
 
         <div class="{{ $loop->last ? 'no-break' : 'page-break' }}">
-            <!-- Header Principal -->
+            <!-- Header Principal (estructura simplificada y estable) -->
             <div class="card-table">
                 <table>
                     <tbody>
                         <tr>
-                            <td rowspan="3" style="width: 20%;">
+                            <td style="width: 18%; vertical-align: middle;">
                                 <img src="{{ public_path('images/ykm.png') }}" alt="Logo YKM" class="header-logo">
                             </td>
 
-                            <td colspan="4" rowspan="4" class="header-title"
-                                style="vertical-align: middle; text-align: center;">
-                                REPORTE DE PRODUCCIÓN IOT
+                            <td style="width: 58%; vertical-align: middle;">
+                                <div class="header-title">REPORTE DE PRODUCCIÓN IOT</div>
                             </td>
 
-                            <td>
-                                <table class="inner-table">
+                            <td style="width: 24%; vertical-align: middle; text-align: left;">
+                                <table class="inner-table" style="width:100%;">
                                     <tr>
                                         <td>REVISIÓN</td>
-                                        <td>1</td>
+                                        <td style="text-align:right">1</td>
                                     </tr>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>
-                                <table class="inner-table">
                                     <tr>
                                         <td>FECHA DE ELABORACIÓN</td>
-                                        <td>-</td>
+                                        <td style="text-align:right">-</td>
                                     </tr>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>
-                                <table class="inner-table">
                                     <tr>
                                         <td>ÚLTIMA REVISIÓN</td>
-                                        <td>-</td>
+                                        <td style="text-align:right">-</td>
                                     </tr>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td class="code-cell">FOR-IOT-01</td>
-                            <td>
-                                <table class="inner-table">
                                     <tr>
                                         <td>ÁREA</td>
-                                        <td class="uppercase">{{ $area_name }}</td>
+                                        <td style="text-align:right" class="uppercase">{{ $area_name }}</td>
                                     </tr>
                                 </table>
                             </td>
@@ -252,16 +261,29 @@
                 </tr>
                 <tr>
                     <th>Fecha</th>
-                    <td>{{ \Carbon\Carbon::parse($planned_date)->format('d/m/Y') }}</td>
+                    <td>
+                        @if($planned_date && $planned_date !== '-')
+                            {{ \Carbon\Carbon::parse($planned_date)->format('d/m/Y') }}
+                        @else
+                            -
+                        @endif
+                    </td>
                     <th>Turno</th>
                     <td>{{ $shift_name }}</td>
                     <th>Hora de Inicio y Termino</th>
-                    <td>{{ \Carbon\Carbon::parse($shift_start_time)->format('H:i') }} -
-                        {{ \Carbon\Carbon::parse($shift_end_time)->format('H:i') }}</td>
+                    <td>
+                        @if($shift_start_time && $shift_end_time && $shift_start_time !== '-' && $shift_end_time !== '-')
+                            {{ \Carbon\Carbon::parse($shift_start_time)->format('H:i') }} -
+                            {{ \Carbon\Carbon::parse($shift_end_time)->format('H:i') }}
+                        @else
+                            -
+                        @endif
+                    </td>
                 </tr>
             </table>
 
             <!-- Tabla de Producción -->
+            <div class="section-title">Registros de Producción</div>
             <table class="data-table">
                 <thead>
                     <tr>
@@ -278,27 +300,103 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($records as $record)
-                        @php
-                            $startTime = $record->production_start
-                                ? \Carbon\Carbon::parse($record->production_start)
-                                : null;
-                            $endTime = $record->production_end ? \Carbon\Carbon::parse($record->production_end) : null;
-                            $totalMinutes = $startTime && $endTime ? $startTime->diffInMinutes($endTime) : 0;
-                        @endphp
+                    @if ($records->count() > 0)
+                        @foreach ($records as $record)
+                            @php
+                                $startTime = $record->production_start
+                                    ? \Carbon\Carbon::parse($record->production_start)
+                                    : null;
+                                $endTime = $record->production_end
+                                    ? \Carbon\Carbon::parse($record->production_end)
+                                    : null;
+                                $totalMinutes = $startTime && $endTime ? $startTime->diffInMinutes($endTime) : 0;
+                            @endphp
+                            <tr>
+                                <td>{{ $record->part_number }}</td>
+                                <td>{{ $record->shop_order_number }}</td>
+                                <td>{{ $record->planned_quantity }}</td>
+                                <td>{{ is_numeric($record->calculated_cycletime) ? number_format($record->calculated_cycletime, 2) : '-' }}</td>
+                                <td>{{ $record->calculated_planned_time ?? '-' }}</td>
+                                <td>{{ $startTime ? $startTime->format('H:i') : '-' }}</td>
+                                <td>{{ $endTime ? $endTime->format('H:i') : '-' }}</td>
+                                <td>{{ number_format($totalMinutes, 2) }}</td>
+                                <td>{{ is_numeric($record->calculated_efficiency) ? number_format($record->calculated_efficiency, 2) . '%' : '-' }}</td>
+                                <td>{{ $record->produced_quantity }}</td>
+                            </tr>
+                        @endforeach
+                    @else
                         <tr>
-                            <td>{{ $record->part_number }}</td>
-                            <td>{{ $record->shop_order_number }}</td>
-                            <td>{{ $record->planned_quantity }}</td>
-                            <td>{{ number_format($record->calculated_cycletime, 2) }}</td>
-                            <td>{{ $record->calculated_planned_time }}</td>
-                            <td>{{ $startTime ? $startTime->format('H:i') : '-' }}</td>
-                            <td>{{ $endTime ? $endTime->format('H:i') : '-' }}</td>
-                            <td>{{ number_format($totalMinutes, 2) }}</td>
-                            <td>{{ number_format($record->calculated_efficiency, 2) }}%</td>
-                            <td>{{ $record->produced_quantity }}</td>
+                            <td colspan="10" class="no-data-row">No se encontraron registros de producción para esta
+                                estación, fecha y turno.</td>
                         </tr>
-                    @endforeach
+                    @endif
+                </tbody>
+            </table>
+
+            <!-- Tabla de Scrap -->
+            <div class="section-title">Registros de Scrap</div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Scrap</th>
+                        <th>No. Parte</th>
+                        <th>Cantidad</th>
+                        <th>Fecha/Hora</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if ($scrap_records->count() > 0)
+                        @foreach ($scrap_records as $scrap)
+                            <tr>
+                                <td>{{ $scrap->scrap_code ?? '-' }}</td>
+                                <td>{{ $scrap->scrap_name ?? '-' }}</td>
+                                <td>{{ $scrap->part_number ?? '-' }}</td>
+                                <td>{{ $scrap->quantity ?? '-' }}</td>
+                                <td>{{ $scrap->created_at ? \Carbon\Carbon::parse($scrap->created_at)->format('d/m/Y H:i') : '-' }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    @else
+                        <tr>
+                            <td colspan="5" class="no-data-row">No se encontraron registros de scrap para esta
+                                estación, fecha y turno.</td>
+                        </tr>
+                    @endif
+                </tbody>
+            </table>
+
+            <!-- Tabla de Paros de Línea -->
+            <div class="section-title">Registros de Paros de Línea</div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Tipo de Paro</th>
+                        <th>Paro</th>
+                        <th>Inicio</th>
+                        <th>Fin</th>
+                        <th>Minutos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if ($line_stoppage_records->count() > 0)
+                        @foreach ($line_stoppage_records as $stoppage)
+                            <tr>
+                                <td>{{ $stoppage->type_line_stoppage_name ?? '-' }}</td>
+                                <td>{{ $stoppage->line_stoppage_name ?? '-' }}</td>
+                                <td>{{ $stoppage->start_time ? \Carbon\Carbon::parse($stoppage->start_time)->format('d/m/Y H:i') : '-' }}
+                                </td>
+                                <td>{{ $stoppage->end_time ? \Carbon\Carbon::parse($stoppage->end_time)->format('d/m/Y H:i') : '-' }}
+                                </td>
+                                <td>{{ $stoppage->minutes_stoppage ?? '0' }}</td>
+                            </tr>
+                        @endforeach
+                    @else
+                        <tr>
+                            <td colspan="5" class="no-data-row">No se encontraron registros de paros de línea para
+                                esta estación, fecha y turno.</td>
+                        </tr>
+                    @endif
                 </tbody>
             </table>
         </div>

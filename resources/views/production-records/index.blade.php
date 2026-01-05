@@ -24,8 +24,7 @@
     <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
         <!-- Header con buscador y filtros -->
         <div class="card-header bg-white border-0 py-3">
-            <div
-                class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
 
                 <!-- Botones de acción -->
                 <div class="d-flex flex-wrap gap-2">
@@ -97,8 +96,7 @@
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Producida</th>
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Progreso</th>
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Estado</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Sincronización
-                            </th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Sincronización</th>
                         </tr>
                     </thead>
 
@@ -153,22 +151,21 @@
 
                                 <!-- Turno -->
                                 <td class="py-3">
-                                    <span class="badge-status bg-primary bg-opacity-10 text-primary">
+                                    <span class="badge-status badge-primary">
                                         {{ $record->shift_name }}
                                     </span>
                                 </td>
 
                                 <!-- Cantidad Planeada -->
                                 <td class="py-3 text-center">
-                                    <span class="badge-status bg-secondary bg-opacity-10 text-secondary">
+                                    <span class="badge-status badge-secondary">
                                         {{ number_format($plan) }}
                                     </span>
                                 </td>
 
                                 <!-- Cantidad Producida -->
                                 <td class="py-3 text-center">
-                                    <span
-                                        class="badge-status bg-{{ $color }} bg-opacity-10 text-{{ $color }}">
+                                    <span class="badge-status badge-{{ $color }}">
                                         {{ number_format($prod) }}
                                     </span>
                                 </td>
@@ -197,37 +194,37 @@
                                 <td class="py-3 text-center">
                                     @switch($record->status_name)
                                         @case('Completado')
-                                            <span class="badge-status bg-success bg-opacity-10 text-success">
+                                            <span class="badge-status badge-success">
                                                 <i class="fas fa-check-circle mr-1"></i> {{ $record->status_name }}
                                             </span>
                                         @break
 
                                         @case('En progreso')
-                                            <span class="badge-status bg-primary bg-opacity-10 text-primary">
+                                            <span class="badge-status badge-primary">
                                                 <i class="fas fa-spinner mr-1"></i> {{ $record->status_name }}
                                             </span>
                                         @break
 
                                         @case('No planeado')
-                                            <span class="badge-status bg-warning bg-opacity-10 text-warning">
+                                            <span class="badge-status badge-warning">
                                                 <i class="fas fa-exclamation-triangle mr-1"></i> {{ $record->status_name }}
                                             </span>
                                         @break
 
                                         @case('Detenido')
-                                            <span class="badge-status bg-warning bg-opacity-10 text-warning">
+                                            <span class="badge-status badge-warning">
                                                 <i class="fas fa-ban mr-1"></i> {{ $record->status_name }}
                                             </span>
                                         @break
 
                                         @case('Pendiente')
-                                            <span class="badge-status bg-secondary bg-opacity-10 text-secondary">
+                                            <span class="badge-status badge-secondary">
                                                 <i class="fas fa-clock mr-1"></i> {{ $record->status_name }}
                                             </span>
                                         @break
 
                                         @default
-                                            <span class="badge-status bg-secondary bg-opacity-10 text-secondary">
+                                            <span class="badge-status badge-secondary">
                                                 {{ $record->status_name }}
                                             </span>
                                     @endswitch
@@ -237,7 +234,7 @@
                                 <td class="py-3 text-center">
                                     @if ($record->synced_to_infor)
                                         <div class="d-flex flex-column align-items-center">
-                                            <span class="text-success small fw-500">
+                                            <span class="badge-status badge-success">
                                                 <i class="fas fa-check-circle mr-1"></i> Enviado
                                             </span>
                                             @if ($record->synced_at)
@@ -247,7 +244,7 @@
                                             @endif
                                         </div>
                                     @else
-                                        <span class="text-muted small">
+                                        <span class="badge-status badge-secondary">
                                             <i class="fas fa-clock mr-1"></i> Pendiente
                                         </span>
                                     @endif
@@ -284,7 +281,6 @@
             @if ($productionRecords->hasPages() || $productionRecords->total() > 0)
                 <div class="card-footer bg-white border-0 py-3">
                     <div class="d-flex justify-content-between align-items-center">
-
                         <div class="text-muted small">
                             Mostrando {{ $productionRecords->firstItem() ?? 0 }} a
                             {{ $productionRecords->lastItem() ?? 0 }} de
@@ -302,13 +298,12 @@
 @stop
 
 @section('css')
-    <!-- Fuente Google Roboto -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Aplicar fuente a elementos específicos */
+        /* Fuente */
         .card,
         .btn,
         .form-control,
@@ -317,7 +312,7 @@
             font-family: 'Roboto', sans-serif !important;
         }
 
-        /* Estilos adicionales para la tabla */
+        /* Tabla */
         .border-light-subtle {
             border-color: #f0f0f0 !important;
         }
@@ -332,7 +327,6 @@
             border-radius: 12px !important;
         }
 
-        /* Mejoras en jerarquía tipográfica */
         .table thead th {
             font-weight: 700 !important;
             font-size: 0.85rem;
@@ -342,13 +336,8 @@
             font-size: 0.875rem;
         }
 
-        /* Buscador mejorado */
-        .search-box form {
-            flex-wrap: wrap;
-        }
-
+        /* Buscador */
         .search-box .input-group {
-            width: 200px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             border-radius: 8px;
         }
@@ -366,14 +355,7 @@
             outline: none !important;
         }
 
-        /* Botones del buscador */
-        .search-box .btn {
-            height: 42px;
-            padding: 0.5rem 1.25rem;
-            white-space: nowrap;
-        }
-
-        /* Badges simétricos */
+        /* Badges unificados */
         .badge-status {
             display: inline-block;
             min-width: 70px;
@@ -382,46 +364,40 @@
             border-radius: 12px;
             font-size: 0.8rem;
             font-weight: 500;
-            border: 1px solid transparent;
+            border: 1px solid;
         }
 
-        .badge-status.bg-primary {
-            background-color: rgba(13, 110, 253, 0.1) !important;
-            color: #0d6efd !important;
-            border-color: rgba(13, 110, 253, 0.2) !important;
+        .badge-status.badge-primary {
+            background-color: rgba(13, 110, 253, 0.1);
+            color: #0d6efd;
+            border-color: rgba(13, 110, 253, 0.2);
         }
 
-        .badge-status.bg-secondary {
-            background-color: rgba(108, 117, 125, 0.1) !important;
-            color: #6c757d !important;
-            border-color: rgba(108, 117, 125, 0.2) !important;
+        .badge-status.badge-secondary {
+            background-color: rgba(108, 117, 125, 0.1);
+            color: #6c757d;
+            border-color: rgba(108, 117, 125, 0.2);
         }
 
-        .badge-status.bg-success {
-            background-color: rgba(25, 135, 84, 0.1) !important;
-            color: #198754 !important;
-            border-color: rgba(25, 135, 84, 0.2) !important;
+        .badge-status.badge-success {
+            background-color: rgba(25, 135, 84, 0.1);
+            color: #198754;
+            border-color: rgba(25, 135, 84, 0.2);
         }
 
-        .badge-status.bg-danger {
-            background-color: rgba(220, 53, 69, 0.1) !important;
-            color: #dc3545 !important;
-            border-color: rgba(220, 53, 69, 0.2) !important;
+        .badge-status.badge-danger {
+            background-color: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+            border-color: rgba(220, 53, 69, 0.2);
         }
 
-        .badge-status.bg-warning {
-            background-color: rgba(255, 193, 7, 0.1) !important;
-            color: #856404 !important;
-            border-color: rgba(255, 193, 7, 0.2) !important;
+        .badge-status.badge-warning {
+            background-color: rgba(255, 193, 7, 0.1);
+            color: #856404;
+            border-color: rgba(255, 193, 7, 0.2);
         }
 
-        .badge-status.bg-info {
-            background-color: rgba(13, 202, 240, 0.1) !important;
-            color: #0dcaf0 !important;
-            border-color: rgba(13, 202, 240, 0.2) !important;
-        }
-
-        /* Estilos para la paginación */
+        /* Paginación */
         .pagination {
             margin-bottom: 0;
         }
@@ -452,13 +428,7 @@
             opacity: 0.5;
         }
 
-        /* Estilos para el contador de resultados */
-        .text-muted.small {
-            font-size: 0.85rem;
-            color: #6c757d;
-        }
-
-        /* Estilos para los botones de acción */
+        /* Botones */
         .btn {
             display: inline-flex;
             align-items: center;
@@ -476,7 +446,7 @@
         }
 
         .gap-2 {
-            gap: 0.5rem;
+            gap: 0.25rem;
         }
 
         /* Alertas */
@@ -493,7 +463,7 @@
             font-weight: 500;
         }
 
-        /* Barra de progreso personalizada */
+        /* Barra de progreso */
         .progress {
             border-radius: 10px;
             background-color: #f0f0f0;
@@ -505,7 +475,7 @@
             transition: width 0.6s ease;
         }
 
-        /* Responsive para el buscador */
+        /* Responsive */
         @media (max-width: 768px) {
             .search-box form {
                 flex-direction: column;
@@ -515,11 +485,6 @@
 
             .search-box .input-group {
                 width: 100% !important;
-            }
-
-            .search-box .btn {
-                width: 100%;
-                justify-content: center;
             }
 
             .card-header {
@@ -532,7 +497,6 @@
             }
         }
 
-        /* Para pantallas medianas */
         @media (min-width: 769px) and (max-width: 992px) {
             .search-box .input-group {
                 width: 180px;
@@ -544,7 +508,6 @@
 @section('js')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Cerrar alertas automáticamente después de 5 segundos
             setTimeout(() => {
                 const alerts = document.querySelectorAll('.alert');
                 alerts.forEach(alert => {
@@ -555,23 +518,18 @@
                 });
             }, 5000);
 
-            // Configurar fecha máxima en el input de fecha
             const dateInput = document.querySelector('input[name="date"]');
             if (dateInput) {
                 const today = new Date().toISOString().split('T')[0];
                 dateInput.setAttribute('max', today);
 
-                // Si no hay valor, establecer la fecha de hoy
                 if (!dateInput.value) {
                     dateInput.value = today;
                 }
             }
 
-            // Mejorar la experiencia de búsqueda
             const searchInput = document.querySelector('input[name="search"]');
-
             if (searchInput) {
-                // Limpiar búsqueda con Escape
                 searchInput.addEventListener('keydown', function(e) {
                     if (e.key === 'Escape') {
                         this.value = '';
@@ -579,13 +537,11 @@
                     }
                 });
 
-                // Auto-focus en el campo de búsqueda
                 setTimeout(() => {
                     searchInput.focus();
                 }, 100);
             }
 
-            // Configurar placeholder dinámico para la fecha
             if (dateInput) {
                 dateInput.addEventListener('focus', function() {
                     this.type = 'date';

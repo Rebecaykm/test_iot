@@ -16,8 +16,8 @@
                     <div class="col-md-6">
                         <label for="start_date" class="form-label fw-bold text-secondary">{{ __('Fecha de Inicio') }} *</label>
                         <input type="date" name="start_date" id="start_date"
-                               class="form-control border-light-subtle @error('start_date') is-invalid @enderror"
-                               value="{{ old('start_date', now()->startOfWeek()->format('Y-m-d')) }}" required>
+                            class="form-control border-light-subtle @error('start_date') is-invalid @enderror"
+                            value="{{ old('start_date') }}" required>
                         @error('start_date')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -26,8 +26,8 @@
                     <div class="col-md-6">
                         <label for="end_date" class="form-label fw-bold text-secondary">{{ __('Fecha de Fin') }} *</label>
                         <input type="date" name="end_date" id="end_date"
-                               class="form-control border-light-subtle @error('end_date') is-invalid @enderror"
-                               value="{{ old('end_date', now()->endOfWeek()->format('Y-m-d')) }}" required>
+                            class="form-control border-light-subtle @error('end_date') is-invalid @enderror"
+                            value="{{ old('end_date') }}" required>
                         @error('end_date')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -35,10 +35,10 @@
                 </div>
 
                 <div class="row mb-4">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label for="lines" class="form-label fw-bold text-secondary">{{ __('Líneas') }}</label>
                         <select name="lines[]" id="lines" class="form-control select2 border-light-subtle @error('lines') is-invalid @enderror" multiple>
-                            @foreach($lines as $line)
+                            @foreach ($lines as $line)
                                 <option value="{{ $line->id }}" {{ in_array($line->id, old('lines', [])) ? 'selected' : '' }}>
                                     {{ $line->name }}
                                 </option>
@@ -49,30 +49,16 @@
                         @enderror
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label for="work_centers" class="form-label fw-bold text-secondary">{{ __('Estaciones') }}</label>
                         <select name="work_centers[]" id="work_centers" class="form-control select2 border-light-subtle @error('work_centers') is-invalid @enderror" multiple>
-                            @foreach($workCenters as $workCenter)
+                            @foreach ($workCenters as $workCenter)
                                 <option value="{{ $workCenter->id }}" {{ in_array($workCenter->id, old('work_centers', [])) ? 'selected' : '' }}>
                                     {{ $workCenter->number }} - {{ $workCenter->name }}
                                 </option>
                             @endforeach
                         </select>
                         @error('work_centers')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="shifts" class="form-label fw-bold text-secondary">{{ __('Turnos') }}</label>
-                        <select name="shifts[]" id="shifts" class="form-control select2 border-light-subtle @error('shifts') is-invalid @enderror" multiple>
-                            @foreach($shifts as $shift)
-                                <option value="{{ $shift->id }}" {{ in_array($shift->id, old('shifts', [])) ? 'selected' : '' }}>
-                                    {{ $shift->name }} ({{ $shift->abbreviation }})
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('shifts')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
@@ -208,8 +194,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         $(document).ready(function() {
-            // Inicializar Select2
-            $('#lines, #work_centers, #shifts').select2({
+            $('#lines, #work_centers').select2({
                 placeholder: 'Seleccione una o más opciones',
                 allowClear: true,
                 width: '100%'
@@ -224,7 +209,6 @@
             $('#exportForm').submit(function(e) {
                 const lines = $('#lines').val();
                 const workCenters = $('#work_centers').val();
-                const shifts = $('#shifts').val();
                 const startDate = $('#start_date').val();
                 const endDate = $('#end_date').val();
 
@@ -263,13 +247,12 @@
                     return false;
                 }
 
-                // Validar que se seleccione al menos una línea o estación o turno
-                if ((!lines || lines.length === 0) && (!workCenters || workCenters.length === 0) && (!shifts || shifts.length === 0)) {
+                if ((!lines || lines.length === 0) && (!workCenters || workCenters.length === 0)) {
                     e.preventDefault();
                     Swal.fire({
                         icon: 'warning',
                         title: 'Selección Requerida',
-                        text: 'Debe seleccionar al menos una línea, una estación o un turno.',
+                        text: 'Debe seleccionar al menos una línea o una estación.',
                         confirmButtonColor: '#007bff',
                         confirmButtonText: 'Entendido',
                         customClass: {

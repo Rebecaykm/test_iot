@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class YF013 extends Model
 {
     protected $connection = 'infor-proto';
-    protected $table = 'LX834FU01.YF013';
+    protected $table = 'LX834FU02.YF013';
 
     protected $fillable = [
         'YFWRKC',

@@ -38,13 +38,12 @@ class LineStoppageRecordController extends Controller
      */
     public function create(Request $request)
     {
-        $lineStoppages = LineStoppage::all();
         $workCenters = Auth::user()->workCenters()->orderBy('name')->get();
 
-        // Obtener la ruta de origen del parámetro o de la sesión
+        $lineStoppages = LineStoppage::all();
+
         $source = $request->get('source', session('previous_route', 'line-stoppage-records.index'));
 
-        // Guardar en sesión para uso posterior
         session(['stoppage_create_source' => $source]);
 
         return view('line-stoppage-records.create', compact('lineStoppages', 'workCenters', 'source'));

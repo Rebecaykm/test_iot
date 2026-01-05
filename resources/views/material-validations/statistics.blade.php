@@ -136,7 +136,7 @@
                                         </span>
                                         <span class="fw-bold text-secondary">{{ $shiftTitle }}</span>
                                         @if (isset($isToday) && $isToday)
-                                            <span class="badge-status bg-{{ $index === 0 ? 'warning' : 'primary' }} ms-2">
+                                            <span class="badge-status bg-{{ $index === 0 ? 'warning' : 'primary' }} ml-2">
                                                 {{ $index === 0 ? 'Anterior' : 'Actual' }}
                                             </span>
                                         @endif
