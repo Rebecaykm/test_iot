@@ -30,7 +30,7 @@ class ScrapRecordController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
         $userWorkCenterIds = Auth::user()->workCenters->pluck('id');
         $scraps = Scrap::all();
@@ -39,7 +39,13 @@ class ScrapRecordController extends Controller
             ->orderBy('number', 'asc')
             ->get();
 
-        return view('scrap-records.create', compact('scraps', 'partNumbers'));
+        // Obtener la ruta de origen del parámetro o de la sesión
+        $source = $request->get('source', session('previous_route', 'scrap-records.index'));
+
+        // Guardar en sesión para uso posterior
+        session(['scrap_create_source' => $source]);
+
+        return view('scrap-records.create', compact('scraps', 'partNumbers', 'source'));
     }
 
     /**
@@ -55,7 +61,11 @@ class ScrapRecordController extends Controller
 
         ScrapRecord::create($request->all());
 
-        return redirect()->route('scrap-records.index')
+        // Redirigir según la fuente
+        $redirectRoute = session('scrap_create_source', 'scrap-records.index');
+        session()->forget('scrap_create_source');
+
+        return redirect()->route($redirectRoute)
             ->with('success', 'Registro de scrap creado exitosamente.');
     }
 
@@ -73,7 +83,14 @@ class ScrapRecordController extends Controller
     public function edit(ScrapRecord $scrapRecord)
     {
         $scraps = Scrap::all();
-        $partNumbers = PartNumber::all();
+        $userWorkCenterIds = Auth::user()->workCenters->pluck('id');
+        $partNumbers = PartNumber::whereIn('work_center_id', $userWorkCenterIds)
+            ->orderBy('number', 'asc')
+            ->get();
+
+        // Guardar la ruta actual para el botón de cancelar
+        session(['scrap_edit_source' => url()->previous()]);
+
         return view('scrap-records.edit', compact('scrapRecord', 'scraps', 'partNumbers'));
     }
 
@@ -97,7 +114,11 @@ class ScrapRecordController extends Controller
 
         $scrapRecord->update($request->only(['part_number_id', 'scrap_id', 'quantity']));
 
-        return redirect()->route('scrap-records.index')
+        // Redirigir según la fuente guardada
+        $redirectRoute = session('scrap_edit_source', 'scrap-records.index');
+        session()->forget('scrap_edit_source');
+
+        return redirect()->to($redirectRoute)
             ->with('success', 'Registro de scrap actualizado exitosamente.');
     }
 

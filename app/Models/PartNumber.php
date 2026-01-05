@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class PartNumber extends Model
 {
@@ -124,5 +125,72 @@ class PartNumber extends Model
     public function activeImage(): HasOne
     {
         return $this->hasOne(VisualAid::class)->where('is_active', true);
+    }
+
+    /**
+     * Get all custom attributes for this part number
+     */
+    public function customAttributes(): MorphMany
+    {
+        return $this->morphMany(Attribute::class, 'attributable');
+    }
+
+    /**
+     * Get a specific custom attribute value
+     */
+    public function getCustomAttributeValue(string $key)
+    {
+        $attribute = $this->customAttributes()->where('key', $key)->first();
+        return $attribute ? $attribute->value : null;
+    }
+
+    /**
+     * Set a custom attribute value
+     */
+    public function setCustomAttributeValue(string $key, $value)
+    {
+        $this->customAttributes()->updateOrCreate(
+            ['key' => $key],
+            ['value' => $value]
+        );
+
+        // Recargar la relación después de modificar
+        $this->load('customAttributes');
+    }
+
+    /**
+     * Remove a custom attribute - VERSIÓN CORREGIDA
+     */
+    public function removeCustomAttribute(string $key): bool
+    {
+        // Usar la relación para eliminar
+        $deleted = $this->customAttributes()
+            ->where('key', $key)
+            ->delete();
+
+        // Forzar la recarga de la relación
+        $this->load('customAttributes');
+
+        return $deleted > 0;
+    }
+
+    /**
+     * Check if custom attribute exists
+     */
+    public function hasCustomAttribute(string $key): bool
+    {
+        return $this->customAttributes()->where('key', $key)->exists();
+    }
+
+    /**
+     * Get all custom attributes as key-value pairs - VERSIÓN CORREGIDA
+     */
+    public function getAllCustomAttributes(): array
+    {
+        // Usar la relación (query builder) en lugar de la colección cargada
+        return $this->customAttributes()
+            ->get()
+            ->pluck('value', 'key')
+            ->toArray();
     }
 }

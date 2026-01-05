@@ -25,6 +25,14 @@ class Shift extends Model
     }
 
     /**
+     * Obtener todos los turnos disponibles
+     */
+    public static function getAllShifts()
+    {
+        return Shift::orderBy('start_time')->get();
+    }
+
+    /**
      * Obtener el turno actual basado en la hora
      */
     public static function getShift($now): ?Shift
@@ -196,7 +204,6 @@ class Shift extends Model
             // Turno diurno: 08:00 - 20:00 del mismo día
             $startDateTime = $date->copy()->setTimeFromTimeString($shift->start_time);
             $endDateTime = $date->copy()->setTimeFromTimeString($shift->end_time);
-
         } else { // Turno nocturno
             // Turno nocturno: 20:00 de un día - 08:00 del día siguiente
             $startDateTime = $date->copy()->setTimeFromTimeString($shift->start_time);

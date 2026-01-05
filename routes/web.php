@@ -61,6 +61,8 @@ Route::middleware([
     Route::resource('production-records', ProductionRecordController::class);
     Route::get('production-records-summary', [ProductionRecordController::class, 'summary'])->name('production-records.summary');
 
+    Route::get('/production/export-pdf-form', [ProductionRecordController::class, 'showExportForm'])->name('production.export-pdf-form');
+    Route::post('/production/export-pdf-filtered', [ProductionRecordController::class, 'exportProductionReportFiltered'])->name('production.export-pdf-filtered');
     Route::get('/production/export-pdf', [ProductionRecordController::class, 'exportProductionReport'])->name('production.export-pdf');
 
     // Escaneo de Tres Puntos

@@ -25,12 +25,10 @@
             color: #222;
         }
 
-        /* ===== TABLAS CON BORDES REDONDEADOS ===== */
+        /* ===== TABLAS ===== */
         .card-table {
             width: 100%;
             border: 0.5px solid #666;
-            border-radius: 8px;
-            overflow: hidden;
             margin-bottom: 10px;
         }
 
@@ -101,8 +99,6 @@
         .info-table {
             width: 100%;
             border: 0.5px solid #666;
-            border-radius: 8px;
-            overflow: hidden;
             margin-bottom: 10px;
             border-collapse: collapse;
         }
@@ -128,8 +124,6 @@
         .data-table {
             width: 100%;
             border: 0.5px solid #666;
-            border-radius: 8px;
-            overflow: hidden;
             margin-bottom: 10px;
             border-collapse: collapse;
         }
@@ -148,6 +142,7 @@
             text-align: center;
             padding: 7px 4px;
             border: 0.5px solid #666;
+            font-weight: 400 !important;
         }
 
         /* Salto de página */
@@ -157,6 +152,18 @@
 
         .no-break:last-child {
             page-break-after: auto;
+        }
+
+        /* Para impresión */
+        @media print {
+            body {
+                font-size: 10px;
+            }
+
+            .data-table td,
+            .data-table th {
+                font-size: 9px;
+            }
         }
     </style>
 </head>

@@ -5,6 +5,7 @@ namespace App\Livewire\Guest;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use App\Models\WorkCenter;
+use App\Models\Line;
 use Carbon\Carbon;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -12,33 +13,37 @@ use Livewire\Component;
 class WorkCenterDashboard extends Component
 {
     public $now;
+    public $shift;
+    public $date;
     public array $areasData = [];
-    public array $allWorkCenters = [];
-    public array $selectedWorkCenters = [];
+    public array $allLines = [];
+    public array $selectedLines = [];
     public bool $realTime = true;
     public string $chartId;
 
     public function mount()
     {
         $this->chartId = 'dashboard-' . uniqid();
-        $this->loadWorkCenters();
+        $this->date = Carbon::now()->format('Y-m-d');
+        $this->shift = Shift::getShift(Carbon::now());
+        $this->loadLines();
         $this->refreshProductionRecords();
     }
 
-    protected function loadWorkCenters()
+    protected function loadLines()
     {
-        $this->allWorkCenters = WorkCenter::query()
-            ->select('work_centers.id', 'work_centers.name', 'lines.name as line_name')
-            ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+        $this->allLines = Line::query()
+            ->select('lines.id', 'lines.name', 'areas.name as area_name')
+            ->join('areas', 'lines.area_id', '=', 'areas.id')
+            ->orderBy('areas.name')
             ->orderBy('lines.name')
-            ->orderBy('work_centers.name')
             ->get()
-            ->map(function ($workCenter) {
+            ->map(function ($line) {
                 return [
-                    'id' => $workCenter->id,
-                    'name' => $workCenter->name,
-                    'line' => $workCenter->line_name,
-                    'full_name' => $workCenter->line_name . ' - ' . $workCenter->name
+                    'id' => $line->id,
+                    'name' => $line->name,
+                    'area' => $line->area_name,
+                    'full_name' => $line->area_name . ' - ' . $line->name
                 ];
             })
             ->toArray();
@@ -48,6 +53,9 @@ class WorkCenterDashboard extends Component
     public function refreshProductionRecords()
     {
         $this->now = Carbon::now()->format('Y-m-d H:i:s');
+        $currentTime = Carbon::now();
+        $this->date = $currentTime->format('Y-m-d');
+        $this->shift = Shift::getShift($currentTime);
         $this->fetchProductionRecords();
     }
 
@@ -59,6 +67,7 @@ class WorkCenterDashboard extends Component
             ->select([
                 'production_records.id AS production_id',
                 'areas.name AS area_name',
+                'lines.id AS line_id',
                 'lines.name AS line_name',
                 'lines.color AS line_color',
                 'work_centers.id AS work_center_id',
@@ -81,8 +90,8 @@ class WorkCenterDashboard extends Component
             ->where('production_records.planned_date', $currentTime->toDateString())
             ->where('shifts.abbreviation', Shift::getShift($currentTime)->abbreviation);
 
-        if (!empty($this->selectedWorkCenters)) {
-            $query->whereIn('work_centers.id', $this->selectedWorkCenters);
+        if (!empty($this->selectedLines)) {
+            $query->whereIn('lines.id', $this->selectedLines);
         }
 
         $productionRecords = $query
@@ -105,10 +114,19 @@ class WorkCenterDashboard extends Component
         ]);
 
         foreach ($groupedData as $areaName => $lines) {
-            $areaWorkCenters = [];
+            $areaLines = [];
 
             foreach ($lines as $lineName => $workCenters) {
+                $lineWorkCenters = [];
+                $lineColor = null;
+                $lineId = null;
+
                 foreach ($workCenters as $workName => $records) {
+                    if ($lineColor === null) {
+                        $lineColor = $records->first()->line_color;
+                        $lineId = $records->first()->line_id;
+                    }
+
                     $workCenterQuantityPlanned = (int) $records->sum('planned_quantity');
                     $workCenterQuantityUnplannedProduced = (int) $records->where('planned_quantity', 0)->sum('produced_quantity');
                     $workCenterQuantityProduced = (int) ($records->sum('produced_quantity') - $workCenterQuantityUnplannedProduced);
@@ -118,30 +136,37 @@ class WorkCenterDashboard extends Component
                         ? (int) round(($totalProduced / $workCenterQuantityPlanned) * 100)
                         : 0;
 
-                    $areaWorkCenters[] = [
+                    $lineWorkCenters[] = [
                         'id' => (int) $records->first()->work_center_id,
-                        'line' => $lineName,
                         'name' => $workName,
                         'planned' => $workCenterQuantityPlanned,
                         'produced' => $workCenterQuantityProduced,
                         'unplanned' => $workCenterQuantityUnplannedProduced,
                         'total' => $totalProduced,
                         'percentage' => $percentage,
-                        'color' => $records->first()->line_color,
+                    ];
+                }
+
+                if (!empty($lineWorkCenters)) {
+                    $areaLines[] = [
+                        'id' => $lineId,
+                        'name' => $lineName,
+                        'color' => $lineColor,
+                        'workCenters' => $lineWorkCenters
                     ];
                 }
             }
 
-            if (!empty($areaWorkCenters)) {
+            if (!empty($areaLines)) {
                 $this->areasData[] = [
                     'name' => $areaName,
-                    'workCenters' => $areaWorkCenters
+                    'lines' => $areaLines
                 ];
             }
         }
     }
 
-    public function updatedSelectedWorkCenters()
+    public function updatedSelectedLines()
     {
         $this->refreshProductionRecords();
     }

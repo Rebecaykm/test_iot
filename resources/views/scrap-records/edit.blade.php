@@ -3,236 +3,240 @@
 @section('title', 'Editar Registro de Scrap')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center">
-        <h1 class="m-0 text-dark"><i class="fas fa-edit mr-2"></i>Editar Registro de Scrap</h1>
-        <a href="{{ route('scrap-records.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left mr-2"></i> Volver
-        </a>
-    </div>
+    <h1>{{ __('Editar Registro de Scrap') }}</h1>
 @stop
 
 @section('content')
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-primary">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            <i class="fas fa-info-circle mr-2"></i>Editar Información del Registro de Scrap
-                        </h3>
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        <div class="card-body">
+            <form action="{{ route('scrap-records.update', $scrapRecord) }}" method="POST">
+                @csrf
+                @method('PUT')
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="part_number_id" class="form-label fw-bold text-secondary">{{ __('Número de Parte') }} *</label>
+                        <select name="part_number_id" id="part_number_id" class="form-control select2 border-light-subtle @error('part_number_id') is-invalid @enderror" required>
+                            <option value="">{{ __('Seleccione un número de parte') }}</option>
+                            @foreach($partNumbers as $partNumber)
+                                <option value="{{ $partNumber->id }}" {{ old('part_number_id', $scrapRecord->part_number_id) == $partNumber->id ? 'selected' : '' }}>
+                                    {{ $partNumber->number }} - {{ $partNumber->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('part_number_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
 
-                    <form action="{{ route('scrap-records.update', $scrapRecord->id) }}" method="POST">
-                        @csrf
-                        @method('PUT')
-
-                        <div class="card-body">
-                            @if ($errors->any())
-                                <div class="alert alert-danger">
-                                    <h5 class="alert-heading">
-                                        <i class="fas fa-exclamation-triangle mr-2"></i>Error de Validación
-                                    </h5>
-                                    <ul class="mb-0 pl-3">
-                                        @foreach ($errors->all() as $error)
-                                            <li>{{ $error }}</li>
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            @endif
-
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="part_number_id" class="font-weight-bold">Número de Parte <span class="text-danger">*</span></label>
-                                        <select class="form-control @error('part_number_id') is-invalid @enderror"
-                                                id="part_number_id"
-                                                name="part_number_id"
-                                                required>
-                                            <option value="">Seleccione un número de parte...</option>
-                                            @foreach($partNumbers as $partNumber)
-                                                <option value="{{ $partNumber->id }}" {{ old('part_number_id', $scrapRecord->part_number_id) == $partNumber->id ? 'selected' : '' }}>
-                                                    {{ $partNumber->number }} - {{ $partNumber->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error('part_number_id')
-                                            <span class="invalid-feedback" role="alert">
-                                                <strong>{{ $message }}</strong>
-                                            </span>
-                                        @enderror
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="scrap_id" class="font-weight-bold">Scrap <span class="text-danger">*</span></label>
-                                        <select class="form-control @error('scrap_id') is-invalid @enderror"
-                                                id="scrap_id"
-                                                name="scrap_id"
-                                                required>
-                                            <option value="">Seleccione un tipo de scrap...</option>
-                                            @foreach($scraps as $scrap)
-                                                <option value="{{ $scrap->id }}" {{ old('scrap_id', $scrapRecord->scrap_id) == $scrap->id ? 'selected' : '' }}>
-                                                    {{ $scrap->code }} - {{ $scrap->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error('scrap_id')
-                                            <span class="invalid-feedback" role="alert">
-                                                <strong>{{ $message }}</strong>
-                                            </span>
-                                        @enderror
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="quantity" class="font-weight-bold">Cantidad <span class="text-danger">*</span></label>
-                                        <input type="number"
-                                               min="0"
-                                               step="0.01"
-                                               class="form-control @error('quantity') is-invalid @enderror"
-                                               id="quantity"
-                                               name="quantity"
-                                               value="{{ old('quantity', $scrapRecord->quantity) }}"
-                                               placeholder="Ej: 10, 25.5, 100..."
-                                               required>
-                                        @error('quantity')
-                                            <span class="invalid-feedback" role="alert">
-                                                <strong>{{ $message }}</strong>
-                                            </span>
-                                        @enderror
-                                        <small class="form-text text-muted">
-                                            Ingrese la cantidad de scrap generado. Use decimales si es necesario.
-                                        </small>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label class="font-weight-bold">Información del Registro</label>
-                                        <div class="border rounded p-3 bg-light">
-                                            <div class="small text-muted">
-                                                <div><strong>Creado:</strong> {{ $scrapRecord->created_at->format('d/m/Y H:i') }}</div>
-                                                <div><strong>Última actualización:</strong> {{ $scrapRecord->updated_at->format('d/m/Y H:i') }}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
-                            <div>
-                                <a href="{{ route('scrap-records.index') }}" class="btn btn-default mr-2">
-                                    <i class="fas fa-times mr-1"></i> Cancelar
-                                </a>
-                            </div>
-                            <div>
-                                <button type="reset" class="btn btn-default mr-2">
-                                    <i class="fas fa-undo mr-1"></i> Restablecer
-                                </button>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save mr-1"></i> Actualizar Registro
-                                </button>
-                            </div>
-                        </div>
-                    </form>
+                    <div class="col-md-6">
+                        <label for="scrap_id" class="form-label fw-bold text-secondary">{{ __('Scrap') }} *</label>
+                        <select name="scrap_id" id="scrap_id" class="form-control select2 border-light-subtle @error('scrap_id') is-invalid @enderror" required>
+                            <option value="">{{ __('Seleccione un tipo de scrap') }}</option>
+                            @foreach($scraps as $scrap)
+                                <option value="{{ $scrap->id }}" {{ old('scrap_id', $scrapRecord->scrap_id) == $scrap->id ? 'selected' : '' }}>
+                                    {{ $scrap->code }} - {{ $scrap->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('scrap_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </div>
-            </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="quantity" class="form-label fw-bold text-secondary">{{ __('Cantidad') }} *</label>
+                        <input type="number" name="quantity" id="quantity" min="1" step="1"
+                               class="form-control border-light-subtle @error('quantity') is-invalid @enderror"
+                               value="{{ old('quantity', $scrapRecord->quantity) }}" required
+                               placeholder="Ingrese la cantidad">
+                        @error('quantity')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ route('scrap-records.index') }}" class="btn btn-outline-secondary rounded-3">
+                        <i class="fas fa-times me-2"></i> {{ __('Cancelar') }}
+                    </a>
+                    <button type="submit" class="btn btn-primary rounded-3">
+                        <i class="fas fa-save me-2"></i> {{ __('Actualizar') }}
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 @stop
 
 @section('css')
+    <!-- Fuente Google Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
     <style>
-        .card-header {
-            border-bottom: 1px solid rgba(0, 0, 0, .125);
-            background-color: #f8f9fa;
+        /* Aplicar fuente a todo el sistema */
+        body,
+        .main-header,
+        .main-sidebar,
+        .content-wrapper,
+        .card,
+        .btn,
+        .form-control,
+        .form-select,
+        .form-label,
+        .table,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            font-family: 'Roboto', sans-serif !important;
         }
 
-        .card-title {
-            color: #495057;
-            font-weight: 600;
+        /* Estilos para formularios */
+        .border-light-subtle {
+            border-color: #f0f0f0 !important;
         }
 
-        .required-field::after {
-            content: " *";
-            color: #dc3545;
-        }
-
-        .alert-danger {
-            border-left: 4px solid #dc3545;
-        }
-
-        .alert-heading {
-            font-weight: 600;
-            font-size: 1.1em;
-        }
-
-        .form-group label {
-            margin-bottom: 0.5rem;
-        }
-
-        .btn-default {
-            background-color: #f8f9fa;
-            border-color: #ddd;
-            color: #444;
-        }
-
-        .btn-default:hover {
-            background-color: #e9ecef;
-            border-color: #adb5bd;
+        .form-control {
+            border-radius: 8px !important;
+            padding: 0.5rem 1rem !important;
+            font-size: 0.95rem !important;
+            border: 1px solid #e0e0e0 !important;
+            transition: all 0.2s ease;
         }
 
         .form-control:focus {
-            border-color: #80bdff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            border-color: #86b7fe !important;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+            outline: none !important;
         }
 
+        .form-label {
+            font-size: 0.9rem !important;
+            margin-bottom: 0.5rem !important;
+            font-weight: 600 !important;
+        }
+
+        /* Estilos para Select2 */
+        .select2-container--default .select2-selection--single {
+            height: 38px !important;
+            border: 1px solid #e0e0e0 !important;
+            border-radius: 8px !important;
+            padding: 0 !important;
+            font-family: 'Roboto', sans-serif !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 36px !important;
+            padding-left: 12px !important;
+            padding-right: 20px !important;
+            font-size: 0.95rem !important;
+            color: #495057 !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: #6c757d !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px !important;
+            right: 8px !important;
+        }
+
+        .select2-container--default.select2-container--focus .select2-selection--single {
+            border-color: #86b7fe !important;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+        }
+
+        .select2-dropdown {
+            border: 1px solid #e0e0e0 !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .select2-results__option {
+            font-family: 'Roboto', sans-serif !important;
+            font-size: 0.95rem !important;
+            padding: 8px 12px !important;
+        }
+
+        .select2-results__option--highlighted {
+            background-color: #007bff !important;
+        }
+
+        /* Botones */
+        .btn {
+            border-radius: 8px !important;
+            padding: 0.5rem 1.5rem !important;
+            font-weight: 500 !important;
+            font-size: 0.95rem !important;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .btn i {
+            font-size: 0.9rem !important;
+            margin-right: 0.5rem !important;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        /* Card */
+        .rounded-3 {
+            border-radius: 12px !important;
+        }
+
+        /* Invalid feedback */
         .invalid-feedback {
-            display: block;
+            font-size: 0.85rem !important;
         }
 
-        select.form-control {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 0.5rem center;
-            background-repeat: no-repeat;
-            background-size: 1.5em 1.5em;
-            padding-right: 2.5rem;
-        }
-
-        .form-text {
-            font-size: 0.875em;
-            margin-top: 0.25rem;
-        }
-
+        /* Información del registro */
         .bg-light {
             background-color: #f8f9fa !important;
+            border: 1px solid #e9ecef !important;
         }
     </style>
 @stop
 
 @section('js')
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Focus en el primer campo al cargar la página
-            document.getElementById('part_number_id').focus();
+        $(document).ready(function() {
+            // Inicializar Select2
+            $('#part_number_id, #scrap_id').select2({
+                placeholder: 'Seleccione una opción',
+                allowClear: false,
+                width: '100%'
+            });
+
+            // Foco automático al primer campo
+            setTimeout(function() {
+                $('#part_number_id').select2('focus');
+            }, 100);
+
+            // Manejar errores de validación para Select2
+            @if($errors->has('part_number_id'))
+                $('#part_number_id').next('.select2-container').find('.select2-selection').addClass('is-invalid');
+            @endif
+
+            @if($errors->has('scrap_id'))
+                $('#scrap_id').next('.select2-container').find('.select2-selection').addClass('is-invalid');
+            @endif
 
             // Validación en tiempo real para cantidad
             const quantityInput = document.getElementById('quantity');
             quantityInput.addEventListener('input', function() {
                 if (this.value < 0) {
                     this.value = 0;
-                }
-            });
-
-            // Confirmación antes de restablecer el formulario
-            const resetButton = document.querySelector('button[type="reset"]');
-            resetButton.addEventListener('click', function(e) {
-                if (!confirm('¿Está seguro de que desea restablecer todos los campos a sus valores originales?')) {
-                    e.preventDefault();
                 }
             });
         });

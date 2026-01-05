@@ -3,185 +3,353 @@
 @section('title', 'Estaciones de Trabajo')
 
 @section('content_header')
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="m-0 text-dark">{{ __('Estaciones de Trabajo') }}</h1>
-    <div class="col-md-4">
-        <form action="{{ route('work-centers.index') }}" method="GET">
-            <div class="input-group">
-                <input type="text" name="search" class="form-control"
-                    placeholder="Buscar..."
-                    value="{{ request('search') }}">
-                <div class="input-group-append">
-                    <button class="btn btn-primary" type="submit">
-                        <i class="fas fa-search"></i>
-                    </button>
-                    @if(request()->has('search'))
-                    <a href="{{ route('work-centers.index') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times"></i>
-                    </a>
-                    @endif
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
+    <h1>{{ __('Estaciones de Trabajo') }}</h1>
 @stop
 
 @section('content')
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                        <h3 class="card-title m-0">Lista de Estaciones</h3>
-                        <div>
-                            <!-- Botones de acción si los necesitas -->
-                        </div>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table align-middle mb-0">
-                                <thead class="bg-light">
-                                <tr>
-                                    <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Línea') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Número') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
-                                    <th class="py-3 text-secondary fw-normal d-none-mobile">{{ __('Fecha de Creación') }}</th>
-                                    <th class="py-3 text-secondary fw-normal d-none-mobile">{{ __('Fecha de Actualización') }}</th>
-                                    <th class="py-3 text-secondary fw-normal">{{ __('Acciones') }}</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                @forelse ($workCenters as $workCenter)
-                                    <tr class="border-top">
-                                        <td class="ps-4 px-3">
-                                            @if ($workCenter->line)
-                                                <span class="badge rounded-pill bg-primary text-white px-3 py-2">
-                                            {{ $workCenter->line->name }}
-                                        </span>
-                                            @else
-                                                <span class="badge rounded-pill bg-secondary px-3 py-2">
-                                            {{ __('Sin Línea') }}
-                                        </span>
-                                            @endif
-                                        </td>
-                                        <td class="py-3 fw-medium">{{ $workCenter->number }}</td>
-                                        <td class="py-3">{{ $workCenter->name }}</td>
-                                        <td class="py-3 text-muted d-none-mobile">{{ $workCenter->created_at->format('d-m-Y H:i') }}</td>
-                                        <td class="py-3 text-muted d-none-mobile">{{ $workCenter->updated_at->format('d-m-Y H:i') }}</td>
-                                        <td class="py-3">
-                                            <div class="btn-group" role="group" aria-label="Acciones">
-                                                @can('edit work centers')
-                                                    <a href="{{ route('work-centers.edit', $workCenter->id) }}"
-                                                       class="btn btn-sm btn-primary d-flex align-items-center"
-                                                       title="Editar"
-                                                       aria-label="Editar estación de trabajo">
-                                                        <i class="fas fa-edit mr-1"></i>
-                                                        <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
-                                                    </a>
-                                                @endcan
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6" class="text-center py-4">
-                                            @if(request()->has('search'))
-                                                No se encontraron estaciones que coincidan con "{{ request('search') }}"
-                                            @else
-                                                No hay estaciones de trabajo registradas
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforelse
-                                </tbody>
-                            </table>
-                        </div>
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
-                        <div class="d-flex justify-content-between align-items-center w-100 px-3 py-2">
-                            <div class="text-muted">
-                                MOSTRANDO {{ $workCenters->firstItem() ?? 0 }} -
-                                {{ $workCenters->lastItem() ?? 0 }} DE {{ $workCenters->total() }}
-                            </div>
-                            <div>
-                                {{ $workCenters->links('pagination::bootstrap-4') }}
-                            </div>
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        <!-- Header con buscador -->
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <!-- Buscador -->
+                <div class="search-box">
+                    <form method="GET" action="{{ route('work-centers.index') }}">
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control border-end-0" placeholder="Buscar..."
+                                aria-label="Buscar" value="{{ $search ?? '' }}">
+                            <button type="submit" class="input-group-text bg-white border-start-0">
+                                <i class="fas fa-search text-secondary"></i>
+                            </button>
+                            @if (!empty($search))
+                                <a href="{{ route('work-centers.index') }}" class="input-group-text bg-white border-start-0">
+                                    <i class="fas fa-times text-danger"></i>
+                                </a>
+                            @endif
                         </div>
-                    </div>
+                    </form>
                 </div>
             </div>
         </div>
+
+        <!-- Cuerpo con tabla -->
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light sticky-top">
+                        <tr>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Línea') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Número') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Nombre') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('IP') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Creado') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">{{ __('Acciones') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($workCenters as $workCenter)
+                            <tr class="border-light-subtle">
+                                <!-- Línea -->
+                                <td class="py-3">
+                                    @if ($workCenter->line)
+                                        <span class="badge-status bg-primary bg-opacity-10 text-primary">
+                                            {{ $workCenter->line->name }}
+                                        </span>
+                                    @else
+                                        <span class="badge-status bg-secondary bg-opacity-10 text-secondary">
+                                            {{ __('Sin Línea') }}
+                                        </span>
+                                    @endif
+                                </td>
+
+                                <!-- Número -->
+                                <td class="py-3 fw-500">{{ $workCenter->number }}</td>
+
+                                <!-- Nombre -->
+                                <td class="py-3">{{ $workCenter->name }}</td>
+
+                                <!-- IP -->
+                                <td class="py-3">
+                                    @if ($workCenter->ip)
+                                        <span class="badge-status bg-primary bg-opacity-10 text-primary">
+                                            {{ $workCenter->ip }}
+                                        </span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+
+                                <!-- Fecha de Creación -->
+                                <td class="py-3 small">
+                                    <div class="fw-500">{{ $workCenter->created_at->format('Y-m-d') }}</div>
+                                    <div class="text-muted">{{ $workCenter->created_at->format('H:i') }}</div>
+                                </td>
+
+                                <!-- Acciones -->
+                                <td class="py-3 text-center">
+                                    <div class="d-flex justify-content-center gap-2">
+                                        @can('edit work centers')
+                                            <a href="{{ route('work-centers.edit', $workCenter) }}" class="btn btn-sm btn-outline-primary rounded-3">
+                                                <i class="fas fa-edit me-1"></i>
+                                                <span>Editar</span>
+                                            </a>
+                                        @endcan
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="d-flex flex-column align-items-center">
+                                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                                        <span class="text-secondary">
+                                            @if (!empty($search))
+                                                No se encontraron resultados para "{{ $search }}"
+                                            @else
+                                                No hay estaciones de trabajo registradas
+                                            @endif
+                                        </span>
+                                        @if (!empty($search))
+                                            <a href="{{ route('work-centers.index') }}" class="btn btn-sm btn-link mt-2">
+                                                Limpiar búsqueda
+                                            </a>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pie de página con paginación -->
+        @if ($workCenters->hasPages() || $workCenters->total() > 0)
+            <div class="card-footer bg-white border-0 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <!-- Información de resultados -->
+                    <div class="text-muted small">
+                        Mostrando {{ $workCenters->firstItem() ?? 0 }} a {{ $workCenters->lastItem() ?? 0 }} de
+                        {{ $workCenters->total() }} resultados
+                    </div>
+
+                    <!-- Controles de paginación -->
+                    @if ($workCenters->hasPages())
+                        {{ $workCenters->links('pagination::bootstrap-4') }}
+                    @endif
+                </div>
+            </div>
+        @endif
     </div>
 @stop
 
-
 @section('css')
-<style>
-    /* Estilos para la paginación */
-    .pagination {
-        margin-bottom: 0;
-    }
+    <!-- Fuente Google Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
-    .page-item.active .page-link {
-        background-color: #007bff;
-        border-color: #007bff;
-    }
-
-    /* Estilos para badges */
-    .badge {
-        font-weight: 500;
-        font-size: 0.85rem;
-    }
-
-    /* Estilos para botones de acción */
-    .btn-group {
-        white-space: nowrap;
-    }
-
-    .btn-group .btn {
-        margin-right: 0.3rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .btn-group .btn:last-child {
-        margin-right: 0;
-    }
-
-    .btn-sm {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-    }
-
-    .btn-sm i {
-        font-size: 0.8rem;
-    }
-
-    /* Responsive para móviles */
-    @media (max-width: 576px) {
-        .btn-group .btn span {
-            display: none;
+    <style>
+        /* Aplicar fuente a elementos específicos sin afectar AdminLTE */
+        .card,
+        .btn,
+        .form-control,
+        .table,
+        .content-header h1 {
+            font-family: 'Roboto', sans-serif !important;
         }
 
-        .btn-sm i {
-            margin-right: 0 !important;
+        /* Estilos adicionales para la tabla */
+        .border-light-subtle {
+            border-color: #f0f0f0 !important;
         }
-    }
 
-    /* Estilos para el buscador */
-    .input-group {
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    }
+        .table-hover tbody tr:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transform: translateY(-1px);
+            transition: all 0.2s ease;
+        }
 
-    .form-control {
-        border-radius: 0.25rem 0 0 0.25rem;
-    }
+        .rounded-3 {
+            border-radius: 12px !important;
+        }
 
-    .input-group-append .btn {
-        border-radius: 0 0.25rem 0.25rem 0;
-    }
-</style>
+        /* Mejoras en jerarquía tipográfica */
+        .table thead th {
+            font-weight: 700 !important;
+            font-size: 0.85rem;
+        }
+
+        .table tbody td {
+            font-size: 0.875rem;
+        }
+
+        /* Buscador sin contorno azul */
+        .search-box .input-group {
+            width: 380px;
+        }
+
+        .search-box .form-control {
+            border-radius: 20px 0 0 20px !important;
+            border-right: none;
+            padding: 0.5rem 1.5rem;
+            height: 42px;
+            font-size: 0.95rem;
+        }
+
+        .search-box .input-group-text {
+            border-radius: 0 20px 20px 0 !important;
+            border-left: none;
+            background-color: white;
+            padding: 0 1.25rem;
+            font-size: 1rem;
+        }
+
+        /* Botón de limpiar búsqueda */
+        .search-box .input-group-text .fa-times {
+            transition: all 0.2s ease;
+        }
+
+        .search-box .input-group-text:hover .fa-times {
+            transform: scale(1.1);
+        }
+
+        /* Quitar contorno azul al enfocar */
+        .search-box .form-control:focus {
+            border-color: #dee2e6 !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        /* Badges simétricos */
+        .badge-status {
+            display: inline-block;
+            min-width: 70px;
+            padding: 0.5em 0.75em;
+            text-align: center;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .badge-status.bg-primary {
+            background-color: rgba(13, 110, 253, 0.1) !important;
+            color: #0d6efd !important;
+        }
+
+        .badge-status.bg-secondary {
+            background-color: rgba(108, 117, 125, 0.1) !important;
+            color: #6c757d !important;
+        }
+
+        .badge-status.bg-info {
+            background-color: rgba(13, 202, 240, 0.1) !important;
+            color: #0dcaf0 !important;
+        }
+
+        /* Estilos para la paginación */
+        .pagination {
+            margin-bottom: 0;
+        }
+
+        .page-item .page-link {
+            border-radius: 8px;
+            margin: 0 3px;
+            border: none;
+            color: #6c757d;
+            font-size: 0.9rem;
+            min-width: 32px;
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            padding: 6px 12px;
+        }
+
+        .page-item.active .page-link {
+            background-color: #1a73e8;
+            color: white;
+        }
+
+        .page-item:not(.active) .page-link:hover {
+            background-color: #f8f9fa;
+            color: #1a73e8;
+        }
+
+        .page-item.disabled .page-link {
+            opacity: 0.5;
+        }
+
+        /* Estilos para el contador de resultados */
+        .text-muted.small {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        /* Ajustes de espaciado para paginación */
+        .card-footer .pagination {
+            margin-bottom: 0;
+        }
+
+        /* Estilos para los botones de acción */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn i {
+            margin-right: 0.5rem;
+        }
+
+        .btn-sm {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.85rem;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        /* Alertas */
+        .alert {
+            border-radius: 8px;
+        }
+
+        .btn-close {
+            background-size: 0.75rem;
+            padding: 0.5rem;
+        }
+
+        .fw-500 {
+            font-weight: 500;
+        }
+    </style>
+@stop
+
+@section('js')
+    <script>
+        // Cerrar alertas automáticamente después de 5 segundos
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
+            });
+        }, 5000);
+    </script>
 @stop
