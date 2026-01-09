@@ -13,7 +13,7 @@ Schedule::command('iot:item-class')->cron('0 1 2-30/2 * *');
 Schedule::command('iot:part-number')->cron('0 2 2-30/2 * *');
 Schedule::command('iot:production-plan')->cron('0 * * * *');
 
-Schedule::command('iot:sync-production-records')->cron('36 17 * * *');
-Schedule::command('iot:sync-production-records')->cron('06 20 * * *');
-Schedule::command('iot:sync-production-records')->cron('56 04 * * *');
-Schedule::command('iot:sync-production-records')->cron('56 07 * * *');
+Schedule::command('iot:sync-production-records')->cron('36 17 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records')->cron('06 20 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records')->cron('56 04 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records')->cron('56 07 * * *')->withoutOverlapping();

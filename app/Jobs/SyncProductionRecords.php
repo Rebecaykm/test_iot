@@ -10,14 +10,16 @@ use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class SyncProductionRecords implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * Create a new job instance.
-     */
+    public $tries = 3;
+    public $backoff = 60;
+    public $timeout = 600;
+
     public function __construct()
     {
         //
@@ -34,7 +36,7 @@ class SyncProductionRecords implements ShouldQueue
             $productionRecords = $this->getEligibleProductionRecords();
 
             if ($productionRecords->isEmpty()) {
-                Log::info('No hay registros para sincronizar');
+                Log::info('No hay registros pendientes para sincronizar');
                 return;
             }
 
@@ -42,50 +44,41 @@ class SyncProductionRecords implements ShouldQueue
             $errorCount = 0;
             $errors = [];
 
-            Log::info("Encontrados {$productionRecords->count()} registros para sincronizar");
+            Log::info("Procesando {$productionRecords->count()} registros");
 
-            // 2. Procesar cada registro
             foreach ($productionRecords as $record) {
                 try {
                     $result = $this->processRecord($record);
 
                     if ($result['success']) {
                         $successCount++;
-                        Log::info("Registro {$record->id} sincronizado exitosamente");
                     } else {
                         $errorCount++;
-                        $errors[] = "Registro {$record->id}: {$result['message']}";
-                        Log::error("Error sincronizando registro {$record->id}: {$result['message']}");
+                        $errors[] = "ID {$record->id}: " . $result['message'];
                     }
                 } catch (Exception $e) {
                     $errorCount++;
-                    $errors[] = "Registro {$record->id}: {$e->getMessage()}";
-                    Log::error("Excepción en registro {$record->id}: " . $e->getMessage());
+                    $errors[] = "ID {$record->id}: " . $e->getMessage();
                 }
             }
 
-            // 3. Ejecutar procedimiento almacenado en Infor si hay éxitos
+            // Solo ejecutamos el procedimiento si hubo inserciones exitosas
             if ($successCount > 0) {
                 $this->executeInforProcedure();
             }
 
-            // 4. Log de resultados
             $this->logResults($successCount, $errorCount, $errors);
         } catch (Exception $e) {
-            Log::error('Error en el job de sincronización masiva: ' . $e->getMessage());
+            Log::error('FALLO CRÍTICO en SyncProductionRecords: ' . $e->getMessage());
             throw $e;
         }
     }
 
-    /**
-     * Obtiene los registros elegibles para sincronización
-     */
     protected function getEligibleProductionRecords()
     {
-        $workCentersArray = WorkCenter::with('line.area')
-            ->whereHas('line.area', function ($q) {
-                $q->where('name', 'Carrocería');
-            })
+        $workCentersArray = WorkCenter::whereHas('line.area', function ($q) {
+            $q->where('name', 'LIKE', 'Carrocería%');
+        })
             ->pluck('number')
             ->toArray();
 
@@ -138,14 +131,12 @@ class SyncProductionRecords implements ShouldQueue
             ? Carbon::parse($record->production_end)
             : null;
 
-        // Insertar en YF013
+        // Intentar insertar en la tabla de paso YF013
         $inserted = YF013::query()
             ->insert([
                 'YFWRKC' => $record->work_number ?? '',
                 'YFWRKN' => $record->work_name ?? '',
-                'YFRDTE' => $record->planned_date
-                    ? Carbon::parse($record->planned_date)->format('Ymd')
-                    : '',
+                'YFRDTE' => $record->planned_date ? Carbon::parse($record->planned_date)->format('Ymd') : '',
                 'YFSHFT' => $record->shift_abbreviation ?? '',
                 'YFPPNO' => '',
                 'YFSORD' => $record->shop_order_number ?? '',
@@ -155,12 +146,12 @@ class SyncProductionRecords implements ShouldQueue
                 'YFSDT' => $productionStart ? $productionStart->format('YmdHi') : '',
                 'YFEDT' => $productionEnd ? $productionEnd->format('YmdHi') : '',
                 'YFQPLA' => $record->planned_quantity ?: $record->produced_quantity,
-                'YFQPRO' => $record->produced_quantity - $record->scrap_quantity,
+                'YFQPRO' => $record->produced_quantity - ($record->scrap_quantity ?? 0),
                 'YFQSCR' => $record->scrap_quantity ?? 0,
                 'YFSCRE' => ($record->scrap_quantity ?? 0) == 0 ? '' : 'RJ',
                 'YFCRDT' => $now->format('Ymd'),
                 'YFCRTM' => $now->format('His'),
-                'YFCRUS' => '',
+                'YFCRUS' => 'IOT',
             ]);
 
         if ($inserted) {
@@ -168,17 +159,10 @@ class SyncProductionRecords implements ShouldQueue
                 'synced_to_infor' => true,
                 'synced_at' => $now,
             ]);
-
-            return [
-                'success' => true,
-                'message' => 'Sincronizado exitosamente'
-            ];
+            return ['success' => true];
         }
 
-        return [
-            'success' => false,
-            'message' => 'Error al insertar en YF013'
-        ];
+        return ['success' => false, 'message' => 'Fallo al insertar en YF013'];
     }
 
     /**
@@ -186,62 +170,35 @@ class SyncProductionRecords implements ShouldQueue
      */
     protected function executeInforProcedure()
     {
-        try {
-            Log::info('Iniciando ejecución del programa en Infor');
+        Log::info('Ejecutando procedimiento LX834OU02.YSF013C');
 
-            $conn = odbc_connect(
-                "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR",
-                "",
-                ""
-            );
+        $dsn = "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR";
 
-            if ($conn === false) {
-                $error = odbc_errormsg();
-                throw new Exception("Error al conectar con la base de datos Infor: " . $error);
-            }
+        $conn = odbc_connect($dsn, "", "");
 
-            $query = "CALL LX834OU02.YSF013C";
-            $result = odbc_exec($conn, $query);
-
-            if ($result) {
-                Log::info("Procedimiento LX834OU02.YSF013C ejecutado con éxito");
-
-                // Obtener información del resultado si es necesario
-                odbc_free_result($result);
-            } else {
-                $error = odbc_errormsg($conn);
-                throw new Exception("Error en el procedimiento: " . $error);
-            }
-
-            odbc_close($conn);
-            Log::info('Conexión a Infor cerrada correctamente');
-        } catch (Exception $e) {
-            Log::error("Error ejecutando procedimiento Infor: " . $e->getMessage());
-            throw $e; // Relanzar para que el job falle si esto es crítico
+        if (!$conn) {
+            throw new Exception("Fallo de conexión ODBC: " . odbc_errormsg());
         }
+
+        $result = odbc_exec($conn, "CALL LX834OU02.YSF013C");
+
+        if (!$result) {
+            $error = odbc_errormsg($conn);
+            odbc_close($conn);
+            throw new Exception("Error en el procedimiento Infor: " . $error);
+        }
+
+        odbc_close($conn);
     }
 
     /**
      * Registra los resultados de la sincronización
      */
-    protected function logResults($successCount, $errorCount, $errors = [])
+    protected function logResults($successCount, $errorCount, $errors)
     {
-        $message = "Sincronización masiva completada. ";
-        $message .= "Éxitos: {$successCount}, Errores: {$errorCount}";
-
-        if ($successCount > 0) {
-            Log::info($message);
-        } else {
-            Log::warning($message);
-        }
-
-        if ($errorCount > 0 && !empty($errors)) {
-            Log::error('Errores detallados: ' . implode(' | ', array_slice($errors, 0, 10)));
-
-            // Si hay más de 10 errores, agregar conteo adicional
-            if (count($errors) > 10) {
-                Log::error('... y ' . (count($errors) - 10) . ' errores más');
-            }
+        Log::info("Sincronización terminada. Éxitos: $successCount, Errores: $errorCount");
+        if ($errorCount > 0) {
+            Log::warning("Detalle de errores: " . implode(', ', $errors));
         }
     }
 
@@ -250,9 +207,6 @@ class SyncProductionRecords implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
-        Log::error('Job SyncProductionRecords falló: ' . $exception->getMessage());
-
-        // Aquí puedes notificar a los administradores, etc.
-        // Mail::to('admin@example.com')->send(new JobFailedMail($exception));
+        Log::error('El Job SyncProductionRecords ha fallado definitivamente: ' . $exception->getMessage());
     }
 }

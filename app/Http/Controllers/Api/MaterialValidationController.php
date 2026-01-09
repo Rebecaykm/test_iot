@@ -286,12 +286,12 @@ class MaterialValidationController extends Controller
                 $formattedEndDate = $endDate->format('Y-m-d\T23:59:59');
                 $currentYear = Carbon::now()->format('y');
 
-                Log::info('Consultando datos combinados ORDERS y BARCODES', [
-                    'start_date' => $formattedStartDate,
-                    'end_date' => $formattedEndDate,
-                    'part_number' => $partNumber,
-                    'current_year' => $currentYear
-                ]);
+                // Log::info('Consultando datos combinados ORDERS y BARCODES', [
+                //     'start_date' => $formattedStartDate,
+                //     'end_date' => $formattedEndDate,
+                //     'part_number' => $partNumber,
+                //     'current_year' => $currentYear
+                // ]);
 
                 $combinedData = DB::connection('dbEmba')
                     ->table('ORDERS')
@@ -312,11 +312,12 @@ class MaterialValidationController extends Controller
                     ->whereRaw("RTRIM(LTRIM(ORDERS.PART_ID)) LIKE ?", [trim($partNumber) . '%'])
                     ->where('ORDERS.DELIVERY_DATE', '>=', $formattedStartDate)
                     ->where('BARCODES.BARCODE_M', 'like', $currentYear . '%')
+                    ->where('ORDERS.ROUTE', 'NOT LIKE', 'W1')
                     ->orderBy('ORDERS.DELIVERY_DATE', 'asc')
                     ->orderBy('BARCODES.SEQUENCE', 'asc')
                     ->get();
 
-                Log::info('Registros combinados encontrados', ['count' => $combinedData->count()]);
+                // Log::info('Registros combinados encontrados', ['count' => $combinedData->count()]);
 
                 if ($combinedData->isEmpty()) {
                     return response()->json([
@@ -387,12 +388,12 @@ class MaterialValidationController extends Controller
                     ]);
                 }
 
-                Log::info('Orden actual encontrada', [
-                    'ORDER_ID' => $currentOrder['order_id'],
-                    'DELIVERY_DATE' => $currentOrder['delivery_date'],
-                    'all_scanned' => $currentOrder['all_scanned'],
-                    'index' => $currentIndex
-                ]);
+                // Log::info('Orden actual encontrada', [
+                //     'ORDER_ID' => $currentOrder['order_id'],
+                //     'DELIVERY_DATE' => $currentOrder['delivery_date'],
+                //     'all_scanned' => $currentOrder['all_scanned'],
+                //     'index' => $currentIndex
+                // ]);
 
                 // VALIDACIÓN 1: Buscar órdenes anteriores no escaneadas
                 if ($currentIndex > 0) {
@@ -435,19 +436,19 @@ class MaterialValidationController extends Controller
                         ]);
                     }
 
-                    Log::info('Todas las órdenes anteriores han sido escaneadas correctamente');
+                    // Log::info('Todas las órdenes anteriores han sido escaneadas correctamente');
                 } else {
-                    Log::info('No hay órdenes anteriores, es la primera orden de la secuencia');
+                    // Log::info('No hay órdenes anteriores, es la primera orden de la secuencia');
                 }
 
                 // VALIDACIÓN 2: Validar secuencias dentro de la orden actual
                 $currentSequenceNumber = intval($sequenceFromLabel);
 
-                Log::info('Validando secuencias de la orden actual', [
-                    'sequence_from_label' => $sequenceFromLabel,
-                    'sequence_number' => $currentSequenceNumber,
-                    'barcodes_in_order' => count($currentOrder['barcodes'])
-                ]);
+                // Log::info('Validando secuencias de la orden actual', [
+                //     'sequence_from_label' => $sequenceFromLabel,
+                //     'sequence_number' => $currentSequenceNumber,
+                //     'barcodes_in_order' => count($currentOrder['barcodes'])
+                // ]);
 
                 // Si la secuencia escaneada no es la primera (001), validar que las anteriores estén escaneadas
                 if ($currentSequenceNumber > 1) {
@@ -475,7 +476,7 @@ class MaterialValidationController extends Controller
                         }
                     }
 
-                    Log::info('Todas las secuencias anteriores están escaneadas correctamente en la orden actual');
+                    // Log::info('Todas las secuencias anteriores están escaneadas correctamente en la orden actual');
                 }
 
                 // Si pasa todas las validaciones

@@ -18,6 +18,8 @@ class WorkCenterDashboard extends Component
     public array $areasData = [];
     public array $allLines = [];
     public array $selectedLines = [];
+    public array $allWorkCenters = [];
+    public array $selectedWorkCenters = [];
     public bool $realTime = true;
     public string $chartId;
 
