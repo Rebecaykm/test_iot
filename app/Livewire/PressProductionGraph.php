@@ -12,300 +12,142 @@ use Livewire\Component;
 
 class PressProductionGraph extends Component
 {
-    public string|null $chartId = null;
+    public string $chartId;
     public array $labels = [];
     public array $plannedData = [];
     public array $producedData = [];
-
-    public bool $realTime = false;
+    public array $differenceData = [];
     public $workCenter;
 
-    public $now;
-    public $previousShift;
-    public $currentShift;
-
-    public function __construct()
+    public function mount($workCenter): void
     {
-        $this->chartId = Str::ulid();
-    }
-
-    public function mount($workCenter, $realTime): void
-    {
+        $this->chartId = 'chart_' . Str::random(10);
         $this->workCenter = $workCenter;
-        $this->realTime = $realTime;
-
         $this->refreshGraph();
     }
 
     #[On('refresh-graph')]
-    public function refreshGraph()
+    public function refreshGraph(): void
     {
-        $this->now = Carbon::now();
+        $now = Carbon::now();
+        $current = Shift::getCurrentShiftInfo($now);
+        $previous = Shift::getPreviousShiftInfo($now);
 
-        $this->currentShift = Shift::getShift($this->now);
-        $this->previousShift = Shift::findPreviousShift($this->currentShift);
+        // 1. Generar bloques de 2 horas
+        $timeBlocks = $this->generateTimeBlocks($previous->timeRange->startDateTime, $current->timeRange->endDateTime);
+        $this->labels = array_keys($timeBlocks);
 
-        $this->plannedProduction();
+        // 2. Plan Acumulado (Lógica de promedio por bloques de 2 horas)
+        $this->calculatePlanned($previous, $current, $timeBlocks);
 
-        $this->currentProduction();
+        // 3. Real Acumulado (Suma progresiva de producción)
+        $this->calculateActual($previous->timeRange->startDateTime, $current->timeRange->endDateTime, $timeBlocks, $now);
+
+        // 4. Diferencia
+        $this->calculateDifference();
+
+        $this->dispatch('update-chart', [
+            'labels' => $this->labels,
+            'planned' => $this->plannedData,
+            'produced' => $this->producedData,
+            'difference' => $this->differenceData,
+        ]);
     }
 
-
-    public function currentProduction(): void
+    private function generateTimeBlocks(Carbon $start, Carbon $end): array
     {
-        $previous = (object)[
-            'model' => $this->previousShift,
-            'timeRange' => Shift::getShiftDateTimeRange($this->previousShift, $this->now)
-        ];
+        $blocks = [];
+        $currentBlock = $start->copy()->floorHour();
+        // Asegurar que inicie en hora par si es necesario, o según tu lógica de 08:00
+        if ($currentBlock->hour % 2 !== 0) $currentBlock->subHour();
 
-        $current = (object)[
-            'model' => $this->currentShift,
-            'timeRange' => Shift::getShiftDateTimeRange($this->currentShift, $this->now)
-        ];
+        while ($currentBlock < $end) {
+            $startRange = $currentBlock->copy();
+            $endRange = $currentBlock->copy()->addHours(2);
 
-        $previousHistories = History::getProductionHistory($this->workCenter, $previous->timeRange->startDateTime, $previous->timeRange->endDateTime);
-        $currentHistories = History::getProductionHistory($this->workCenter, $current->timeRange->startDateTime, $current->timeRange->endDateTime);
-
-        $twoHourGroups = $previousHistories->groupBy(function ($item) {
-            $hour = $item->created_at->format('H');
-            $block = floor($hour / 2) * 2;
-            return $item->created_at->format('Y-m-d ') . str_pad($block, 2, '0', STR_PAD_LEFT) . ':00';
-        })->map(function ($twoHourGroup, $blockStartHour) {
-            // Calcular la suma para este bloque de 2 horas
-            $partNumbers = $twoHourGroup->groupBy('part_number')->map(function ($partNumberGroup) {
-                $minQuantity = $partNumberGroup->min('quantity');
-                $adjustedMin = ($minQuantity > 0) ? $minQuantity - 1 : $minQuantity;
-                return $partNumberGroup->max('quantity') - $adjustedMin;
-            });
-
-            return [
-                'hour_block' => $blockStartHour,
-                'block_quantity' => $partNumbers->sum(),
-                'accumulated' => 0
-            ];
-        })->sortBy('hour_block')->values();
-
-        // 1. Primero obtenemos el resultado acumulado como lo tenías
-        $accumulated = 0;
-        $previousResult = $twoHourGroups->map(function ($block) use (&$accumulated) {
-            $accumulated += $block['block_quantity'];
-            $startHour = Carbon::parse($block['hour_block']);
-            return [
-                'hour' => $startHour->addHours(2)->format('Y-m-d H:00'),
-                'quantity' => $accumulated
-            ];
-        })->keyBy('hour');
-
-        $allBlocks = [];
-        $previousBlock = Carbon::parse($previous->timeRange->startDateTime)->copy()->setTime(floor(Carbon::parse($previous->timeRange->startDateTime)->hour / 2) * 2, 0);
-
-        while ($previousBlock <= Carbon::parse($previous->timeRange->endDateTime)) {
-            $blockHour = $previousBlock->format('Y-m-d H:00');
-            $allBlocks[$blockHour] = true;
-            $previousBlock->addHours(2);
-        }
-
-        $previousCompletedResult = [];
-        $lastValue = 0;
-
-        foreach ($allBlocks as $blockHour => $_) {
-            if (isset($previousResult[$blockHour])) {
-                $lastValue = $previousResult[$blockHour]['quantity'];
-                $previousCompletedResult[] = [
-                    'hour' => $blockHour,
-                    'quantity' => $lastValue
-                ];
-            } else {
-                $previousCompletedResult[] = [
-                    'hour' => $blockHour,
-                    'quantity' => $lastValue
-                ];
-            }
-        }
-
-        usort($previousCompletedResult, function ($a, $b) {
-            return strcmp($a['hour'], $b['hour']);
-        });
-
-        $twoHourGroups = $currentHistories->groupBy(function ($item) {
-            $hour = $item->created_at->format('H');
-            $block = floor($hour / 2) * 2;
-            return $item->created_at->format('Y-m-d ') . str_pad($block, 2, '0', STR_PAD_LEFT) . ':00';
-        })->map(function ($twoHourGroup, $blockStartHour) {
-            $partNumbers = $twoHourGroup->groupBy('part_number')->map(function ($partNumberGroup) {
-                $minQuantity = $partNumberGroup->min('quantity');
-                $adjustedMin = ($minQuantity > 0) ? $minQuantity - 1 : $minQuantity;
-                return $partNumberGroup->max('quantity') - $adjustedMin;
-            });
-
-            return [
-                'hour_block' => $blockStartHour,
-                'block_quantity' => $partNumbers->sum(),
-                'accumulated' => 0
-            ];
-        })->sortBy('hour_block')->values();
-
-        $accumulated = 0;
-        $currentResult = $twoHourGroups->map(function ($block) use (&$accumulated) {
-            $accumulated += $block['block_quantity'];
-            $startHour = Carbon::parse($block['hour_block']);
-            return [
-                'hour' => $startHour->addHours(2)->format('Y-m-d H:00'),
-                'quantity' => $accumulated
-            ];
-        })->keyBy('hour');
-
-        $allBlocks = [];
-        $currentBlock = Carbon::parse($current->timeRange->startDateTime)->copy()->setTime(floor(Carbon::parse($current->timeRange->startDateTime)->hour / 2) * 2, 0);
-
-        while ($currentBlock <= Carbon::parse($current->timeRange->endDateTime)) {
-            $blockHour = $currentBlock->format('Y-m-d H:00');
-            $allBlocks[$blockHour] = true;
+            $label = $startRange->format('d-m H:i') . ' a ' . $endRange->format('H:i');
+            $blocks[$label] = 0;
             $currentBlock->addHours(2);
         }
-
-        $currentCompletedResult = [];
-        $lastValue = 0;
-
-        foreach ($allBlocks as $blockHour => $_) {
-            if (isset($currentResult[$blockHour])) {
-                $lastValue = $currentResult[$blockHour]['quantity'];
-                $currentCompletedResult[] = [
-                    'hour' => $blockHour,
-                    'quantity' => $lastValue
-                ];
-            } else {
-                $currentCompletedResult[] = [
-                    'hour' => $blockHour,
-                    'quantity' => $lastValue
-                ];
-            }
-        }
-
-        usort($currentCompletedResult, function ($a, $b) {
-            return strcmp($a['hour'], $b['hour']);
-        });
-
-        $previous = collect($previousCompletedResult);
-        $current = collect($currentCompletedResult);
-
-        $combined = $previous->concat($current)
-            ->groupBy('hour') // Agrupar por hora
-            ->map(function ($items) {
-                return [
-                    'hour' => $items->first()['hour'],
-                    'quantity' => $items->sum('quantity')
-                ];
-            })
-            ->values()
-            ->sortBy('hour')
-            ->toArray();
-
-        $this->producedData = collect($combined)->pluck('quantity')->toArray();
+        return $blocks;
     }
 
-    public function plannedProduction()
+    private function calculatePlanned($prev, $current, $timeBlocks): void
     {
-        $previous = (object)[
-            'model' => $this->previousShift,
-            'timeRange' => Shift::getShiftDateTimeRange($this->previousShift, $this->now)
-        ];
+        // Obtenemos el total de la suma de planned_quantity para cada turno
+        $prevTotalPlanned = ProductionRecord::getProductionRecords($this->workCenter, $prev->shift->id, $prev->date)->sum('planned_quantity');
+        $currTotalPlanned = ProductionRecord::getProductionRecords($this->workCenter, $current->shift->id, $current->date)->sum('planned_quantity');
 
-        $current = (object)[
-            'model' => $this->currentShift,
-            'timeRange' => Shift::getShiftDateTimeRange($this->currentShift, $this->now)
-        ];
+        // Calculamos cuántos bloques de 2 horas tiene cada turno (normalmente 6 si el turno es de 12h)
+        // Usamos 6 como base según tu ejemplo (1200 / 6 = 200)
+        $prevAvgPerBlock = $prevTotalPlanned / 6;
+        $currAvgPerBlock = $currTotalPlanned / 6;
 
-        $previousHoursDifference = Carbon::parse($previous->timeRange->startDateTime)
-            ->diffInHours($previous->timeRange->endDateTime);
+        $accumulated = 0;
+        $totalLabels = count($this->labels);
+        $half = (int)($totalLabels / 2); // División entre turno previo y actual
 
-        $currentHoursDifference = Carbon::parse($current->timeRange->startDateTime)
-            ->diffInHours($current->timeRange->endDateTime);
-
-        $previousProductionRecords = ProductionRecord::getProductionRecords(
-            $this->workCenter,
-            $previous->model->id,
-            $previous->timeRange->startDateTime
-        );
-
-        $currentProductionRecords = ProductionRecord::getProductionRecords(
-            $this->workCenter,
-            $current->model->id,
-            $this->now
-        );
-
-        $previousQuantityPerTwoHours = $previousProductionRecords->sum('planned_quantity') / ($previousHoursDifference / 2);
-        $currentQuantityPerTwoHours = $currentProductionRecords->sum('planned_quantity') / ($currentHoursDifference / 2);
-
-        $hoursAndQuantities = [];
-
-        $startDateTime = Carbon::parse($previous->timeRange->startDateTime);
-        $endDateTime = Carbon::parse($previous->timeRange->endDateTime);
-        $totalQuantity = 0;
-
-        while ($startDateTime <= $endDateTime) {
-            if (!$startDateTime->equalTo($previous->timeRange->startDateTime)) {
-                $totalQuantity += $previousQuantityPerTwoHours;
-            }
-
-            $hourKey = $startDateTime->format('Y-m-d H:i:s');
-            $hoursAndQuantities[$hourKey] = [
-                'hour' => $hourKey,
-                'quantity' => round($totalQuantity)
-            ];
-
-            $startDateTime->addHours(2);
+        $i = 1;
+        foreach ($timeBlocks as $label => $val) {
+            // Sumamos el promedio al acumulado en cada iteración
+            $accumulated += ($i <= $half) ? $prevAvgPerBlock : $currAvgPerBlock;
+            $timeBlocks[$label] = round($accumulated);
+            $i++;
         }
+        $this->plannedData = array_values($timeBlocks);
+    }
 
-        $startDateTime = Carbon::parse($current->timeRange->startDateTime);
-        $endDateTime = Carbon::parse($current->timeRange->endDateTime);
-        $totalQuantity = 0;
+    private function calculateActual(Carbon $start, Carbon $end, $timeBlocks, $now): void
+    {
+        $histories = History::getProductionHistory($this->workCenter, $start, $end);
 
-        while ($startDateTime <= $endDateTime) {
-            $hourKey = $startDateTime->format('Y-m-d H:i:s');
+        $grouped = $histories->groupBy(function ($item) {
+            $dt = $item->created_at->copy()->floorHour();
+            if ($dt->hour % 2 !== 0) $dt->subHour();
+            return $dt->format('d-m H:i') . ' a ' . $dt->addHours(2)->format('H:i');
+        });
 
-            if (isset($hoursAndQuantities[$hourKey]) && $hoursAndQuantities[$hourKey]['quantity'] > 0) {
-                $startDateTime->addHours(2);
+        $accumulated = 0;
+        foreach ($timeBlocks as $label => $val) {
+            $labelParts = explode(' a ', $label);
+            $labelStart = Carbon::createFromFormat('d-m H:i', $labelParts[0]);
+
+            // Si el bloque aún no ha sucedido, lo dejamos nulo para que la gráfica no caiga a cero
+            if ($labelStart > $now) {
+                $timeBlocks[$label] = null;
                 continue;
             }
 
-            if (!$startDateTime->equalTo($current->timeRange->startDateTime)) {
-                $totalQuantity += $currentQuantityPerTwoHours;
+            // Calculamos lo producido en este bloque específico
+            $blockSum = 0;
+            if (isset($grouped[$label])) {
+                $blockSum = $grouped[$label]->groupBy('part_number')->map(function ($parts) {
+                    $min = $parts->min('quantity');
+                    return $parts->max('quantity') - (($min > 0) ? $min - 1 : $min);
+                })->sum();
             }
 
-            $hoursAndQuantities[$hourKey] = [
-                'hour' => $hourKey,
-                'quantity' => round($totalQuantity)
-            ];
-
-            $startDateTime->addHours(2);
+            // Sumamos lo de este bloque al acumulado total
+            $accumulated += $blockSum;
+            $timeBlocks[$label] = $accumulated;
         }
+        $this->producedData = array_values($timeBlocks);
+    }
 
-        $startDateTime = Carbon::parse(min(
-            $previous->timeRange->startDateTime,
-            $current->timeRange->startDateTime
-        ));
+    private function calculateDifference(): void
+    {
+        $this->differenceData = [];
+        foreach ($this->plannedData as $index => $planned) {
+            $produced = $this->producedData[$index];
 
-        $endDateTime = Carbon::parse(max(
-            $previous->timeRange->endDateTime,
-            $current->timeRange->endDateTime
-        ));
-
-        $finalHoursAndQuantities = [];
-
-        while ($startDateTime <= $endDateTime) {
-            $hourKey = $startDateTime->format('Y-m-d H:i:s');
-
-            $finalHoursAndQuantities[] = $hoursAndQuantities[$hourKey] ?? [
-                'hour' => $hourKey,
-                'quantity' => 0
-            ];
-
-            $startDateTime->addHours(2);
+            // Si produced es null (hora futura), la diferencia es el plan completo en negativo
+            // Si produced tiene valor, restamos: real - plan
+            if ($produced === null) {
+                $this->differenceData[] = 0 - $planned;
+            } else {
+                $this->differenceData[] = $produced - $planned;
+            }
         }
-
-        $this->plannedData = collect($finalHoursAndQuantities)->pluck('quantity')->toArray();
-        $this->labels = collect($finalHoursAndQuantities)->pluck('hour')->toArray();
     }
 
     public function render()

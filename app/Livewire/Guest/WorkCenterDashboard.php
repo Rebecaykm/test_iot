@@ -26,10 +26,21 @@ class WorkCenterDashboard extends Component
     public function mount()
     {
         $this->chartId = 'dashboard-' . uniqid();
-        $this->date = Carbon::now()->format('Y-m-d');
-        $this->shift = Shift::getShift(Carbon::now());
+        $this->updateShiftAndDate();
         $this->loadLines();
-        $this->refreshProductionRecords();
+        $this->fetchProductionRecords();
+    }
+
+    /**
+     * Centraliza la obtención del turno y la fecha correcta usando el modelo Shift
+     */
+    protected function updateShiftAndDate(): void
+    {
+        $currentTime = Carbon::now();
+        $this->now = $currentTime->format('Y-m-d H:i:s');
+        $shiftInfo = Shift::getCurrentShiftInfo($currentTime);
+        $this->shift = $shiftInfo->shift;
+        $this->date = $shiftInfo->date->format('Y-m-d');
     }
 
     protected function loadLines()
@@ -54,16 +65,16 @@ class WorkCenterDashboard extends Component
     #[On('refresh-production-records')]
     public function refreshProductionRecords()
     {
-        $this->now = Carbon::now()->format('Y-m-d H:i:s');
-        $currentTime = Carbon::now();
-        $this->date = $currentTime->format('Y-m-d');
-        $this->shift = Shift::getShift($currentTime);
+        $this->updateShiftAndDate();
         $this->fetchProductionRecords();
     }
 
     public function fetchProductionRecords()
     {
-        $currentTime = Carbon::now();
+        if (!$this->shift) {
+            $this->areasData = [];
+            return;
+        }
 
         $query = ProductionRecord::query()
             ->select([
@@ -89,8 +100,8 @@ class WorkCenterDashboard extends Component
             ->join('areas', 'lines.area_id', '=', 'areas.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
-            ->where('production_records.planned_date', $currentTime->toDateString())
-            ->where('shifts.abbreviation', Shift::getShift($currentTime)->abbreviation);
+            ->where('production_records.planned_date', $this->date)
+            ->where('shifts.abbreviation', $this->shift->abbreviation);
 
         if (!empty($this->selectedLines)) {
             $query->whereIn('lines.id', $this->selectedLines);
@@ -170,7 +181,7 @@ class WorkCenterDashboard extends Component
 
     public function updatedSelectedLines()
     {
-        $this->refreshProductionRecords();
+        $this->fetchProductionRecords();
     }
 
     public function render()

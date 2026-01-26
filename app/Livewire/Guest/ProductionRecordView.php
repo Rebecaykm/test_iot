@@ -16,6 +16,7 @@ class ProductionRecordView extends Component
     public $currentShift;
     public $workCenterId;
     public $workCenter;
+    public $graphRoute;
 
     public $previousData;
     public $currentData;
@@ -25,8 +26,25 @@ class ProductionRecordView extends Component
     public function mount($workCenterId): void
     {
         $this->workCenterId = $workCenterId;
-        $this->workCenter = WorkCenter::findOrFail($workCenterId);
+        $this->workCenter = WorkCenter::with('line.area')->findOrFail($workCenterId);
+
+        $this->determineGraphRoute();
+
         $this->refreshTable();
+    }
+
+    protected function determineGraphRoute(): void
+    {
+        if ($this->workCenter->line && $this->workCenter->line->area) {
+            $areaName = strtolower($this->workCenter->line->area->name);
+            if ($areaName === 'estampado') {
+                $this->graphRoute = route('press-production', $this->workCenter->name);
+            } else {
+                $this->graphRoute = route('production-dashboard', $this->workCenter->name);
+            }
+        } else {
+            $this->graphRoute = route('production-dashboard', $this->workCenter->name);
+        }
     }
 
     #[On('refresh')]
