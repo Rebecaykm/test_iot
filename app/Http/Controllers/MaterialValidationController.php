@@ -34,6 +34,7 @@ class MaterialValidationController extends Controller
                 return $query->where('container_code', 'like', "%{$search}%")
                     ->orWhere('visual_aid_code', 'like', "%{$search}%")
                     ->orWhere('final_label_code', 'like', "%{$search}%")
+                    ->orWhere('part_number', 'like', "%{$search}%")
                     ->orWhereHas('user', function ($userQuery) use ($search) {
                         $userQuery->where('name', 'like', "%{$search}%")
                             ->orWhere('nickname', 'like', "%{$search}%");

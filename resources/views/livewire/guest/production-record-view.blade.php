@@ -1,28 +1,95 @@
 <div>
+    <!-- Menú de opciones en la esquina superior derecha -->
+    <div class="flex justify-end mb-4">
+        <div class="relative" x-data="{ open: false }">
+            <button @click="open = !open" @click.away="open = false"
+                class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                </svg>
+            </button>
+
+            <!-- Dropdown menu -->
+            <div x-show="open"
+                x-transition:enter="transition ease-out duration-100"
+                x-transition:enter-start="transform opacity-0 scale-95"
+                x-transition:enter-end="transform opacity-100 scale-100"
+                x-transition:leave="transition ease-in duration-75"
+                x-transition:leave-start="transform opacity-100 scale-100"
+                x-transition:leave-end="transform opacity-0 scale-95"
+                class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+                style="display: none;">
+
+                <a href="{{ url('/') }}"
+                    class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                    </svg>
+                    <span>Inicio</span>
+                </a>
+
+                <a href="{{ route('production-dashboard', $workCenter->name) }}"
+                    class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                    </svg>
+                    <span>Gráficas</span>
+                </a>
+
+                <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+                @if (Route::has('login'))
+                    @auth
+                        <a href="{{ url('/home') }}"
+                            class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                            <span>Panel Administrativo</span>
+                        </a>
+                    @else
+                        <a href="{{ route('login') }}"
+                            class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                            <span>Iniciar Sesión</span>
+                        </a>
+                    @endauth
+                @endif
+            </div>
+        </div>
+    </div>
+
     <div x-data="table" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Columna izquierda - Turno anterior -->
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/50">
-                <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Anterior</h2>
+                @if($previousData && $previousData->isNotEmpty())
+                    @foreach($previousData as $plannedDate => $shifts)
+                        @foreach($shifts as $shiftName => $records)
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Anterior</h2>
+                                <div class="flex flex-wrap gap-2 text-sm font-medium">
+                                    <span class="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded-full uppercase">{{ $workCenter->name }}</span>
+                                    <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $plannedDate }}</span>
+                                    <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $shiftName }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    @endforeach
+                @else
+                    <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Anterior</h2>
+                @endif
             </div>
             <div class="p-4">
                 @if($previousData && $previousData->isNotEmpty())
                     @foreach($previousData as $plannedDate => $shifts)
                         @foreach($shifts as $shiftName => $records)
-                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-4 shadow-sm mb-4">
-                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-                                    <h4 class="text-base font-semibold text-gray-800 dark:text-gray-100">
-                                        Detalles de Producción
-                                    </h4>
-                                    <div class="flex flex-wrap gap-2 text-sm font-medium">
-                                        <span class="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded-full uppercase">{{ $workCenter->name }}</span>
-                                        <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $plannedDate }}</span>
-                                        <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $shiftName }}</span>
-                                    </div>
-                                </div>
+                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-sm overflow-hidden">
                                 <div class="overflow-x-auto">
-                                    <table class="min-w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                                        <thead class="bg-gray-200 dark:bg-gray-600 text-xs uppercase text-gray-700 dark:text-gray-300">
+                                    <table class="min-w-full text-sm">
+                                        <thead class="bg-gray-200 dark:bg-gray-700 text-xs uppercase text-gray-700 dark:text-gray-300">
                                         <tr>
                                             <th class="px-4 py-3 text-left font-semibold">Número de Parte</th>
                                             <th class="px-4 py-3 text-center font-semibold">Planeado</th>
@@ -71,26 +138,31 @@
         <!-- Columna derecha - Turno actual -->
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/50">
-                <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Actual</h2>
+                @if($currentData && $currentData->isNotEmpty())
+                    @foreach($currentData as $plannedDate => $shifts)
+                        @foreach($shifts as $shiftName => $records)
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Actual</h2>
+                                <div class="flex flex-wrap gap-2 text-sm font-medium">
+                                    <span class="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded-full uppercase">{{ $workCenter->name }}</span>
+                                    <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $plannedDate }}</span>
+                                    <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $shiftName }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    @endforeach
+                @else
+                    <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Actual</h2>
+                @endif
             </div>
             <div class="p-4">
                 @if($currentData && $currentData->isNotEmpty())
                     @foreach($currentData as $plannedDate => $shifts)
                         @foreach($shifts as $shiftName => $records)
-                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-4 shadow-sm mb-4">
-                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-                                    <h4 class="text-base font-semibold text-gray-800 dark:text-gray-100">
-                                        Detalles de Producción
-                                    </h4>
-                                    <div class="flex flex-wrap gap-2 text-sm font-medium">
-                                        <span class="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded-full uppercase">{{ $workCenter->name }}</span>
-                                        <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $plannedDate }}</span>
-                                        <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $shiftName }}</span>
-                                    </div>
-                                </div>
+                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-sm overflow-hidden">
                                 <div class="overflow-x-auto">
-                                    <table class="min-w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                                        <thead class="bg-gray-200 dark:bg-gray-600 text-xs uppercase text-gray-700 dark:text-gray-300">
+                                    <table class="min-w-full text-sm">
+                                        <thead class="bg-gray-200 dark:bg-gray-700 text-xs uppercase text-gray-700 dark:text-gray-300">
                                         <tr>
                                             <th class="px-4 py-3 text-left font-semibold">Número de Parte</th>
                                             <th class="px-4 py-3 text-center font-semibold">Planeado</th>

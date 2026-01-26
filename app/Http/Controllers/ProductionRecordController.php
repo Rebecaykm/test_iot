@@ -53,7 +53,8 @@ class ProductionRecordController extends Controller
             ->whereIn('work_centers.name', $workCentersArray)
             ->when($date, function ($query, $date) {
                 return $query->whereDate('production_records.planned_date', $date);
-            }, function ($query) {
+            })
+            ->when(!$date && !$search, function ($query) {
                 return $query->whereBetween('production_records.planned_date', [
                     Carbon::now()->startOfWeek(),
                     Carbon::now()->endOfWeek()
@@ -69,7 +70,6 @@ class ProductionRecordController extends Controller
                         ->orWhere('production_records.shop_order_number', 'like', "%{$search}%");
                 });
             })
-            // ->orderBy('production_records.synced_to_infor', 'asc')
             ->orderBy('production_records.planned_date', 'desc')
             ->orderBy('shifts.start_time', 'asc')
             ->paginate(10)
@@ -92,13 +92,11 @@ class ProductionRecordController extends Controller
             $selectedCenters = $request->input('work_centers', []);
             $searchPart = $request->input('search');
 
-            $startDate = $request->input('startDate')
-                ? Carbon::parse($request->input('startDate'))->startOfDay()
-                : Carbon::now()->startOfDay();
+            $startDateStr = $request->input('startDate');
+            $endDateStr = $request->input('endDate');
 
-            $endDate = $request->input('endDate')
-                ? Carbon::parse($request->input('endDate'))->endOfDay()
-                : Carbon::now()->endOfDay();
+            $startDate = $startDateStr ? Carbon::parse($startDateStr)->startOfDay() : Carbon::now()->startOfDay();
+            $endDate = $endDateStr ? Carbon::parse($endDateStr)->endOfDay() : Carbon::now()->endOfDay();
 
             if ($startDate->gt($endDate)) {
                 $endDate = $startDate->copy()->endOfDay();
@@ -125,18 +123,21 @@ class ProductionRecordController extends Controller
                 ->whereBetween('production_records.planned_date', [
                     $startDate->toDateString(),
                     $endDate->toDateString()
-                ])
-                ->when($selectedCenters, function ($q, $selectedCenters) {
-                    return $q->whereIn('work_centers.name', $selectedCenters);
-                })
-                ->when($searchPart, function ($q, $searchPart) {
-                    return $q->where('part_numbers.number', 'like', "%{$searchPart}%");
-                })
-                ->orderBy('production_records.planned_date', 'asc')
-                ->orderBy('shifts.start_time', 'asc')
-                ->orderBy('part_numbers.number', 'asc');
+                ]);
 
-            $productionRecords = $query->get();
+            if (!empty($selectedCenters)) {
+                $query->whereIn('work_centers.name', $selectedCenters);
+            }
+
+            if (!empty($searchPart)) {
+                $query->where('part_numbers.number', 'like', "%{$searchPart}%");
+            }
+
+            $productionRecords = $query->orderBy('production_records.planned_date', 'desc')
+                ->orderBy('shifts.start_time', 'asc')
+                ->get();
+
+            $hasFilters = $request->filled('search') || $request->filled('work_centers') || $request->filled('startDate') || $request->filled('endDate');
 
             return view('production-records.summary', [
                 'productionRecords' => $productionRecords,
@@ -145,12 +146,11 @@ class ProductionRecordController extends Controller
                 'search' => $searchPart,
                 'startDate' => $startDate->toDateString(),
                 'endDate' => $endDate->toDateString(),
+                'hasFilters' => $hasFilters
             ]);
         } catch (\Exception $e) {
             Log::error('Error en resumen de producción: ' . $e->getMessage());
-
-            return redirect()->back()
-                ->with('error', 'Ocurrió un error al cargar el resumen. Por favor, intenta nuevamente.');
+            return redirect()->back()->with('error', 'Error al cargar el resumen.');
         }
     }
 

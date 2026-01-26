@@ -113,7 +113,7 @@ class ProductionRecordView extends Component
         $normalizedStatus = trim(strtolower(str_replace(['á', 'é', 'í', 'ó', 'ú', 'ñ'], ['a', 'e', 'i', 'o', 'u', 'n'], $status)));
 
         return match ($normalizedStatus) {
-            'pendiente' => 'text-orange-800 bg-orange-100 dark:text-orange-800 dark:bg-orange-900/50',
+            'pendiente' => 'text-orange-700 bg-orange-100 dark:text-orange-300 dark:bg-orange-900/50',
             'en progreso' => 'text-blue-800 bg-blue-50 dark:text-blue-300 dark:bg-blue-900/50',
             'completado' => 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/50',
             'detenido' => 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/50',

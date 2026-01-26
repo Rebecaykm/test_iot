@@ -3,44 +3,59 @@
 @section('title', 'Historial de Escaneos')
 
 @section('content_header')
-    <h1>{{ __('Historial de Escaneos') }}</h1>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <h1>{{ __('Historial de Escaneos') }}</h1>
+    </div>
 @stop
 
 @section('content')
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
-        <!-- Header con filtros -->
-        <div class="card-header bg-white border-0 py-3">
-            <form action="{{ route('material-validations.index') }}" method="GET">
-                <div class="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-center">
-                    <!-- Filtro de fecha -->
-                    <div class="input-group" style="width: 200px;">
-                        <input type="date" name="date" class="form-control"
-                               value="{{ request('date') }}"
-                               max="{{ now()->toDateString() }}">
-                        @if(request('date'))
-                            <a href="{{ route('material-validations.index', ['search' => request('search')]) }}"
-                               class="input-group-text bg-white border-start-0 text-danger">
-                                <i class="fas fa-times"></i>
-                            </a>
-                        @endif
-                    </div>
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
 
-                    <!-- Buscador -->
-                    <div class="input-group" style="width: 300px;">
-                        <input type="text" name="search" class="form-control border-end-0"
-                               placeholder="Buscar..." value="{{ request('search') }}">
-                        <button type="submit" class="input-group-text bg-white border-start-0">
-                            <i class="fas fa-search text-secondary"></i>
-                        </button>
-                        @if(request('search'))
-                            <a href="{{ route('material-validations.index', ['date' => request('date')]) }}"
-                               class="input-group-text bg-white border-start-0 text-danger">
-                                <i class="fas fa-times"></i>
-                            </a>
-                        @endif
-                    </div>
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        <!-- Header con filtros alineados a la derecha -->
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-end">
+                <div class="search-box">
+                    <form method="GET" action="{{ route('material-validations.index') }}" id="searchForm">
+                        <div class="d-flex flex-column flex-md-row gap-2">
+                            <!-- Filtro de fecha -->
+                            <div class="input-group" style="width: 200px;">
+                                <input type="date" name="date" class="form-control"
+                                       value="{{ request('date') }}"
+                                       max="{{ now()->toDateString() }}">
+                            </div>
+
+                            <!-- Buscador de texto -->
+                            <div class="input-group" style="width: 300px;">
+                                <input type="text" name="search" class="form-control border-end-0"
+                                       placeholder="Buscar por código, usuario o número de parte..."
+                                       value="{{ request('search') }}">
+                                <button type="submit" class="input-group-text bg-white border-start-0">
+                                    <i class="fas fa-search text-secondary"></i>
+                                </button>
+                                @if (request()->filled('search') || request()->filled('date'))
+                                    <a href="{{ route('material-validations.index') }}"
+                                       class="input-group-text bg-white border-start-0 text-danger">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
 
         <!-- Tabla -->
@@ -51,6 +66,7 @@
                         <tr>
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle">Usuario</th>
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle">Líneas</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">N° de Parte</th>
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Estado</th>
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle">Fecha</th>
                             <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Acciones</th>
@@ -65,11 +81,11 @@
                                         <div class="d-flex align-items-center">
                                             <img src="{{ $validation->user->profile_photo_url }}"
                                                  alt="{{ $validation->user->name }}"
-                                                 class="rounded-circle me-2"
+                                                 class="rounded-circle mr-2"
                                                  style="width: 32px; height: 32px; object-fit: cover;">
                                             <div>
-                                                <div class="fw-500">{{ $validation->user->name }}</div>
-                                                <div class="text-muted small">{{ $validation->user->nickname ?? 'Sin alias' }}</div>
+                                                <div>{{ $validation->user->name }}</div>
+                                                <div class="text-muted small">{{ $validation->user->nickname ?? '-' }}</div>
                                             </div>
                                         </div>
                                     @else
@@ -92,16 +108,21 @@
                                     @endif
                                 </td>
 
+                                <!-- Número de Parte -->
+                                <td class="py-3">
+                                    <div>{{ $validation->part_number ?? 'N/A' }}</div>
+                                </td>
+
                                 <!-- Estado -->
                                 <td class="py-3 text-center">
                                     @if ($validation->validation_status == 'OK')
-                                        <span class="badge-status bg-success bg-opacity-10 text-success">
-                                            <i class="fas fa-check-circle me-1"></i>
+                                        <span class="badge-status badge-success">
+                                            <i class="fas fa-check-circle ml-1"></i>
                                             {{ $validation->validation_status }}
                                         </span>
                                     @else
-                                        <span class="badge-status bg-danger bg-opacity-10 text-danger">
-                                            <i class="fas fa-times-circle me-1"></i>
+                                        <span class="badge-status badge-danger">
+                                            <i class="fas fa-times-circle ml-1"></i>
                                             {{ $validation->validation_status }}
                                         </span>
                                     @endif
@@ -109,39 +130,39 @@
 
                                 <!-- Fecha -->
                                 <td class="py-3">
-                                    <div class="fw-500">{{ $validation->created_at->format('d/m/Y') }}</div>
+                                    <div>{{ $validation->created_at->format('d/m/Y') }}</div>
                                     <div class="text-muted small">{{ $validation->created_at->format('H:i:s') }}</div>
                                 </td>
 
                                 <!-- Acciones -->
                                 <td class="py-3 text-center">
-                                    <button class="btn btn-sm btn-outline-primary rounded-3"
+                                    <button class="btn btn-sm btn-outline-primary rounded-3 shadow-sm"
                                             onclick="showDetails({{ json_encode($validation) }})">
-                                        <i class="fas fa-eye me-1"></i>
+                                        <i class="fas fa-eye ml-1"></i>
                                         <span>Detalles</span>
                                     </button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="text-center py-5">
+                                <td colspan="6" class="text-center py-5">
                                     <div class="d-flex flex-column align-items-center">
                                         <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
                                         <h5 class="text-secondary">
-                                            @if (request('search') || request('date'))
+                                            @if (request()->filled('search') || request()->filled('date'))
                                                 No se encontraron resultados
                                             @else
                                                 No hay validaciones registradas
                                             @endif
                                         </h5>
                                         <p class="text-muted mb-3">
-                                            @if (request('search') || request('date'))
+                                            @if (request()->filled('search') || request()->filled('date'))
                                                 Intenta con otros criterios de búsqueda
                                             @else
                                                 Aún no se han realizado escaneos de material
                                             @endif
                                         </p>
-                                        @if (request('search') || request('date'))
+                                        @if (request()->filled('search') || request()->filled('date'))
                                             <a href="{{ route('material-validations.index') }}" class="btn btn-sm btn-link">
                                                 Limpiar filtros
                                             </a>
@@ -178,7 +199,7 @@
             <div class="modal-content border-0 shadow rounded-3">
                 <div class="modal-header bg-light border-0">
                     <h5 class="modal-title fw-bold">Detalles de Validación</h5>
-                    <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <!-- Información General -->
@@ -198,9 +219,9 @@
                         </div>
                         <div class="col-md-6">
                             <div class="border rounded-3 p-3 h-100">
-                                <h6 class="text-uppercase small text-muted mb-3 fw-bold">Usuario</h6>
+                                <h6 class="text-uppercase small text-muted fw-bold">Usuario</h6>
                                 <div id="detail-user"></div>
-                                <div class="mt-2" id="detail-user-lines"></div>
+                                <div id="detail-user-lines"></div>
                             </div>
                         </div>
                     </div>
@@ -212,7 +233,7 @@
                             <div class="col-md-4 mb-3">
                                 <div class="border rounded-3 p-3">
                                     <div class="text-muted small mb-2">
-                                        <i class="fas fa-tag me-1"></i> Etiqueta Final
+                                        <i class="fas fa-tag mr-1"></i> Etiqueta Final
                                     </div>
                                     <div class="fw-500 text-break" id="detail-label"></div>
                                 </div>
@@ -220,7 +241,7 @@
                             <div class="col-md-4 mb-3">
                                 <div class="border rounded-3 p-3">
                                     <div class="text-muted small mb-2">
-                                        <i class="fas fa-image me-1"></i> Ayuda Visual
+                                        <i class="fas fa-image mr-1"></i> Ayuda Visual
                                     </div>
                                     <div class="fw-500 text-break" id="detail-visual"></div>
                                 </div>
@@ -228,7 +249,7 @@
                             <div class="col-md-4 mb-3">
                                 <div class="border rounded-3 p-3">
                                     <div class="text-muted small mb-2">
-                                        <i class="fas fa-box me-1"></i> Contenedor
+                                        <i class="fas fa-box mr-1"></i> Contenedor
                                     </div>
                                     <div class="fw-500 text-break" id="detail-container"></div>
                                 </div>
@@ -245,8 +266,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-secondary rounded-3" data-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Cerrar
+                    <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">
+                        <i class="fas fa-times mr-2"></i>Cerrar
                     </button>
                 </div>
             </div>
@@ -255,10 +276,7 @@
 @stop
 
 @section('css')
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-
     <style>
         .card, .btn, .form-control, .table, .content-header h1, .modal-content {
             font-family: 'Roboto', sans-serif !important;
@@ -278,90 +296,45 @@
             font-size: 0.85rem;
         }
 
-        .table tbody td {
-            font-size: 0.875rem;
+        .search-box .input-group {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+
+        .search-box .form-control {
+            border: 1px solid #e0e0e0;
+            height: 42px;
         }
 
         .badge-status {
             display: inline-block;
-            min-width: 70px;
-            padding: 0.4em 0.75em;
-            text-align: center;
+            min-width: 95px;
+            padding: 0.5em 0.8em;
             border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            border: 1px solid transparent;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid;
+            text-align: center;
         }
 
-        .badge-status.bg-success {
-            background-color: rgba(25, 135, 84, 0.1) !important;
-            color: #198754 !important;
-            border-color: rgba(25, 135, 84, 0.2) !important;
+        .badge-status.badge-success {
+            background: rgba(25,135,84,0.1);
+            color: #198754;
+            border-color: rgba(25,135,84,0.2);
         }
 
-        .badge-status.bg-danger {
-            background-color: rgba(220, 53, 69, 0.1) !important;
-            color: #dc3545 !important;
-            border-color: rgba(220, 53, 69, 0.2) !important;
+        .badge-status.badge-danger {
+            background: rgba(220,53,69,0.1);
+            color: #dc3545;
+            border-color: rgba(220,53,69,0.2);
         }
 
-        .input-group .form-control {
-            border-radius: 8px 0 0 8px !important;
-            padding: 0.5rem 1rem !important;
-            font-size: 0.95rem !important;
-            border: 1px solid #e0e0e0 !important;
-        }
-
-        .input-group-text {
-            border-radius: 0 8px 8px 0 !important;
-            border: 1px solid #e0e0e0 !important;
-            background-color: white;
-        }
-
-        .input-group .form-control:focus {
-            border-color: #86b7fe !important;
-            box-shadow: none !important;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .btn i { margin-right: 0.5rem; }
-        .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
-        .gap-2 { gap: 0.5rem; }
         .fw-500 { font-weight: 500; }
 
-        .pagination {
-            margin-bottom: 0;
+        @media (max-width: 768px) {
+            .search-box .input-group { width: 100% !important; }
+            .d-flex.justify-content-end { justify-content: center !important; }
         }
-
-        .page-item .page-link {
-            border-radius: 8px;
-            margin: 0 3px;
-            border: none;
-            color: #6c757d;
-            font-size: 0.9rem;
-            min-width: 32px;
-            text-align: center;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-            padding: 6px 12px;
-        }
-
-        .page-item.active .page-link {
-            background-color: #1a73e8;
-            color: white;
-        }
-
-        .page-item:not(.active) .page-link:hover {
-            background-color: #f8f9fa;
-            color: #1a73e8;
-        }
-
-        .text-muted.small { font-size: 0.85rem; color: #6c757d; }
     </style>
 @stop
 
@@ -380,10 +353,13 @@
 
             $('#detail-date').text(formattedDate);
 
+            // Agregar el número de parte al modal
+            $('#detail-part-number').text(validation.part_number || 'N/A');
+
             $('#detail-status').html(
                 validation.validation_status === 'OK' ?
-                '<span class="badge-status bg-success bg-opacity-10 text-success"><i class="fas fa-check-circle me-1"></i> OK</span>' :
-                '<span class="badge-status bg-danger bg-opacity-10 text-danger"><i class="fas fa-times-circle me-1"></i> NG</span>'
+                '<span class="badge-status badge-success"><i class="fas fa-check-circle me-1"></i> OK</span>' :
+                '<span class="badge-status badge-danger"><i class="fas fa-times-circle me-1"></i> NG</span>'
             );
 
             let userHtml = '';
@@ -394,17 +370,17 @@
                     <div class="d-flex align-items-center">
                         <img src="${validation.user.profile_photo_url}"
                              alt="${validation.user.name}"
-                             class="rounded-circle me-2"
+                             class="rounded-circle mr-2"
                              style="width: 40px; height: 40px; object-fit: cover;">
                         <div>
-                            <div class="fw-500">${validation.user.name}</div>
+                            <div>${validation.user.name}</div>
                             <small class="text-muted">${validation.user.nickname || 'N/A'}</small>
                         </div>
                     </div>
                 `;
 
                 if (validation.user.lines && validation.user.lines.length > 0) {
-                    linesHtml = '<div class="mt-3"><strong class="small text-muted">Líneas:</strong><div class="d-flex flex-wrap gap-1 mt-2">';
+                    linesHtml = '<div><strong class="small text-muted">Líneas:</strong><div class="d-flex flex-wrap gap-1 mt-2">';
                     validation.user.lines.forEach(line => {
                         linesHtml += `<span class="badge-status" style="background-color: ${line.color}20; color: ${line.color}; border: 1px solid ${line.color}40;">${line.name}</span>`;
                     });
@@ -423,11 +399,21 @@
 
             $('#detail-comment').text(validation.validation_comment || 'No se registraron comentarios adicionales');
 
-            $('#detailsModal').modal('show');
+            // Usar el nuevo modal de Bootstrap 5
+            var detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
+            detailsModal.show();
         }
 
-        $(document).ready(function() {
-            $('[data-toggle="tooltip"]').tooltip();
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-cerrar alertas después de 5 segundos
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(alert => {
+                    if (window.bootstrap && bootstrap.Alert) {
+                        new bootstrap.Alert(alert).close();
+                    }
+                });
+            }, 5000);
         });
     </script>
 @stop

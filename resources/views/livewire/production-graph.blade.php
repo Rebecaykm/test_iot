@@ -1,15 +1,18 @@
 <div>
     <div class="w-full h-full" x-data="productionChart" wire:ignore>
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden h-full flex flex-col">
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden h-full flex flex-col">
             @if(!$hasData)
-                <div class="flex-1 flex items-center justify-center">
+                <div class="flex-1 flex items-center justify-center p-8">
                     <div class="text-center">
-                        <h3 class="text-lg font-medium text-gray-900">No hay datos de producción</h3>
-                        <p class="text-gray-500">No se encontraron registros</p>
+                        <svg class="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No hay datos de producción</h3>
+                        <p class="text-gray-500 dark:text-gray-400">No se encontraron registros para mostrar</p>
                     </div>
                 </div>
             @else
-                <div class="flex-1 p-4">
+                <div class="flex-1 p-6">
                     <div class="chart-container h-full min-h-[400px]">
                         <canvas id="{{ $chartId }}" class="w-full h-full"></canvas>
                     </div>
@@ -67,11 +70,13 @@
                             return;
                         }
 
+                        const isDarkMode = document.documentElement.classList.contains('dark');
+
                         const datasets = [{
                             label: 'Plan',
                             data: chartData.planProgress,
-                            backgroundColor: 'rgba(37, 99, 235, 0.2)',
-                            borderColor: 'rgb(29, 78, 216)',
+                            backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.3)' : 'rgba(37, 99, 235, 0.2)',
+                            borderColor: isDarkMode ? 'rgb(96, 165, 250)' : 'rgb(29, 78, 216)',
                             borderWidth: 2,
                             borderRadius: 8,
                         }, {
@@ -99,7 +104,7 @@
                                     datalabels: {
                                         anchor: 'start',
                                         align: 'center',
-                                        color: 'black',
+                                        color: isDarkMode ? '#f9fafb' : '#000',
                                         font: {
                                             weight: 'bold',
                                             size: 16
@@ -110,7 +115,14 @@
                                     },
                                     legend: {
                                         display: true,
-                                        position: 'top'
+                                        position: 'top',
+                                        labels: {
+                                            color: isDarkMode ? '#e5e7eb' : '#374151',
+                                            font: {
+                                                size: 14,
+                                                weight: 'bold'
+                                            }
+                                        }
                                     },
                                 },
                                 scales: {
@@ -118,12 +130,13 @@
                                         beginAtZero: true,
                                         grid: {
                                             drawBorder: false,
-                                            color: 'rgba(0, 0, 0, 0.05)'
+                                            color: isDarkMode ? 'rgba(75, 85, 99, 0.3)' : 'rgba(0, 0, 0, 0.05)'
                                         },
                                         ticks: {
                                             font: {
                                                 weight: 'bold'
-                                            }
+                                            },
+                                            color: isDarkMode ? '#9ca3af' : '#6b7280'
                                         }
                                     },
                                     y: {
@@ -135,6 +148,7 @@
                                             font: {
                                                 weight: 'bold'
                                             },
+                                            color: isDarkMode ? '#9ca3af' : '#6b7280',
                                             maxRotation: 90,
                                             minRotation: 90,
                                         }
@@ -173,7 +187,6 @@
 
                         if (!chartData || !chartData.labels) return;
 
-                        // Verificar si la estructura de datos cambió
                         const sameLength = chartData.labels.length === chart.data.labels.length;
                         let sameLabels = true;
 
@@ -194,7 +207,6 @@
 
                             chart.update('none');
                         } else {
-                            // Recrear el gráfico si cambió la estructura
                             await this.createChart();
                         }
                     } catch (error) {
@@ -205,7 +217,7 @@
                 startRealTimeUpdates() {
                     refreshInterval = setInterval(() => {
                         $wire.dispatchSelf("refresh-graph");
-                    }, 10000); // 10 segundos
+                    }, 10000);
                 },
 
                 destroy() {
