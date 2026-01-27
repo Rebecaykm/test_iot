@@ -14,30 +14,24 @@
                     <label for="lineSelectHeader" class="sr-only">Filtrar Líneas</label>
 
                     <div class="relative">
-                        <select
-                            id="lineSelectHeader"
-                            wire:model.live="selectedLines"
-                            multiple
-                            size="2"
+                        <select id="lineSelectHeader" wire:model.live="selectedLines" multiple size="2"
                             class="block w-full text-sm rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:focus:border-blue-400 dark:focus:ring-blue-400 h-auto min-h-[38px] bg-white dark:bg-gray-800 dark:text-gray-200 pr-10"
                             aria-describedby="line-help">
-                            @foreach($allLines as $line)
-                            <option value="{{ $line['id'] }}">
-                                {{ $line['full_name'] }}
-                            </option>
+                            @foreach ($allLines as $line)
+                                <option value="{{ $line['id'] }}">
+                                    {{ $line['full_name'] }}
+                                </option>
                             @endforeach
                         </select>
 
-                        @if(!empty($selectedLines))
-                        <button
-                            type="button"
-                            wire:click="$set('selectedLines', [])"
-                            class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                            title="Limpiar selección">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                        @if (!empty($selectedLines))
+                            <button type="button" wire:click="$set('selectedLines', [])"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                                title="Limpiar selección">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         @endif
                     </div>
                 </div>
@@ -56,7 +50,8 @@
                             {{ $shift->name }}
                         </span>
                         <span class="px-3 py-1.5 text-sm font-semibold bg-blue-50 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full whitespace-nowrap">
-                            {{ \Carbon\Carbon::parse($shift->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($shift->end_time)->format('H:i') }}
+                            {{ \Carbon\Carbon::parse($shift->start_time)->format('H:i') }} -
+                            {{ \Carbon\Carbon::parse($shift->end_time)->format('H:i') }}
                         </span>
                     @endif
 
@@ -70,8 +65,7 @@
                         </button>
 
                         <!-- Dropdown menu -->
-                        <div x-show="open"
-                            x-transition:enter="transition ease-out duration-100"
+                        <div x-show="open" x-transition:enter="transition ease-out duration-100"
                             x-transition:enter-start="transform opacity-0 scale-95"
                             x-transition:enter-end="transform opacity-100 scale-100"
                             x-transition:leave="transition ease-in duration-75"
@@ -184,8 +178,7 @@
         <template x-if="(!$wire.areasData || $wire.areasData.length === 0) && $wire.selectedLines.length > 0">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center border border-gray-100 dark:border-gray-700">
                 <p class="text-gray-500 dark:text-gray-400">No hay datos disponibles para las líneas seleccionadas</p>
-                <button
-                    wire:click="$set('selectedLines', [])"
+                <button wire:click="$set('selectedLines', [])"
                     class="mt-4 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 text-sm transition-colors">
                     Mostrar todas las líneas
                 </button>
@@ -196,152 +189,155 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     @script
-    <script>
-        Alpine.data('workCenterDashboard', () => {
-            let charts = new Map();
-            let refreshInterval = null;
+        <script>
+            Alpine.data('workCenterDashboard', () => {
+                let charts = new Map();
+                let refreshInterval = null;
 
-            return {
-                init() {
-                    $wire.dispatchSelf('refresh-production-records');
+                return {
+                    init() {
+                        $wire.dispatchSelf('refresh-production-records');
 
-                    if (@json($realTime)) {
-                        refreshInterval = setInterval(() => {
-                            $wire.dispatchSelf('refresh-production-records');
-                        }, 10000);
-                    }
+                        if (@json($realTime)) {
+                            refreshInterval = setInterval(() => {
+                                $wire.dispatchSelf('refresh-production-records');
+                            }, 30000);
+                        }
 
-                    $wire.on('refresh-production-records', () => {
-                        this.$nextTick(() => {
-                            this.updateAllCharts();
-                        });
-                    });
-                },
-
-                updateAllCharts() {
-                    if (!$wire.areasData || $wire.areasData.length === 0) return;
-
-                    $wire.areasData.forEach(area => {
-                        area.lines.forEach(line => {
-                            line.workCenters.forEach(workCenter => {
-                                const canvasId = 'wc-chart-' + workCenter.id;
-                                this.updateChart(canvasId, workCenter);
+                        $wire.on('refresh-production-records', () => {
+                            this.$nextTick(() => {
+                                this.updateAllCharts();
                             });
                         });
-                    });
-                },
+                    },
 
-                updateChart(canvasId, workCenter) {
-                    const ctx = document.getElementById(canvasId);
-                    if (!ctx) return;
+                    updateAllCharts() {
+                        if (!$wire.areasData || $wire.areasData.length === 0) return;
 
-                    if (charts.has(canvasId)) {
-                        charts.get(canvasId).destroy();
-                    }
+                        $wire.areasData.forEach(area => {
+                            area.lines.forEach(line => {
+                                line.workCenters.forEach(workCenter => {
+                                    const canvasId = 'wc-chart-' + workCenter.id;
+                                    this.updateChart(canvasId, workCenter);
+                                });
+                            });
+                        });
+                    },
 
-                    const isDarkMode = document.documentElement.classList.contains('dark') ||
-                                     window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    updateChart(canvasId, workCenter) {
+                        const ctx = document.getElementById(canvasId);
+                        if (!ctx) return;
 
-                    const chart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: ['Plan', 'Real'],
-                            datasets: [
-                                {
-                                    label: 'Plan',
-                                    data: [workCenter.planned, 0],
-                                    backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.3)' : 'rgba(37, 99, 235, 0.2)',
-                                    borderColor: isDarkMode ? 'rgb(96, 165, 250)' : 'rgb(29, 78, 216)',
-                                    borderWidth: 2,
-                                    borderRadius: 6
-                                },
-                                {
-                                    label: 'Planeado',
-                                    data: [0, workCenter.produced],
-                                    backgroundColor: isDarkMode ? 'rgba(34, 197, 94, 0.3)' : 'rgba(22, 163, 74, 0.2)',
-                                    borderColor: isDarkMode ? 'rgb(74, 222, 128)' : 'rgb(21, 128, 61)',
-                                    borderWidth: 2,
-                                    borderRadius: {
-                                        bottomLeft: 6,
-                                        bottomRight: 6,
-                                        topLeft: workCenter.unplanned > 0 ? 0 : 6,
-                                        topRight: workCenter.unplanned > 0 ? 0 : 6
-                                    }
-                                },
-                                {
-                                    label: 'No Planeado',
-                                    data: [0, workCenter.unplanned],
-                                    backgroundColor: isDarkMode ? 'rgba(251, 191, 36, 0.3)' : 'rgba(255, 159, 64, 0.2)',
-                                    borderColor: isDarkMode ? 'rgb(250, 204, 21)' : 'rgb(255, 159, 64)',
-                                    borderWidth: 2,
-                                    borderRadius: {
-                                        bottomLeft: 0,
-                                        bottomRight: 0,
-                                        topLeft: 6,
-                                        topRight: 6
-                                    }
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            animation: false,
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.9)' : 'rgba(0, 0, 0, 0.8)',
-                                    titleColor: isDarkMode ? '#f9fafb' : '#fff',
-                                    bodyColor: isDarkMode ? '#f9fafb' : '#fff',
-                                    callbacks: {
-                                        label: function(context) {
-                                            const datasetLabel = context.dataset.label;
-                                            const value = context.raw;
-                                            return datasetLabel + ': ' + value;
+                        if (charts.has(canvasId)) {
+                            charts.get(canvasId).destroy();
+                        }
+
+                        const isDarkMode = document.documentElement.classList.contains('dark') ||
+                            window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+                        const chart = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: ['Plan', 'Real'],
+                                datasets: [{
+                                        label: 'Plan',
+                                        data: [workCenter.planned, 0],
+                                        backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.3)' :
+                                            'rgba(37, 99, 235, 0.2)',
+                                        borderColor: isDarkMode ? 'rgb(96, 165, 250)' : 'rgb(29, 78, 216)',
+                                        borderWidth: 2,
+                                        borderRadius: 6
+                                    },
+                                    {
+                                        label: 'Planeado',
+                                        data: [0, workCenter.produced],
+                                        backgroundColor: isDarkMode ? 'rgba(34, 197, 94, 0.3)' :
+                                            'rgba(22, 163, 74, 0.2)',
+                                        borderColor: isDarkMode ? 'rgb(74, 222, 128)' : 'rgb(21, 128, 61)',
+                                        borderWidth: 2,
+                                        borderRadius: {
+                                            bottomLeft: 6,
+                                            bottomRight: 6,
+                                            topLeft: workCenter.unplanned > 0 ? 0 : 6,
+                                            topRight: workCenter.unplanned > 0 ? 0 : 6
+                                        }
+                                    },
+                                    {
+                                        label: 'No Planeado',
+                                        data: [0, workCenter.unplanned],
+                                        backgroundColor: isDarkMode ? 'rgba(251, 191, 36, 0.3)' :
+                                            'rgba(255, 159, 64, 0.2)',
+                                        borderColor: isDarkMode ? 'rgb(250, 204, 21)' : 'rgb(255, 159, 64)',
+                                        borderWidth: 2,
+                                        borderRadius: {
+                                            bottomLeft: 0,
+                                            bottomRight: 0,
+                                            topLeft: 6,
+                                            topRight: 6
                                         }
                                     }
-                                }
+                                ]
                             },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    grid: {
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                animation: false,
+                                plugins: {
+                                    legend: {
                                         display: false
                                     },
-                                    ticks: {
-                                        precision: 0,
-                                        color: isDarkMode ? '#9ca3af' : '#6b7280'
-                                    },
-                                    stacked: true
+                                    tooltip: {
+                                        backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.9)' :
+                                            'rgba(0, 0, 0, 0.8)',
+                                        titleColor: isDarkMode ? '#f9fafb' : '#fff',
+                                        bodyColor: isDarkMode ? '#f9fafb' : '#fff',
+                                        callbacks: {
+                                            label: function(context) {
+                                                const datasetLabel = context.dataset.label;
+                                                const value = context.raw;
+                                                return datasetLabel + ': ' + value;
+                                            }
+                                        }
+                                    }
                                 },
-                                x: {
-                                    grid: {
-                                        display: false
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        grid: {
+                                            display: false
+                                        },
+                                        ticks: {
+                                            precision: 0,
+                                            color: isDarkMode ? '#9ca3af' : '#6b7280'
+                                        },
+                                        stacked: true
                                     },
-                                    ticks: {
-                                        color: isDarkMode ? '#9ca3af' : '#6b7280'
-                                    },
-                                    stacked: true
+                                    x: {
+                                        grid: {
+                                            display: false
+                                        },
+                                        ticks: {
+                                            color: isDarkMode ? '#9ca3af' : '#6b7280'
+                                        },
+                                        stacked: true
+                                    }
                                 }
                             }
+                        });
+
+                        charts.set(canvasId, chart);
+                    },
+
+                    destroy() {
+                        if (refreshInterval) {
+                            clearInterval(refreshInterval);
                         }
-                    });
 
-                    charts.set(canvasId, chart);
-                },
-
-                destroy() {
-                    if (refreshInterval) {
-                        clearInterval(refreshInterval);
+                        charts.forEach(chart => chart.destroy());
+                        charts.clear();
                     }
-
-                    charts.forEach(chart => chart.destroy());
-                    charts.clear();
-                }
-            };
-        });
-    </script>
+                };
+            });
+        </script>
     @endscript
 </div>

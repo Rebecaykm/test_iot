@@ -4,13 +4,13 @@
         <div class="flex justify-between items-center uppercase">
             <!-- Fecha en la esquina izquierda -->
             <h4 class="text-lg font-semibold">
-                <span id="date" class="bg-gray-600 text-white py-2 px-3 rounded-full">
+                <span id="date" class="bg-gray-600 text-white py-2 px-3 rounded-lg">
                 </span>
             </h4>
 
             <!-- Hora en la esquina derecha -->
             <h4 class="text-lg font-semibold">
-                <span id="clock" class="bg-gray-600 text-white py-2 px-3 rounded-full">
+                <span id="clock" class="bg-gray-600 text-white py-2 px-3 rounded-lg">
                 </span>
             </h4>
         </div>
