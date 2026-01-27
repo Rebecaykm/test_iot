@@ -37,10 +37,10 @@ class PressProductionGraph extends Component
         $timeBlocks = $this->generateTimeBlocks($previous->timeRange->startDateTime, $current->timeRange->endDateTime);
         $this->labels = array_keys($timeBlocks);
 
-        // 2. Plan Acumulado (Lógica de promedio por bloques de 2 horas)
+        // 2. Plan Acumulado (Dinámico)
         $this->calculatePlanned($previous, $current, $timeBlocks);
 
-        // 3. Real Acumulado (Suma progresiva de producción)
+        // 3. Real Acumulado
         $this->calculateActual($previous->timeRange->startDateTime, $current->timeRange->endDateTime, $timeBlocks, $now);
 
         // 4. Diferencia
@@ -58,13 +58,11 @@ class PressProductionGraph extends Component
     {
         $blocks = [];
         $currentBlock = $start->copy()->floorHour();
-        // Asegurar que inicie en hora par si es necesario, o según tu lógica de 08:00
         if ($currentBlock->hour % 2 !== 0) $currentBlock->subHour();
 
         while ($currentBlock < $end) {
             $startRange = $currentBlock->copy();
             $endRange = $currentBlock->copy()->addHours(2);
-
             $label = $startRange->format('d-m H:i') . ' a ' . $endRange->format('H:i');
             $blocks[$label] = 0;
             $currentBlock->addHours(2);
@@ -74,22 +72,24 @@ class PressProductionGraph extends Component
 
     private function calculatePlanned($prev, $current, $timeBlocks): void
     {
-        // Obtenemos el total de la suma de planned_quantity para cada turno
         $prevTotalPlanned = ProductionRecord::getProductionRecords($this->workCenter, $prev->shift->id, $prev->date)->sum('planned_quantity');
         $currTotalPlanned = ProductionRecord::getProductionRecords($this->workCenter, $current->shift->id, $current->date)->sum('planned_quantity');
 
-        // Calculamos cuántos bloques de 2 horas tiene cada turno (normalmente 6 si el turno es de 12h)
-        // Usamos 6 como base según tu ejemplo (1200 / 6 = 200)
-        $prevAvgPerBlock = $prevTotalPlanned / 6;
-        $currAvgPerBlock = $currTotalPlanned / 6;
+        $prevHours = $prev->timeRange->startDateTime->diffInHours($prev->timeRange->endDateTime);
+        $currHours = $current->timeRange->startDateTime->diffInHours($current->timeRange->endDateTime);
+
+        $prevBlocksCount = max(1, $prevHours / 2);
+        $currBlocksCount = max(1, $currHours / 2);
+
+        $prevAvgPerBlock = $prevTotalPlanned / $prevBlocksCount;
+        $currAvgPerBlock = $currTotalPlanned / $currBlocksCount;
 
         $accumulated = 0;
         $totalLabels = count($this->labels);
-        $half = (int)($totalLabels / 2); // División entre turno previo y actual
+        $half = (int)($totalLabels / 2);
 
         $i = 1;
         foreach ($timeBlocks as $label => $val) {
-            // Sumamos el promedio al acumulado en cada iteración
             $accumulated += ($i <= $half) ? $prevAvgPerBlock : $currAvgPerBlock;
             $timeBlocks[$label] = round($accumulated);
             $i++;
@@ -112,13 +112,11 @@ class PressProductionGraph extends Component
             $labelParts = explode(' a ', $label);
             $labelStart = Carbon::createFromFormat('d-m H:i', $labelParts[0]);
 
-            // Si el bloque aún no ha sucedido, lo dejamos nulo para que la gráfica no caiga a cero
             if ($labelStart > $now) {
                 $timeBlocks[$label] = null;
                 continue;
             }
 
-            // Calculamos lo producido en este bloque específico
             $blockSum = 0;
             if (isset($grouped[$label])) {
                 $blockSum = $grouped[$label]->groupBy('part_number')->map(function ($parts) {
@@ -126,8 +124,6 @@ class PressProductionGraph extends Component
                     return $parts->max('quantity') - (($min > 0) ? $min - 1 : $min);
                 })->sum();
             }
-
-            // Sumamos lo de este bloque al acumulado total
             $accumulated += $blockSum;
             $timeBlocks[$label] = $accumulated;
         }
@@ -139,9 +135,6 @@ class PressProductionGraph extends Component
         $this->differenceData = [];
         foreach ($this->plannedData as $index => $planned) {
             $produced = $this->producedData[$index];
-
-            // Si produced es null (hora futura), la diferencia es el plan completo en negativo
-            // Si produced tiene valor, restamos: real - plan
             if ($produced === null) {
                 $this->differenceData[] = 0 - $planned;
             } else {
