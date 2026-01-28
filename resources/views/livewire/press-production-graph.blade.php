@@ -97,7 +97,7 @@
                                     ticks: {
                                         color: textColor,
                                         font: {
-                                            weight: 'bold',
+                                            weight: 'normal',
                                             size: 11
                                         }
                                     },
@@ -111,7 +111,7 @@
                                     ticks: {
                                         color: textColor,
                                         font: {
-                                            weight: 'bold',
+                                            weight: 'normal',
                                             size: 11
                                         }
                                     },
@@ -128,6 +128,7 @@
                                         color: textColor,
                                         font: {
                                             size: 12,
+                                            weight: 'normal'
                                         },
                                         padding: 15,
                                         usePointStyle: true,

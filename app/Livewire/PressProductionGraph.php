@@ -33,17 +33,43 @@ class PressProductionGraph extends Component
         $current = Shift::getCurrentShiftInfo($now);
         $previous = Shift::getPreviousShiftInfo($now);
 
-        // 1. Generar bloques de 2 horas
-        $timeBlocks = $this->generateTimeBlocks($previous->timeRange->startDateTime, $current->timeRange->endDateTime);
-        $this->labels = array_keys($timeBlocks);
+        // Generar bloques separados para cada turno
+        $previousBlocks = $this->generateTimeBlocks(
+            $previous->timeRange->startDateTime,
+            $previous->timeRange->endDateTime
+        );
 
-        // 2. Plan Acumulado (Dinámico)
-        $this->calculatePlanned($previous, $current, $timeBlocks);
+        $currentBlocks = $this->generateTimeBlocks(
+            $current->timeRange->startDateTime,
+            $current->timeRange->endDateTime
+        );
 
-        // 3. Real Acumulado
-        $this->calculateActual($previous->timeRange->startDateTime, $current->timeRange->endDateTime, $timeBlocks, $now);
+        // Combinar labels en orden cronológico
+        $this->labels = array_merge(array_keys($previousBlocks), array_keys($currentBlocks));
 
-        // 4. Diferencia
+        // Calcular plan para cada turno por separado
+        $previousPlanned = $this->calculatePlannedForShift($previous, $previousBlocks);
+        $currentPlanned = $this->calculatePlannedForShift($current, $currentBlocks);
+        $this->plannedData = array_merge($previousPlanned, $currentPlanned);
+
+        // Calcular producción real para cada turno por separado
+        $previousProduced = $this->calculateActualForShift(
+            $previous->timeRange->startDateTime,
+            $previous->timeRange->endDateTime,
+            $previousBlocks,
+            $now
+        );
+
+        $currentProduced = $this->calculateActualForShift(
+            $current->timeRange->startDateTime,
+            $current->timeRange->endDateTime,
+            $currentBlocks,
+            $now
+        );
+
+        $this->producedData = array_merge($previousProduced, $currentProduced);
+
+        // Calcular diferencias
         $this->calculateDifference();
 
         $this->dispatch('update-chart', [
@@ -70,50 +96,63 @@ class PressProductionGraph extends Component
         return $blocks;
     }
 
-    private function calculatePlanned($prev, $current, $timeBlocks): void
+    /**
+     * Calcula el plan acumulado para un turno específico
+     */
+    private function calculatePlannedForShift($shiftInfo, $timeBlocks): array
     {
-        $prevTotalPlanned = ProductionRecord::getProductionRecords($this->workCenter, $prev->shift->id, $prev->date)->sum('planned_quantity');
-        $currTotalPlanned = ProductionRecord::getProductionRecords($this->workCenter, $current->shift->id, $current->date)->sum('planned_quantity');
+        // Obtener el total planeado para este turno
+        $totalPlanned = ProductionRecord::getProductionRecords(
+            $this->workCenter,
+            $shiftInfo->shift->id,
+            $shiftInfo->date
+        )->sum('planned_quantity');
 
-        $prevHours = $prev->timeRange->startDateTime->diffInHours($prev->timeRange->endDateTime);
-        $currHours = $current->timeRange->startDateTime->diffInHours($current->timeRange->endDateTime);
+        // Calcular cantidad de bloques (cada bloque son 2 horas)
+        $hoursInShift = $shiftInfo->timeRange->startDateTime->diffInHours($shiftInfo->timeRange->endDateTime);
+        $blocksCount = max(1, $hoursInShift / 2);
 
-        $prevBlocksCount = max(1, $prevHours / 2);
-        $currBlocksCount = max(1, $currHours / 2);
+        // Cantidad promedio por bloque
+        $avgPerBlock = $totalPlanned / $blocksCount;
 
-        $prevAvgPerBlock = $prevTotalPlanned / $prevBlocksCount;
-        $currAvgPerBlock = $currTotalPlanned / $currBlocksCount;
-
+        // Crear el acumulado para este turno
         $accumulated = 0;
-        $totalLabels = count($this->labels);
-        $half = (int)($totalLabels / 2);
+        $result = [];
 
-        $i = 1;
         foreach ($timeBlocks as $label => $val) {
-            $accumulated += ($i <= $half) ? $prevAvgPerBlock : $currAvgPerBlock;
-            $timeBlocks[$label] = round($accumulated);
-            $i++;
+            $accumulated += $avgPerBlock;
+            $result[] = round($accumulated);
         }
-        $this->plannedData = array_values($timeBlocks);
+
+        return $result;
     }
 
-    private function calculateActual(Carbon $start, Carbon $end, $timeBlocks, $now): void
+    /**
+     * Calcula la producción real acumulada para un turno específico
+     */
+    private function calculateActualForShift(Carbon $start, Carbon $end, $timeBlocks, $now): array
     {
+        // Obtener el historial de producción para este turno
         $histories = History::getProductionHistory($this->workCenter, $start, $end);
 
+        // Agrupar por bloques de tiempo
         $grouped = $histories->groupBy(function ($item) {
             $dt = $item->created_at->copy()->floorHour();
             if ($dt->hour % 2 !== 0) $dt->subHour();
             return $dt->format('d-m H:i') . ' a ' . $dt->addHours(2)->format('H:i');
         });
 
+        // Calcular acumulado para este turno
         $accumulated = 0;
+        $result = [];
+
         foreach ($timeBlocks as $label => $val) {
             $labelParts = explode(' a ', $label);
             $labelStart = Carbon::createFromFormat('d-m H:i', $labelParts[0]);
 
+            // Si el bloque es futuro, poner null
             if ($labelStart > $now) {
-                $timeBlocks[$label] = null;
+                $result[] = null;
                 continue;
             }
 
@@ -124,10 +163,12 @@ class PressProductionGraph extends Component
                     return $parts->max('quantity') - (($min > 0) ? $min - 1 : $min);
                 })->sum();
             }
+
             $accumulated += $blockSum;
-            $timeBlocks[$label] = $accumulated;
+            $result[] = $accumulated;
         }
-        $this->producedData = array_values($timeBlocks);
+
+        return $result;
     }
 
     private function calculateDifference(): void
