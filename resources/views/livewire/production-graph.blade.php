@@ -1,5 +1,5 @@
 <div>
-    <div class="w-full" x-data="productionChart" wire:ignore>
+    <div class="w-full" x-data="productionChart">
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             @if (!$hasData)
                 <div class="flex items-center justify-center p-8 h-[450px]">
@@ -13,7 +13,7 @@
                 </div>
             @else
                 <div class="p-6">
-                    <div class="relative h-[450px]">
+                    <div class="relative h-[450px]" wire:ignore>
                         <canvas id="{{ $chartId }}" class="w-full h-full"></canvas>
                     </div>
                 </div>
@@ -31,22 +31,41 @@
                 let refreshInterval = null;
 
                 return {
-                    async init() {
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                    init() {
+                        // Pequeño delay para asegurar que el DOM esté listo
+                        setTimeout(() => {
+                            if (@json($hasData)) {
+                                this.createChart();
+                            }
+                        }, 100);
 
-                        if (@json($hasData)) {
-                            this.createChart();
-                        }
-
+                        // Iniciar actualizaciones en tiempo real si está habilitado
                         if (@json($realTime)) {
                             this.startRealTimeUpdates();
                         }
 
-                        $wire.on('refresh-graph', () => {
-                            setTimeout(() => {
-                                this.updateOrCreateChart();
-                            }, 100);
+                        // Escuchar el evento refresh-graph de Livewire
+                        this.$wire.on('refresh-graph', () => {
+                            this.handleRefresh();
                         });
+                    },
+
+                    async handleRefresh() {
+                        const hasData = @json($hasData);
+
+                        if (!hasData) {
+                            if (chart) {
+                                chart.destroy();
+                                chart = null;
+                            }
+                            return;
+                        }
+
+                        if (!chart) {
+                            await this.createChart();
+                        } else {
+                            await this.updateChartData();
+                        }
                     },
 
                     async createChart() {
@@ -63,7 +82,7 @@
                         }
 
                         try {
-                            const chartData = await $wire.getChartData();
+                            const chartData = await this.$wire.getChartData();
 
                             if (!chartData || !chartData.labels || chartData.labels.length === 0) {
                                 console.log('No chart data available');
@@ -75,8 +94,7 @@
                             const datasets = [{
                                 label: 'Plan',
                                 data: chartData.planProgress,
-                                backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.3)' :
-                                    'rgba(37, 99, 235, 0.2)',
+                                backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.3)' : 'rgba(37, 99, 235, 0.2)',
                                 borderColor: isDarkMode ? 'rgb(96, 165, 250)' : 'rgb(29, 78, 216)',
                                 borderWidth: 2,
                                 borderRadius: 8,
@@ -131,8 +149,7 @@
                                             beginAtZero: true,
                                             grid: {
                                                 drawBorder: false,
-                                                color: isDarkMode ? 'rgba(75, 85, 99, 0.3)' :
-                                                    'rgba(0, 0, 0, 0.05)'
+                                                color: isDarkMode ? 'rgba(75, 85, 99, 0.3)' : 'rgba(0, 0, 0, 0.05)'
                                             },
                                             ticks: {
                                                 font: {
@@ -163,32 +180,15 @@
                         }
                     },
 
-                    async updateOrCreateChart() {
-                        const hasData = @json($hasData);
-
-                        if (!hasData) {
-                            if (chart) {
-                                chart.destroy();
-                                chart = null;
-                            }
-                            return;
-                        }
-
-                        if (!chart) {
-                            await this.createChart();
-                        } else {
-                            await this.updateChartData();
-                        }
-                    },
-
                     async updateChartData() {
                         if (!chart) return;
 
                         try {
-                            const chartData = await $wire.getChartData();
+                            const chartData = await this.$wire.getChartData();
 
                             if (!chartData || !chartData.labels) return;
 
+                            // Verificar si las etiquetas cambiaron
                             const sameLength = chartData.labels.length === chart.data.labels.length;
                             let sameLabels = true;
 
@@ -201,6 +201,7 @@
                                 }
                             }
 
+                            // Si las etiquetas son las mismas, solo actualizar datos
                             if (sameLength && sameLabels) {
                                 chart.data.datasets[0].data = [...chartData.planProgress];
                                 chart.data.datasets[1].data = [...chartData.producedData];
@@ -209,6 +210,7 @@
 
                                 chart.update('none');
                             } else {
+                                // Si las etiquetas cambiaron, recrear el gráfico
                                 await this.createChart();
                             }
                         } catch (error) {
@@ -218,7 +220,7 @@
 
                     startRealTimeUpdates() {
                         refreshInterval = setInterval(() => {
-                            $wire.dispatchSelf("refresh-graph");
+                            this.$wire.dispatchSelf("refresh-graph");
                         }, 30000);
                     },
 

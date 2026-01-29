@@ -18,10 +18,11 @@ class WorkCenterDashboard extends Component
     public array $areasData = [];
     public array $allLines = [];
     public array $selectedLines = [];
-    public array $allWorkCenters = [];
-    public array $selectedWorkCenters = [];
     public bool $realTime = true;
     public string $chartId;
+
+    // Cache para evitar recálculos innecesarios
+    private ?Carbon $lastRefresh = null;
 
     public function mount()
     {
@@ -65,6 +66,14 @@ class WorkCenterDashboard extends Component
     #[On('refresh-production-records')]
     public function refreshProductionRecords()
     {
+        $now = Carbon::now();
+
+        // Throttle: solo refrescar si han pasado al menos 5 segundos
+        if ($this->lastRefresh && $this->lastRefresh->diffInSeconds($now) < 5) {
+            return;
+        }
+
+        $this->lastRefresh = $now;
         $this->updateShiftAndDate();
         $this->fetchProductionRecords();
     }

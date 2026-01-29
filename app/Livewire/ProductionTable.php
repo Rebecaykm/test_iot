@@ -16,6 +16,8 @@ class ProductionTable extends Component
     public $data = [];
     public bool $realTime = false;
 
+    protected $lastShiftId = null;
+
     public function mount($workCenter, $realTime = false): void
     {
         $this->workCenter = $workCenter;
@@ -27,18 +29,33 @@ class ProductionTable extends Component
     public function refreshTable()
     {
         $this->now = Carbon::now();
-        $this->shift = Shift::getShift($this->now);
+        $currentShift = Shift::getShift($this->now);
+
+        if ($this->lastShiftId !== $currentShift?->id) {
+            $this->shift = $currentShift;
+            $this->lastShiftId = $currentShift?->id;
+        }
+
         $this->fetchTableData();
+
+        // Forzar el re-renderizado
+        $this->dispatch('table-updated');
     }
 
     public function fetchTableData(): void
     {
+        if (!$this->shift) {
+            $this->data = [];
+            return;
+        }
+
         $productionRecords = ProductionRecord::getWorkCenterProductionRecord(
             $this->workCenter,
             $this->shift->id,
             $this->now
         );
 
+        // Convertir a array para mejor reactividad
         $this->data = $productionRecords->groupBy('work_name')
             ->map(function ($workCenterGroup) {
                 return $workCenterGroup->groupBy('planned_date')
@@ -51,11 +68,10 @@ class ProductionTable extends Component
                                         'planned_quantity' => $record->planned_quantity,
                                         'produced_quantity' => $record->produced_quantity,
                                     ];
-                                });
-                            });
-                    });
-            })
-            ->toArray();
+                                })->values()->toArray();
+                            })->toArray();
+                    })->toArray();
+            })->toArray();
     }
 
     public function render()
