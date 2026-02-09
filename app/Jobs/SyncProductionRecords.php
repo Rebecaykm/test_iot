@@ -180,7 +180,7 @@ class SyncProductionRecords implements ShouldQueue
      */
     protected function executeInforProcedure()
     {
-        Log::info('Ejecutando procedimiento LX834OU02.YSF013C');
+        Log::info('Ejecutando procedimiento LX834OU01.YSF013C');
 
         $dsn = "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR";
 
@@ -190,7 +190,7 @@ class SyncProductionRecords implements ShouldQueue
             throw new Exception("Fallo de conexión ODBC: " . odbc_errormsg());
         }
 
-        $result = odbc_exec($conn, "CALL LX834OU02.YSF013C");
+        $result = odbc_exec($conn, "CALL LX834OU01.YSF013C");
 
         if (!$result) {
             $error = odbc_errormsg($conn);
