@@ -76,8 +76,8 @@ class SyncProductionRecords implements ShouldQueue
 
     protected function getEligibleProductionRecords()
     {
-        $workCentersArray = WorkCenter::whereHas('line.area', function ($q) {
-            $q->where('name', 'LIKE', 'Carrocería%');
+        $workCentersArray = WorkCenter::whereHas('line', function ($q) {
+            $q->whereIn('name', ['Miniceldas']);
         })
             ->pluck('number')
             ->toArray();
@@ -153,6 +153,16 @@ class SyncProductionRecords implements ShouldQueue
                 'YFCRTM' => $now->format('His'),
                 'YFCRUS' => 'IOT',
             ]);
+
+        Log::info('SyncProductionRecords', [
+            'Shop order number' => $record->shop_order_number,
+            'Work Center' => $record->work_number,
+            'Part Number' => $record->part_number,
+            'Planned Date' => $record->planned_date,
+            'Planned Quantity' => $record->planned_quantity,
+            'Produced Quantity' => $record->produced_quantity,
+            'Scrap Quantity' => $record->scrap_quantity,
+        ]);
 
         if ($inserted) {
             ProductionRecord::where('id', $record->id)->update([
