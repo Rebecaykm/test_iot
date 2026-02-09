@@ -58,15 +58,11 @@ class StoreProductionPlanJob implements ShouldQueue
         ])->first();
 
         if ($existingRecord !== null) {
-            $existingRecord->update([
-                'planned_quantity' => $this->planned_quantity
-            ]);
-            // Log::info("Se ha encontrado un registro de producción duplicado. Número de Orden: " . $this->shop_order_number .
-            //     ", Part: " . $this->part_number .
-            //     ", Date: " . $this->planned_date .
-            //     ", Shift: " . $this->planned_shift);
-
-            // return;
+            if ($existingRecord->planned_quantity !== $this->planned_quantity) {
+                $existingRecord->update([
+                    'planned_quantity' => $this->planned_quantity
+                ]);
+            }
         } else {
             ProductionRecord::store($partNumber->id, intval($this->planned_quantity), $this->planned_date, $shift->id, $this->shop_order_number);
         }
