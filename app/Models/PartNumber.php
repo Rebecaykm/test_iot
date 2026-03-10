@@ -193,4 +193,12 @@ class PartNumber extends Model
             ->pluck('value', 'key')
             ->toArray();
     }
+
+    /**
+     * Get the default scraps associated with the part number
+     */
+    public function defaultScraps(): HasMany
+    {
+        return $this->hasMany(PartNumberDefaultScrap::class, 'part_number_id');
+    }
 }

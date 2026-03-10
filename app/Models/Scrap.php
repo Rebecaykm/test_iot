@@ -30,4 +30,12 @@ class Scrap extends Model
     {
         return $this->hasMany(ScrapRecord::class, 'scrap_id');
     }
+
+    /**
+     * Get the default scraps associated with the scrap
+     */
+    public function defaultScraps(): HasMany
+    {
+        return $this->hasMany(PartNumberDefaultScrap::class, 'scrap_id');
+    }
 }

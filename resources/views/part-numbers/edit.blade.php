@@ -76,11 +76,11 @@
                         <div class="form-control-readonly text-center">
                             @if($partNumber->is_obsolete)
                                 <span class="text-danger fw-500">
-                                    <i class="fas fa-times-circle me-1"></i> Obsoleto
+                                    <i class="fas fa-times-circle mr-1"></i> Obsoleto
                                 </span>
                             @else
                                 <span class="text-success fw-500">
-                                    <i class="fas fa-check-circle me-1"></i> Activo
+                                    <i class="fas fa-check-circle mr-1"></i> Activo
                                 </span>
                             @endif
                         </div>
@@ -114,10 +114,10 @@
 
                 <div class="d-flex justify-content-end gap-2 mt-4">
                     <a href="{{ route('part-numbers.index') }}" class="btn btn-outline-secondary rounded-3">
-                        <i class="fas fa-times me-2"></i> {{ __('Cancelar') }}
+                        <i class="fas fa-times mr-2"></i> {{ __('Cancelar') }}
                     </a>
                     <button type="submit" class="btn btn-primary rounded-3">
-                        <i class="fas fa-save me-2"></i> {{ __('Guardar Cambios') }}
+                        <i class="fas fa-save mr-2"></i> {{ __('Guardar Cambios') }}
                     </button>
                 </div>
             </form>
@@ -129,7 +129,7 @@
     <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-4">
         <div class="card-header bg-white border-0 py-3">
             <h5 class="mb-0 fw-bold text-secondary">
-                <i class="fas fa-list-ol me-2"></i>
+                <i class="fas fa-list-ol mr-2"></i>
                 {{ __('Orden de Producción en ') }}{{ $partNumber->workCenter->name ?? 'Esta Estación' }}
             </h5>
         </div>
@@ -168,18 +168,18 @@
                                     <div class="text-muted small">{{ $pn->name }}</div>
                                     @if($pn->id === $partNumber->id)
                                         <span class="badge-status bg-warning bg-opacity-10 text-dark">
-                                            <i class="fas fa-star me-1"></i> Actual
+                                            <i class="fas fa-star mr-1"></i> Actual
                                         </span>
                                     @endif
                                 </td>
                                 <td class="py-3">
                                     @if($pn->is_obsolete)
                                         <span class="badge-status bg-danger bg-opacity-10 text-danger">
-                                            <i class="fas fa-times-circle me-1"></i> Obsoleto
+                                            <i class="fas fa-times-circle mr-1"></i> Obsoleto
                                         </span>
                                     @else
                                         <span class="badge-status bg-success bg-opacity-10 text-success">
-                                            <i class="fas fa-check-circle me-1"></i> Activo
+                                            <i class="fas fa-check-circle mr-1"></i> Activo
                                         </span>
                                     @endif
                                 </td>
@@ -192,18 +192,96 @@
     </div>
     @endif
 
+    <!-- Scraps Default -->
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-secondary">
+                    <i class="fas fa-trash-alt mr-2"></i>
+                    {{ __('Scraps Default') }}
+                </h5>
+                {{-- @can('create scrap default') --}}
+                    <a href="{{ route('part-number-default-scraps.create', $partNumber) }}"
+                    class="btn btn-primary rounded-3">
+                        <i class="fas fa-plus mr-2"></i>
+                        <span>Agregar Scrap Default</span>
+                    </a>
+                {{-- @endcan --}}
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Código') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Tipo de Scrap') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Cantidad') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Descripción') }}</th>
+                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">{{ __('Acciones') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($defaultScraps as $defaultScrap)
+                            <tr class="border-light-subtle">
+                                <td class="py-3">
+                                    <span class="badge-status bg-secondary bg-opacity-10 text-secondary">
+                                        {{ $defaultScrap->scrap->code }}
+                                    </span>
+                                </td>
+                                <td class="py-3">
+                                    <div class="fw-500">{{ $defaultScrap->scrap->name }}</div>
+                                </td>
+                                <td class="py-3">
+                                    <span class="badge-status bg-primary bg-opacity-10 text-primary">
+                                        {{ $defaultScrap->quantity }}
+                                    </span>
+                                </td>
+                                <td class="py-3">
+                                    <div class="text-muted">{{ $defaultScrap->description ?? '—' }}</div>
+                                </td>
+                                {{-- @can('delete scrap default') --}}
+                                    <td class="py-3 text-center">
+                                        <form action="{{ route('part-number-default-scraps.destroy', $defaultScrap) }}"
+                                            method="POST" style="display:inline;" class="delete-default-scrap-form">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-3">
+                                                <i class="fas fa-trash mr-1"></i>
+                                                <span>Eliminar</span>
+                                            </button>
+                                        </form>
+                                    </td>
+                                {{-- @endcan --}}
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <div class="d-flex flex-column align-items-center">
+                                        <i class="fas fa-trash fa-2x text-muted mb-2"></i>
+                                        <span class="text-secondary">No hay scraps default configurados</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Imágenes Asociadas -->
     <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
         <div class="card-header bg-white border-0 py-3">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold text-secondary">
-                    <i class="fas fa-images me-2"></i>
+                    <i class="fas fa-images mr-2"></i>
                     {{ __('Imágenes Asociadas') }}
                 </h5>
                 @can('create visual aids')
                     <a href="{{ route('visual-aids.create', ['part_number' => $partNumber->id]) }}"
                        class="btn btn-primary rounded-3">
-                        <i class="fas fa-plus me-2"></i>
+                        <i class="fas fa-plus mr-2"></i>
                         <span>Agregar Imagen</span>
                     </a>
                 @endcan
@@ -235,11 +313,11 @@
                                 <td class="py-3">
                                     @if($visualAid->is_active)
                                         <span class="badge-status bg-success bg-opacity-10 text-success">
-                                            <i class="fas fa-check-circle me-1"></i> Activa
+                                            <i class="fas fa-check-circle mr-1"></i> Activa
                                         </span>
                                     @else
                                         <span class="badge-status bg-secondary bg-opacity-10 text-secondary">
-                                            <i class="fas fa-times-circle me-1"></i> Inactiva
+                                            <i class="fas fa-times-circle mr-1"></i> Inactiva
                                         </span>
                                     @endif
                                 </td>
@@ -250,7 +328,7 @@
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger rounded-3">
-                                                <i class="fas fa-trash me-1"></i>
+                                                <i class="fas fa-trash mr-1"></i>
                                                 <span>Eliminar</span>
                                             </button>
                                         </form>
@@ -449,6 +527,29 @@
 
 @section('js')
     <script>
+        // Confirmar eliminación de scrap default
+        document.querySelectorAll('.delete-default-scrap-form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '¿Eliminar scrap default?',
+                        text: "Esta acción no se puede revertir.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) this.submit();
+                    });
+                } else {
+                    if (confirm('¿Eliminar este scrap default?')) this.submit();
+                }
+            });
+        });
+
         // Confirmación antes de eliminar imágenes
         document.addEventListener('DOMContentLoaded', function() {
             // Agregar event listener a todos los formularios de eliminación

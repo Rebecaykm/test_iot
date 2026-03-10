@@ -75,17 +75,19 @@ class PartNumberController extends Controller
     {
         $visualAids = VisualAid::query()->where('part_number_id', $partNumber->id)->get();
 
-        // Obtener otros part numbers del mismo work center para mostrar conflictos de orden
         $partNumbersInSameWorkCenter = PartNumber::where('work_center_id', $partNumber->work_center_id)
             ->where('id', '!=', $partNumber->id)
             ->whereNotNull('production_order')
             ->orderBy('production_order', 'asc')
             ->get(['id', 'number', 'production_order']);
 
+        $defaultScraps = $partNumber->defaultScraps()->with('scrap')->get();
+
         return view('part-numbers.edit')
             ->with('partNumber', $partNumber)
             ->with('visualAids', $visualAids)
-            ->with('partNumbersInSameWorkCenter', $partNumbersInSameWorkCenter);
+            ->with('partNumbersInSameWorkCenter', $partNumbersInSameWorkCenter)
+            ->with('defaultScraps', $defaultScraps);
     }
 
     /**

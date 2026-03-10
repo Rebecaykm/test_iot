@@ -7,6 +7,7 @@ use App\Http\Controllers\LineStoppageController;
 use App\Http\Controllers\LineStoppageRecordController;
 use App\Http\Controllers\MaterialValidationController;
 use App\Http\Controllers\PartNumberController;
+use App\Http\Controllers\PartNumberDefaultScrapController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProductionRecordController;
 use App\Http\Controllers\RoleController;
@@ -45,7 +46,6 @@ Route::middleware([
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('work-centers', WorkCenterController::class);
     Route::resource('tags', TagController::class);
-    Route::resource('part-numbers', PartNumberController::class);
     Route::resource('tag-types', TagTypeController::class);
     Route::resource('statuses', StatusController::class)->except('show');
     Route::resource('shifts', ShiftController::class)->except('show');
@@ -64,6 +64,11 @@ Route::middleware([
     Route::get('/production/export-pdf-form', [ProductionRecordController::class, 'showExportForm'])->name('production.export-pdf-form');
     Route::post('/production/export-pdf-filtered', [ProductionRecordController::class, 'exportProductionReportFiltered'])->name('production.export-pdf-filtered');
     Route::get('/production/export-pdf', [ProductionRecordController::class, 'exportProductionReport'])->name('production.export-pdf');
+
+    // Scraps Default de Número de Parte
+    Route::get('part-numbers/{partNumber}/default-scraps/create', [PartNumberDefaultScrapController::class, 'create'])->name('part-number-default-scraps.create');
+    Route::post('part-numbers/{partNumber}/default-scraps', [PartNumberDefaultScrapController::class, 'store'])->name('part-number-default-scraps.store');
+    Route::delete('part-number-default-scraps/{partNumberDefaultScrap}', [PartNumberDefaultScrapController::class, 'destroy'])->name('part-number-default-scraps.destroy');
 
     // Escaneo de Tres Puntos
     Route::resource('material-validations', MaterialValidationController::class);
