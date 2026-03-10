@@ -12,56 +12,79 @@ use Livewire\Component;
 
 class VisualAidDisplay extends Component
 {
-    public $workCenter;
-    public $visualAid;
+    public string $workCenter;
+    public ?string $visualAidPath = null;
+    public ?string $visualAidAlt = null;
+    public ?string $currentPartNumber = null;
+    public bool $isProducing = false;
     public $currentTime;
 
     protected $listeners = ['refreshComponent' => '$refresh'];
 
-    public function mount($work_center)
+    public function mount($work_center): void
     {
         $this->workCenter = $work_center;
         $this->refresh();
     }
 
     #[On('refresh')]
-    public function refresh()
+    public function refresh(): void
     {
         $this->currentTime = Carbon::now();
         $this->loadVisualAid();
     }
 
-    public function loadVisualAid()
+    public function loadVisualAid(): void
     {
         try {
             $currentShift = Shift::getShift($this->currentTime);
 
-            $workCenter = WorkCenter::query()
+            if (!$currentShift) {
+                $this->resetState();
+                return;
+            }
+
+            WorkCenter::query()
                 ->where('name', $this->workCenter)
                 ->firstOrFail();
 
-            $currentPartNumber = ProductionRecord::getWorkCenterProductionRecord(
-                $workCenter->name,
+            $productionRecord = ProductionRecord::getWorkCenterProductionRecord(
+                $this->workCenter,
                 $currentShift->id,
                 $this->currentTime
             )->first();
 
-            if (!$currentPartNumber) {
-                $this->visualAid = null;
+            if (!$productionRecord) {
+                $this->resetState();
                 return;
             }
 
+            $this->isProducing = true;
+            $this->currentPartNumber = $productionRecord->part_number;
+
             $partNumber = PartNumber::query()
-                ->where('number', $currentPartNumber->part_number)
+                ->where('number', $productionRecord->part_number)
                 ->first();
-            
-            $this->visualAid = $partNumber?->visualAids()
+
+            $visualAid = $partNumber?->visualAids()
                 ->where('is_active', true)
                 ->first();
 
+            // ✅ Solo guardamos strings primitivos, no el modelo
+            $this->visualAidPath = $visualAid?->path ?? null;
+            $this->visualAidAlt  = $visualAid?->alt_text ?? null;
+
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            abort(404, "Estación no encontrado");
+            abort(404, 'Estación de trabajo no encontrada');
         }
+    }
+
+    private function resetState(): void
+    {
+        $this->isProducing      = false;
+        $this->visualAidPath    = null;
+        $this->visualAidAlt     = null;
+        $this->currentPartNumber = null;
     }
 
     public function render()
