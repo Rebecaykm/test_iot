@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\History;
+use App\Models\PartNumber;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use Carbon\Carbon;
@@ -14,20 +15,19 @@ class PressProductionTable extends Component
     public $workCenter;
     public array $data = [];
 
-    // Métricas del resumen
-    public int $planTurno     = 0;
-    public int $planActual    = 0;
+    public int $planTurno      = 0;
+    public int $planActual     = 0;
     public int $totalProducido = 0;
-    public int $diferencia    = 0;
+    public int $diferencia     = 0;
 
-    // Información de turno (para mostrar en la cabecera)
-    public string $shiftName  = '';
-    public string $plannedDate = '';
-    public string $shiftStart = '';
-    public string $shiftEnd   = '';
-    public string $nowTime    = '';
+    public string $shiftName    = '';
+    public string $plannedDate  = '';
+    public string $shiftStart   = '';
+    public string $shiftEnd     = '';
+    public string $nowTime      = '';
 
-    public bool $realTime = false;
+    public bool $realTime    = false;
+    public bool $shiftActive = false;
 
     public function mount($workCenter, $realTime = false): void
     {
@@ -50,120 +50,95 @@ class PressProductionTable extends Component
         $shift     = $currentShiftInfo->shift;
         $timeRange = $currentShiftInfo->timeRange;
 
+        $this->shiftActive = true;
         $this->shiftName   = $shift->name ?? $shift->abbreviation;
         $this->plannedDate = $now->toDateString();
         $this->shiftStart  = $timeRange->startDateTime->format('H:i');
         $this->shiftEnd    = $timeRange->endDateTime->format('H:i');
         $this->nowTime     = $now->format('H:i');
 
-        // ── Plan Turno ────────────────────────────────────────────────────
-        $plannedRecord = ProductionRecord::query()
+        $planRecords = ProductionRecord::query()
             ->select([
-                'production_records.id AS production_id',
-                'work_centers.number AS work_number',
-                'work_centers.name AS work_name',
-                'part_numbers.number AS part_number',
-                'part_numbers.name AS part_name',
-                'production_records.planned_date AS planned_date',
-                'production_records.planned_quantity AS planned_quantity',
+                'production_records.part_number_id',
+                'production_records.planned_quantity',
             ])
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
-            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
-            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->join('work_centers',  'part_numbers.work_center_id',       '=', 'work_centers.id')
+            ->join('shifts',        'production_records.shift_id',        '=', 'shifts.id')
             ->where('production_records.planned_date', $now->toDateString())
             ->where('shifts.id', $shift->id)
             ->where('work_centers.name', 'LIKE', $this->workCenter)
-            ->orderBy('part_numbers.production_order', 'asc')
-            ->orderBy('shifts.start_time', 'asc')
-            ->orderBy('production_records.planned_date', 'asc')
-            ->orderBy('production_records.production_end', 'desc')
-            ->sum('production_records.planned_quantity');
+            ->get();
 
-        $this->planTurno = (int) $plannedRecord;
+        $piecesPerShotMap = PartNumber::whereIn('id', $planRecords->pluck('part_number_id')->unique())
+            ->with(['customAttributes' => fn($q) => $q->where('key', 'pieces_per_shot')])
+            ->get()
+            ->mapWithKeys(fn($part) => [
+                $part->id => max(1, (int) ($part->customAttributes->first()?->value ?? 1)),
+            ]);
 
-        // ── Plan Actual ───────────────────────────────────────────────────
-        $shiftStartDt = $timeRange->startDateTime;
-        $shiftEndDt = $timeRange->endDateTime;
+        $this->planTurno = (int) round(
+            $planRecords->sum(function ($record) use ($piecesPerShotMap) {
+                $divisor = $piecesPerShotMap[$record->part_number_id] ?? 1;
+                return $record->planned_quantity / $divisor;
+            })
+        );
+
+        $shiftStartDt      = $timeRange->startDateTime;
+        $shiftEndDt        = $timeRange->endDateTime;
         $totalShiftMinutes = max(1, $shiftStartDt->diffInMinutes($shiftEndDt));
-        $elapsedMinutes = min($shiftStartDt->diffInMinutes($now), $totalShiftMinutes);
+        $elapsedMinutes    = min($shiftStartDt->diffInMinutes($now), $totalShiftMinutes);
 
-        $this->planActual = (int) round(($this->planTurno / $totalShiftMinutes) * $elapsedMinutes);
+        $this->planActual = (int) round(
+            ($this->planTurno / $totalShiftMinutes) * $elapsedMinutes
+        );
 
-        // ── Total Producido ───────────────────────────────────────────────
-
-        $histories = History::getProductionHistory(
+        $this->totalProducido = (int) History::getProductionHistory(
             $this->workCenter,
             $shiftStartDt,
             $now
-        );
+        )->sum('quantity');
 
-        $this->totalProducido = (int) $histories->sum('quantity');
-
-        // ── Diferencia ────────────────────────────────────────────────────
-        // Positivo = adelantado  |  Negativo = atrasado
         $this->diferencia = $this->totalProducido - $this->planActual;
 
-        // ── Datos de la tabla inferior ────────────────────────────────────
-
-        $records = ProductionRecord::query()
+        $this->data = ProductionRecord::query()
             ->select([
-                'work_centers.number AS work_number',
-                'work_centers.name AS work_name',
                 'part_numbers.number AS part_number',
-                'part_numbers.name AS part_name',
-                'production_records.planned_date AS planned_date',
-                'shifts.abbreviation AS shift_name',
-                'production_records.produced_quantity AS produced_quantity',
+                'production_records.produced_quantity',
             ])
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
-            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
-            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->join('work_centers',  'part_numbers.work_center_id',       '=', 'work_centers.id')
+            ->join('shifts',        'production_records.shift_id',        '=', 'shifts.id')
+            ->join('statuses',      'production_records.status_id',       '=', 'statuses.id')
             ->where('production_records.planned_date', $now->toDateString())
             ->where('shifts.id', $shift->id)
             ->where('work_centers.name', 'LIKE', $this->workCenter)
             ->where('statuses.id', 7)
-            ->get();
-
-
-        $this->data = $records
-            ->groupBy('work_name')
-            ->map(
-                fn($wcGroup) =>
-                $wcGroup->groupBy('planned_date')
-                    ->map(
-                        fn($dateGroup) =>
-                        $dateGroup->groupBy('shift_name')
-                            ->map(
-                                fn($shiftGroup) =>
-                                $shiftGroup->map(fn($record) => [
-                                    'part_number'       => $record->part_number,
-                                    'produced_quantity' => $record->produced_quantity,
-                                ])->values()->toArray()
-                            )->toArray()
-                    )->toArray()
-            )->toArray();
-
-        dd($this->data);
+            ->orderBy('part_numbers.production_order')
+            ->get()
+            ->map(fn($r) => [
+                'part_number'       => $r->part_number,
+                'produced_quantity' => (int) $r->produced_quantity,
+            ])
+            ->values()
+            ->toArray();
 
         $this->dispatch('table-updated');
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────
-
     private function resetMetrics(): void
     {
-        $this->data          = [];
-        $this->planTurno     = 0;
-        $this->planActual    = 0;
+        $this->shiftActive    = false;
+        $this->data           = [];
+        $this->planTurno      = 0;
+        $this->planActual     = 0;
         $this->totalProducido = 0;
-        $this->diferencia    = 0;
-        $this->shiftName     = '';
-        $this->plannedDate   = '';
-        $this->shiftStart    = '';
-        $this->shiftEnd      = '';
-        $this->nowTime       = '';
+        $this->diferencia     = 0;
+        $this->shiftName      = '';
+        $this->plannedDate    = '';
+        $this->shiftStart     = '';
+        $this->shiftEnd       = '';
+        $this->nowTime        = '';
     }
 
     public function render()
