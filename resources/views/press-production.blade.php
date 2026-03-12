@@ -80,7 +80,8 @@
                     </div>
 
 
-                    <livewire:production-table :work-center="$workCenter" />
+                    {{-- <livewire:production-table :work-center="$workCenter" /> --}}
+                    <livewire:press-production-table :work-center="$workCenter" :realTime="true" />
 
                     <livewire:press-production-graph :work-center="$workCenter" :real-time="'true'" />
 
