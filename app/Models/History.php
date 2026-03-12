@@ -60,19 +60,19 @@ class History extends Model
     public static function getProductionHistory($workCenter, $startDateTime, $endDateTime)
     {
         return History::query()
-        ->select([
-            'part_numbers.number AS part_number',
-            'histories.quantity',
-            'histories.created_at'
-        ])
-        ->join('part_numbers', 'part_numbers.id', '=', 'histories.part_number_id')
-        ->join('work_centers', 'work_centers.id', '=', 'part_numbers.work_center_id')
-        ->where('work_centers.name', $workCenter)
-        ->whereBetween('histories.created_at', [
-            $startDateTime->format('Y-m-d H:i:s'),
-            $endDateTime->format('Y-m-d H:i:s')
-        ])
-        ->orderBy('histories.created_at', 'asc')
-        ->get();
+            ->select([
+                'part_numbers.number AS part_number',
+                'histories.quantity',
+                'histories.created_at'
+            ])
+            ->join('part_numbers', 'part_numbers.id', '=', 'histories.part_number_id')
+            ->join('work_centers', 'work_centers.id', '=', 'part_numbers.work_center_id')
+            ->where('work_centers.name', $workCenter)
+            ->whereBetween('histories.created_at', [
+                $startDateTime->format('Y-m-d H:i:s'),
+                $endDateTime->format('Y-m-d H:i:s')
+            ])
+            ->orderBy('histories.created_at', 'asc')
+            ->get();
     }
 }

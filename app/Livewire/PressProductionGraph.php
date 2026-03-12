@@ -156,13 +156,10 @@ class PressProductionGraph extends Component
                 continue;
             }
 
-            $blockSum = 0;
-            if (isset($grouped[$label])) {
-                $blockSum = $grouped[$label]->groupBy('part_number')->map(function ($parts) {
-                    $min = $parts->min('quantity');
-                    return $parts->max('quantity') - (($min > 0) ? $min - 1 : $min);
-                })->sum();
-            }
+            // Sumar directamente todas las cantidades del bloque
+            $blockSum = isset($grouped[$label])
+                ? $grouped[$label]->sum('quantity')
+                : 0;
 
             $accumulated += $blockSum;
             $result[] = $accumulated;

@@ -13,14 +13,16 @@ class StoreDieIdentifierJob implements ShouldQueue
 
     protected $partNumber;
     protected $dieNumber;
+    protected $piecesPerShot;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($partNumber, $dieNumber)
+    public function __construct($partNumber, $dieNumber, $piecesPerShot)
     {
-        $this->partNumber = $partNumber;
-        $this->dieNumber = $dieNumber;
+        $this->partNumber    = $partNumber;
+        $this->dieNumber     = $dieNumber;
+        $this->piecesPerShot = $piecesPerShot;
     }
 
     /**
@@ -31,11 +33,20 @@ class StoreDieIdentifierJob implements ShouldQueue
         $part = PartNumber::where('number', $this->partNumber)->first();
 
         if ($part) {
-            Log::debug("GetDieIdentifierJob", ['partNumber' => $this->partNumber, 'dieNumber' => $this->dieNumber]);
-            $currentValue = $part->getCustomAttributeValue('mid');
+            Log::debug("StoreDieIdentifierJob", [
+                'partNumber'    => $this->partNumber,
+                'dieNumber'     => $this->dieNumber,
+                'piecesPerShot' => $this->piecesPerShot,
+            ]);
 
-            if ($currentValue != $this->dieNumber) {
+            if ($part->getCustomAttributeValue('mid') != $this->dieNumber) {
                 $part->setCustomAttributeValue('mid', $this->dieNumber);
+            }
+
+            $piecesValue = (int) $this->piecesPerShot === 0 ? 1 : (int) $this->piecesPerShot;
+
+            if ($part->getCustomAttributeValue('pieces_per_shot') != $piecesValue) {
+                $part->setCustomAttributeValue('pieces_per_shot', $piecesValue);
             }
         }
     }

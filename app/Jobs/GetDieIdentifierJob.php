@@ -27,7 +27,8 @@ class GetDieIdentifierJob implements ShouldQueue
             ->table('LX834F01.IIU')
             ->select([
                 DB::raw('TRIM(IUPROD) AS partNumber'),
-                DB::raw('TRIM(IUFD05) AS dieNumber')
+                DB::raw('TRIM(IUFD05) AS dieNumber'),
+                DB::raw('IUFD11 AS piecesPerShot')
             ])
             ->where('IUSEQN', 2)
             ->whereRaw("TRIM(IUFD05) <> ''")
@@ -36,7 +37,8 @@ class GetDieIdentifierJob implements ShouldQueue
         foreach ($dieIdentifiers as $dieIdentifier) {
             StoreDieIdentifierJob::dispatch(
                 $dieIdentifier->PARTNUMBER,
-                $dieIdentifier->DIENUMBER
+                $dieIdentifier->DIENUMBER,
+                $dieIdentifier->PIECESPERSHOT
             );
         }
     }
