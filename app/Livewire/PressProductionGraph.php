@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\History;
+use App\Models\PartNumber;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use Carbon\Carbon;
@@ -102,13 +103,25 @@ class PressProductionGraph extends Component
     private function calculatePlannedForShift($shiftInfo, $timeBlocks): array
     {
         // Obtener el total planeado para este turno
-        $totalPlanned = ProductionRecord::getProductionRecords(
+        $records = ProductionRecord::getProductionRecords(
             $this->workCenter,
             $shiftInfo->shift->id,
             $shiftInfo->date
-        )->sum('planned_quantity');
+        );
 
-        // Calcular cantidad de bloques (cada bloque son 2 horas)
+        $totalPlanned = $records->sum(function ($record) {
+            $part = PartNumber::where('number', $record->part_number)->first();
+
+            $piecesPerShot = $part
+                ? (int) $part->getCustomAttributeValue('pieces_per_shot')
+                : 0;
+
+            $divisor = $piecesPerShot > 1 ? $piecesPerShot : 1;
+
+            return $record->planned_quantity / $divisor;
+        });
+
+        // Calcular cantidad de bloques
         $hoursInShift = $shiftInfo->timeRange->startDateTime->diffInHours($shiftInfo->timeRange->endDateTime);
         $blocksCount = max(1, $hoursInShift / 2);
 
