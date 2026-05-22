@@ -65,7 +65,7 @@ class PressProductionTable extends Component
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers',  'part_numbers.work_center_id',       '=', 'work_centers.id')
             ->join('shifts',        'production_records.shift_id',        '=', 'shifts.id')
-            ->where('production_records.planned_date', $now->toDateString())
+            ->where('production_records.planned_date', $currentShiftInfo->date->toDateString())
             ->where('shifts.id', $shift->id)
             ->where('work_centers.name', 'LIKE', $this->workCenter)
             ->get();

@@ -21,7 +21,7 @@ class ProductionRecordView extends Component
     public $previousData;
     public $currentData;
 
-    protected $lastShiftId = null;
+    public ?int $lastShiftId = null;
 
     public function mount($workCenterId): void
     {

@@ -1,5 +1,5 @@
 <div>
-    <div x-data="table" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div x-data="table" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- Columna izquierda - Turno anterior -->
         <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/50">
@@ -152,7 +152,7 @@
 <script>
     Alpine.data("table", () => ({
         init() {
-            setInterval(() => $wire.dispatchSelf("refresh"), 30000);
+            setInterval(() => $wire.dispatchSelf("refresh"), 10000);
         }
     }));
 </script>

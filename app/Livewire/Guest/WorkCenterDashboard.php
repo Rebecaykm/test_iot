@@ -19,14 +19,11 @@ class WorkCenterDashboard extends Component
     public array $allLines = [];
     public array $selectedLines = [];
     public bool $realTime = true;
-    public string $chartId;
-
-    // Cache para evitar recálculos innecesarios
-    private ?Carbon $lastRefresh = null;
+    public ?string $lastRefreshAt = null;
+    public int $chartKey = 0;
 
     public function mount()
     {
-        $this->chartId = 'dashboard-' . uniqid();
         $this->updateShiftAndDate();
         $this->loadLines();
         $this->fetchProductionRecords();
@@ -49,6 +46,7 @@ class WorkCenterDashboard extends Component
         $this->allLines = Line::query()
             ->select('lines.id', 'lines.name', 'areas.name as area_name')
             ->join('areas', 'lines.area_id', '=', 'areas.id')
+            ->whereHas('workCenters')
             ->orderBy('areas.name')
             ->orderBy('lines.name')
             ->get()
@@ -68,14 +66,14 @@ class WorkCenterDashboard extends Component
     {
         $now = Carbon::now();
 
-        // Throttle: solo refrescar si han pasado al menos 5 segundos
-        if ($this->lastRefresh && $this->lastRefresh->diffInSeconds($now) < 5) {
+        if ($this->lastRefreshAt && Carbon::parse($this->lastRefreshAt)->diffInSeconds($now) < 5) {
             return;
         }
 
-        $this->lastRefresh = $now;
+        $this->lastRefreshAt = $now->toIso8601String();
         $this->updateShiftAndDate();
         $this->fetchProductionRecords();
+        $this->chartKey++;
     }
 
     public function fetchProductionRecords()
@@ -191,6 +189,7 @@ class WorkCenterDashboard extends Component
     public function updatedSelectedLines()
     {
         $this->fetchProductionRecords();
+        $this->chartKey++;
     }
 
     public function render()
