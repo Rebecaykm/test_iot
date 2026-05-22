@@ -39,16 +39,16 @@ class StoreProductionPlanJob implements ShouldQueue
         $partNumber = PartNumber::query()->where('number', $this->part_number)->first();
 
         if (!$partNumber) {
-            // Log::error("Part number not found: " . $this->part_number);
             return;
         }
 
         $shift = Shift::query()->where('abbreviation', $this->planned_shift)->first();
 
         if (!$shift) {
-            // Log::error("Shift not found: " . $this->planned_shift);
             return;
         }
+
+        $plannedQuantityInt = intval($this->planned_quantity);
 
         $existingRecord = ProductionRecord::where([
             'part_number_id' => $partNumber->id,
@@ -58,13 +58,13 @@ class StoreProductionPlanJob implements ShouldQueue
         ])->first();
 
         if ($existingRecord !== null) {
-            if ($existingRecord->planned_quantity !== $this->planned_quantity) {
+            if ((int) $existingRecord->planned_quantity !== $plannedQuantityInt) {
                 $existingRecord->update([
-                    'planned_quantity' => $this->planned_quantity
+                    'planned_quantity' => $plannedQuantityInt
                 ]);
             }
         } else {
-            ProductionRecord::store($partNumber->id, intval($this->planned_quantity), $this->planned_date, $shift->id, $this->shop_order_number);
+            ProductionRecord::store($partNumber->id, $plannedQuantityInt, $this->planned_date, $shift->id, $this->shop_order_number);
         }
     }
 }

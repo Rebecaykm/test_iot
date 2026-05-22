@@ -63,7 +63,7 @@ class MaterialValidationController extends Controller
                     'X-Auth-Channel' => '0C5A15CC-DD57-4C4F-81DF-730AFA796967'
                 ])
                     ->timeout(30) // Timeout de 30 segundos
-                    ->post('http://192.168.130.16:8980/ykm-monitor/qualitylog', [
+                    ->post('http://192.168.130.46:8980/ykm-monitor/qualitylog', [
                         'barcode' => $request->final_label_code,
                         'status' => $request->validation_status,
                         'comments' => $request->validation_comment
@@ -309,7 +309,7 @@ class MaterialValidationController extends Controller
                         'BARCODES.QTY',
                         'BARCODES.SCANNED_M'
                     )
-                    ->whereRaw("RTRIM(LTRIM(ORDERS.PART_ID)) LIKE ?", [trim($partNumber) . '%'])
+                    ->whereRaw("RTRIM(LTRIM(ORDERS.PART_ID)) LIKE ?", [trim($partNumber)])
                     ->where('ORDERS.DELIVERY_DATE', '>=', $formattedStartDate)
                     ->where('BARCODES.BARCODE_M', 'like', $currentYear . '%')
                     ->where('ORDERS.ROUTE', 'NOT LIKE', 'W1')

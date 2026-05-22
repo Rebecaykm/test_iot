@@ -28,6 +28,13 @@ class ProductionRecord extends Model
         'synced_at'
     ];
 
+    protected $casts = [
+        'planned_quantity' => 'integer',
+        'produced_quantity' => 'integer',
+        'scrap_quantity' => 'integer',
+        'synced_to_infor' => 'boolean',
+    ];
+
     /**
      * Relación con Shift
      */
@@ -99,9 +106,11 @@ class ProductionRecord extends Model
         $shiftId = null,
         $shopOrderNumber = null,
     ) {
+        $plannedQuantity = (int) $plannedQuantity;
+
         $status = Status::where('name', 'LIKE', 'Pendiente')->first();
 
-        $productionPlan = ProductionRecord::query()->where([['part_number_id', $partNumberId], ['planned_quantity', $plannedQuantity], ['planned_date', $plannedDate], ['shift_id', $shiftId]])->first();
+        $productionPlan = ProductionRecord::query()->where([['part_number_id', $partNumberId], ['planned_date', $plannedDate], ['shift_id', $shiftId], ['shop_order_number', $shopOrderNumber]])->first();
 
         if ($productionPlan === null) {
             return ProductionRecord::create([
@@ -114,6 +123,8 @@ class ProductionRecord extends Model
                 'synced_to_infor' => false,
             ]);
         }
+
+        return $productionPlan;
     }
 
     /**

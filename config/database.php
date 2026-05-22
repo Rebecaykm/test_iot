@@ -132,7 +132,7 @@ return [
 
         'dbEmba' => [
             'driver' => 'sqlsrv',
-            'host' => '192.168.130.7',
+            'host' => '192.168.130.47',
             'port' => '1433',
             'database' => 'dbEmba',
             'username' => 'sa',
