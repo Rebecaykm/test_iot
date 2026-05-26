@@ -3,308 +3,421 @@
 @section('title', 'Registros de Producción')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <h1>{{ __('Registros de Producción') }}</h1>
+    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+        <div>
+            <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Registros de Producción</h1>
+        </div>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex" style="gap: 0.5rem;">
             <a href="{{ route('line-stoppage-records.create', ['source' => 'production-records.index']) }}"
-                class="btn btn-outline-warning rounded-3 shadow-sm mr-1">
-                <i class="fas fa-pause me-2"></i>
+                class="btn-action btn-action-warning">
+                <i class="fas fa-pause"></i>
                 <span class="d-none d-md-inline">Paro de Línea</span>
             </a>
-
             <a href="{{ route('scrap-records.create', ['source' => 'production-records.index']) }}"
-                class="btn btn-outline-danger rounded-3 shadow-sm mr-1">
-                <i class="fas fa-exclamation-circle me-2"></i>
+                class="btn-action btn-action-danger">
+                <i class="fas fa-exclamation-circle"></i>
                 <span class="d-none d-md-inline">Scrap</span>
             </a>
-
-            <a href="{{ route('production.export-pdf-form') }}" class="btn btn-outline-primary rounded-3 shadow-sm">
-                <i class="fas fa-file mr-1"></i>
+            <a href="{{ route('production.export-pdf-form') }}" class="btn-action btn-action-primary">
+                <i class="fas fa-file-pdf"></i>
                 <span class="d-none d-md-inline">Reporte PDF</span>
             </a>
         </div>
-    @stop
+    </div>
+@stop
 
-    @section('content')
-        @if (session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
+@section('content')
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert"
+            style="border-radius: 8px;">
+            <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
 
-        @if (session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert"
+            style="border-radius: 8px;">
+            <i class="fas fa-exclamation-triangle mr-2"></i>{{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
 
-        <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
-            <div class="card-header bg-white border-0 py-3">
-                <div class="d-flex justify-content-end">
-                    <div class="search-box">
-                        <form method="GET" action="{{ route('production-records.index') }}" id="searchForm">
-                            <div class="d-flex flex-column flex-md-row gap-2">
-                                <div class="input-group" style="width: 200px;">
-                                    <input type="date" name="date" class="form-control" value="{{ request('date') }}"
-                                        max="{{ date('Y-m-d') }}">
-                                </div>
+    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
 
-                                <div class="input-group" style="width: 300px;">
-                                    <input type="text" name="search" class="form-control border-end-0"
-                                        placeholder="Buscar..." value="{{ request('search') }}">
-                                    <button type="submit" class="input-group-text bg-white border-start-0">
-                                        <i class="fas fa-search text-secondary"></i>
-                                    </button>
-                                    @if (request()->filled('search') || request()->filled('date'))
-                                        <a href="{{ route('production-records.index') }}"
-                                            class="input-group-text bg-white border-start-0 text-danger">
-                                            <i class="fas fa-times"></i>
-                                        </a>
-                                    @endif
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+        {{-- Filtros --}}
+        <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
+            <form method="GET" action="{{ route('production-records.index') }}">
+                <div class="d-flex flex-wrap align-items-center justify-content-end" style="gap: 0.5rem;">
 
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light sticky-top">
-                            <tr>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">Estación</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">N° de Parte</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">N° de Orden</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">Fecha</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">Turno</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">Planeada</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">Producida</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">Progreso</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">Estado</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            @forelse($productionRecords as $record)
-                                @php
-                                    $prod = $record->produced_quantity;
-                                    $plan = $record->planned_quantity;
-                                    $percentage = $plan > 0 ? ($prod / $plan) * 100 : 0;
-
-                                    if ($percentage < 80) {
-                                        $color = 'danger';
-                                    } elseif ($percentage < 100) {
-                                        $color = 'warning';
-                                    } elseif ($percentage == 100) {
-                                        $color = 'success';
-                                    } else {
-                                        $color = 'warning';
-                                    }
-
-                                    $progressWidth = min(100, $percentage);
-                                @endphp
-
-                                <tr class="border-light-subtle">
-                                    <td class="py-3">
-                                        <div>{{ $record->work_name }}</div>
-                                        <div class="text-muted small">{{ $record->work_number }}</div>
-                                    </td>
-                                    <td class="py-3">
-                                        <div>{{ $record->part_number }}</div>
-                                        <div class="text-muted small">{{ $record->part_name }}</div>
-                                    </td>
-                                    <td class="py-3">{{ $record->shop_order_number }}</td>
-                                    <td class="py-3">
-                                        <div>{{ \Carbon\Carbon::parse($record->planned_date)->format('d/m/Y') }}</div>
-                                    </td>
-                                    <td class="py-3">
-                                        <span class="badge-status badge-primary">{{ $record->shift_name }}</span>
-                                    </td>
-                                    <td class="py-3 text-center">
-                                        <span class="badge-status badge-secondary">{{ number_format($plan) }}</span>
-                                    </td>
-                                    <td class="py-3 text-center">
-                                        <span
-                                            class="badge-status badge-{{ $color }}">{{ number_format($prod) }}</span>
-                                    </td>
-                                    <td class="py-3 text-center">
-                                        <div class="d-flex flex-column align-items-center">
-                                            <div class="progress w-75" style="height: 8px;">
-                                                <div class="progress-bar bg-{{ $color }}"
-                                                    style="width: {{ $progressWidth }}%;"></div>
-                                            </div>
-                                            <small class="text-muted mt-1">{{ number_format($percentage, 1) }}%</small>
-                                        </div>
-                                    </td>
-
-                                    <td class="py-3 text-center">
-                                        @if ($record->synced_to_infor)
-                                            <span class="badge-status badge-success" title="Enviado">
-                                                <i class="fas fa-check mr-1"></i> Enviado
-                                            </span>
-                                        @else
-                                            @switch($record->status_name)
-                                                @case('Completado')
-                                                    <span class="badge-status badge-success">
-                                                        <i class="fas fa-check-circle mr-1"></i> {{ $record->status_name }}
-                                                    </span>
-                                                @break
-
-                                                @case('En progreso')
-                                                    <span class="badge-status badge-primary">
-                                                        <i class="fas fa-sync-alt mr-1"></i> {{ $record->status_name }}
-                                                    </span>
-                                                @break
-
-                                                @case('Detenido')
-                                                    <span class="badge-status badge-danger">
-                                                        <i class="fas fa-stop-circle mr-1"></i> {{ $record->status_name }}
-                                                    </span>
-                                                @break
-
-                                                @default
-                                                    <span class="badge-status badge-secondary">
-                                                        <i class="fas fa-info-circle mr-1"></i> {{ $record->status_name }}
-                                                    </span>
-                                            @endswitch
-                                        @endif
-                                    </td>
-                                </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="9" class="text-center py-4 text-muted">No se encontraron registros
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                    <div class="filter-group">
+                        <i class="fas fa-calendar-alt filter-icon"></i>
+                        <input type="date" name="date" class="filter-input"
+                            value="{{ request('date') }}" max="{{ date('Y-m-d') }}"
+                            onchange="this.form.submit()">
                     </div>
 
-                    @if ($productionRecords->hasPages())
-                        <div class="card-footer bg-white border-0 py-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <small class="text-muted">Mostrando {{ $productionRecords->firstItem() }} a
-                                    {{ $productionRecords->lastItem() }} de {{ $productionRecords->total() }}</small>
-                                {{ $productionRecords->links('pagination::bootstrap-4') }}
-                            </div>
-                        </div>
+                    <div class="filter-group" style="width: 260px;">
+                        <i class="fas fa-search filter-icon"></i>
+                        <input type="text" name="search" class="filter-input"
+                            placeholder="Buscar parte, orden, estación..."
+                            value="{{ request('search') }}">
+                    </div>
+
+                    <button type="submit" class="btn-filter-submit">
+                        <i class="fas fa-search mr-1"></i>Buscar
+                    </button>
+
+                    @if (request()->filled('search') || request()->filled('date'))
+                        <a href="{{ route('production-records.index') }}" class="btn-filter-clear">
+                            <i class="fas fa-times mr-1"></i>Limpiar
+                        </a>
                     @endif
                 </div>
+            </form>
+        </div>
+
+        {{-- Tabla --}}
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr class="table-head-row">
+                            <th class="th-cell">Estación</th>
+                            <th class="th-cell">N° de Parte</th>
+                            <th class="th-cell">N° de Orden</th>
+                            <th class="th-cell">Fecha</th>
+                            <th class="th-cell">Turno</th>
+                            <th class="th-cell text-center">Planeada</th>
+                            <th class="th-cell text-center">Producida</th>
+                            <th class="th-cell text-center" style="min-width: 120px;">Progreso</th>
+                            <th class="th-cell text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($productionRecords as $record)
+                            @php
+                                $prod = $record->produced_quantity;
+                                $plan = $record->planned_quantity;
+                                $percentage = $plan > 0 ? ($prod / $plan) * 100 : 0;
+                                $progressWidth = min(100, $percentage);
+
+                                if ($percentage >= 100) {
+                                    $color = 'success';
+                                } elseif ($percentage >= 80) {
+                                    $color = 'warning';
+                                } else {
+                                    $color = 'danger';
+                                }
+
+                                $statusConfig = [
+                                    'Completado'  => ['badge' => 'success', 'icon' => 'check-circle'],
+                                    'En progreso' => ['badge' => 'primary', 'icon' => 'sync-alt'],
+                                    'Detenido'    => ['badge' => 'danger',  'icon' => 'stop-circle'],
+                                ];
+                                $statusCfg = $statusConfig[$record->status_name] ?? ['badge' => 'secondary', 'icon' => 'info-circle'];
+                            @endphp
+
+                            <tr class="td-row">
+                                <td class="td-cell">
+                                    <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ $record->work_name }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ $record->work_number }}</div>
+                                </td>
+                                <td class="td-cell">
+                                    <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ $record->part_number }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ $record->part_name }}</div>
+                                </td>
+                                <td class="td-cell">
+                                    <span class="badge-soft badge-secondary" style="font-family: 'SFMono-Regular', Consolas, monospace;">
+                                        {{ $record->shop_order_number }}
+                                    </span>
+                                </td>
+                                <td class="td-cell">
+                                    <div style="font-size: 0.82rem; color: #334155;">
+                                        {{ \Carbon\Carbon::parse($record->planned_date)->format('d-m-Y') }}
+                                    </div>
+                                </td>
+                                <td class="td-cell">
+                                    <span class="badge-soft badge-primary">{{ $record->shift_name }}</span>
+                                </td>
+                                <td class="td-cell text-center">
+                                    <span class="badge-soft badge-secondary">{{ number_format($plan) }}</span>
+                                </td>
+                                <td class="td-cell text-center">
+                                    <span class="badge-soft badge-{{ $color }}">{{ number_format($prod) }}</span>
+                                </td>
+                                <td class="td-cell text-center">
+                                    <div class="d-flex flex-column align-items-center" style="gap: 3px;">
+                                        <div class="progress w-100" style="height: 5px; border-radius: 10px; background: #e2e8f0;">
+                                            <div class="progress-bar bg-{{ $color }}"
+                                                style="width: {{ $progressWidth }}%; border-radius: 10px;">
+                                            </div>
+                                        </div>
+                                        <small class="fw-600 text-{{ $color }}" style="font-size: 0.7rem;">
+                                            {{ number_format($percentage, 1) }}%
+                                        </small>
+                                    </div>
+                                </td>
+                                <td class="td-cell text-center">
+                                    @if ($record->synced_to_infor)
+                                        <span class="badge-soft badge-success">
+                                            <i class="fas fa-check mr-1"></i>Enviado
+                                        </span>
+                                    @else
+                                        <span class="badge-soft badge-{{ $statusCfg['badge'] }}">
+                                            <i class="fas fa-{{ $statusCfg['icon'] }} mr-1"></i>{{ $record->status_name }}
+                                        </span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="9" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <i class="fas fa-inbox fa-3x mb-3 d-block" style="color: #cbd5e1;"></i>
+                                        <p class="mb-1 fw-500" style="color: #475569;">No se encontraron registros</p>
+                                        <small>Intenta ajustar los filtros de búsqueda</small>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
-        @stop
+        </div>
 
-        @section('css')
-            <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-            <style>
-                .card,
-                .btn,
-                .form-control,
-                .table,
-                .content-header h1 {
-                    font-family: 'Roboto', sans-serif !important;
-                }
+        {{-- Paginación --}}
+        @if ($productionRecords->hasPages())
+            <div class="card-footer bg-white py-3" style="border-top: 1px solid #e9ecef;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
+                    <small class="text-muted">
+                        Mostrando <strong>{{ $productionRecords->firstItem() }}</strong> –
+                        <strong>{{ $productionRecords->lastItem() }}</strong> de
+                        <strong>{{ $productionRecords->total() }}</strong> registros
+                    </small>
+                    {{ $productionRecords->links('pagination::bootstrap-4') }}
+                </div>
+            </div>
+        @endif
 
-                .border-light-subtle {
-                    border-color: #f0f0f0 !important;
-                }
+    </div>
+@stop
 
-                .rounded-3 {
-                    border-radius: 12px !important;
-                }
+@section('css')
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body, .card, .btn, .form-control, .table, .content-header h1 {
+            font-family: 'Inter', sans-serif !important;
+        }
 
-                .table thead th {
-                    font-weight: 700 !important;
-                    font-size: 0.85rem;
-                }
+        /* ── Botones de acción (header) ── */
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.42rem 0.9rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 7px;
+            border: 1.5px solid transparent;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        .btn-action-warning {
+            background: #fff8ec;
+            color: #b45309;
+            border-color: #fcd34d;
+        }
+        .btn-action-warning:hover {
+            background: #fef3c7;
+            color: #92400e;
+            text-decoration: none;
+        }
+        .btn-action-danger {
+            background: #fff1f2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+        .btn-action-danger:hover {
+            background: #fee2e2;
+            color: #991b1b;
+            text-decoration: none;
+        }
+        .btn-action-primary {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #93c5fd;
+        }
+        .btn-action-primary:hover {
+            background: #dbeafe;
+            color: #1e40af;
+            text-decoration: none;
+        }
 
-                .search-box .input-group {
-                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-                    border-radius: 8px;
-                }
+        /* ── Filtros ── */
+        .filter-group {
+            display: inline-flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 7px;
+            padding: 0 0.6rem;
+            height: 34px;
+            transition: border-color 0.15s;
+        }
+        .filter-group:focus-within {
+            border-color: #93c5fd;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
+        }
+        .filter-icon {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            margin-right: 0.45rem;
+        }
+        .filter-input {
+            border: none;
+            background: transparent;
+            font-size: 0.82rem;
+            color: #334155;
+            outline: none;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+        .filter-input::placeholder {
+            color: #94a3b8;
+        }
+        .btn-filter-submit {
+            display: inline-flex;
+            align-items: center;
+            height: 34px;
+            padding: 0 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 7px;
+            background: #1d4ed8;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-filter-submit:hover {
+            background: #1e40af;
+        }
+        .btn-filter-clear {
+            display: inline-flex;
+            align-items: center;
+            height: 34px;
+            padding: 0 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 7px;
+            background: transparent;
+            color: #64748b;
+            border: 1.5px solid #e2e8f0;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .btn-filter-clear:hover {
+            background: #f1f5f9;
+            color: #475569;
+            text-decoration: none;
+        }
+        .filter-label {
+            font-size: 0.78rem;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 0.25rem 0.65rem;
+            border-radius: 5px;
+        }
 
-                .search-box .form-control {
-                    border: 1px solid #e0e0e0;
-                    height: 42px;
-                }
+        /* ── Tabla ── */
+        .table-head-row {
+            background: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .th-cell {
+            font-size: 0.7rem !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #64748b !important;
+            border: none !important;
+            padding: 0.65rem 0.85rem !important;
+            white-space: nowrap;
+        }
+        .td-row {
+            border-bottom: 1px solid #f1f5f9 !important;
+            transition: background 0.1s ease;
+        }
+        .td-row:hover {
+            background-color: #f8fafc !important;
+        }
+        .td-cell {
+            padding: 0.5rem 0.85rem !important;
+            vertical-align: middle !important;
+            border-top: none !important;
+        }
 
-                .badge-status {
-                    display: inline-block;
-                    min-width: 95px;
-                    padding: 0.5em 0.8em;
-                    border-radius: 12px;
-                    font-size: 0.75rem;
-                    font-weight: 600;
-                    border: 1px solid;
-                    text-align: center;
-                }
+        /* ── Badges ── */
+        .badge-soft {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.28em 0.65em;
+            border-radius: 5px;
+            font-size: 0.73rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .badge-soft.badge-primary   { background: #eff6ff; color: #1d4ed8; }
+        .badge-soft.badge-success   { background: #f0fdf4; color: #15803d; }
+        .badge-soft.badge-danger    { background: #fef2f2; color: #b91c1c; }
+        .badge-soft.badge-warning   { background: #fefce8; color: #92400e; }
+        .badge-soft.badge-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
 
-                .badge-status.badge-primary {
-                    background: rgba(13, 110, 253, 0.1);
-                    color: #0d6efd;
-                    border-color: rgba(13, 110, 253, 0.2);
-                }
+        /* ── Paginación ── */
+        .pagination { margin-bottom: 0; }
+        .pagination .page-link {
+            border-radius: 6px !important;
+            margin: 0 2px;
+            border-color: #e2e8f0;
+            color: #475569;
+            font-size: 0.8rem;
+            padding: 0.3rem 0.6rem;
+        }
+        .pagination .page-item.active .page-link {
+            background-color: #1d4ed8;
+            border-color: #1d4ed8;
+            color: #fff;
+        }
+        .pagination .page-item.disabled .page-link { color: #cbd5e1; }
 
-                .badge-status.badge-success {
-                    background: rgba(25, 135, 84, 0.1);
-                    color: #198754;
-                    border-color: rgba(25, 135, 84, 0.2);
-                }
+        .fw-500 { font-weight: 500; }
+        .fw-600 { font-weight: 600; }
 
-                .badge-status.badge-danger {
-                    background: rgba(220, 53, 69, 0.1);
-                    color: #dc3545;
-                    border-color: rgba(220, 53, 69, 0.2);
-                }
+        @media (max-width: 767px) {
+            .filter-group, .btn-filter-submit, .btn-filter-clear {
+                width: 100%;
+            }
+            .card-header form > div {
+                flex-direction: column;
+            }
+        }
+    </style>
+@stop
 
-                .badge-status.badge-secondary {
-                    background: rgba(108, 117, 125, 0.1);
-                    color: #6c757d;
-                    border-color: rgba(108, 117, 125, 0.2);
-                }
-
-                .badge-status.badge-warning {
-                    background: rgba(255, 193, 7, 0.1);
-                    color: #856404;
-                    border-color: rgba(255, 193, 7, 0.2);
-                }
-
-                .progress {
-                    border-radius: 10px;
-                    background-color: #f0f0f0;
-                }
-
-                .fw-500 {
-                    font-weight: 500;
-                }
-
-                @media (max-width: 768px) {
-                    .search-box .input-group {
-                        width: 100% !important;
-                    }
-
-                    .d-flex.justify-content-end {
-                        justify-content: center !important;
-                    }
-                }
-            </style>
-        @stop
-
-        @section('js')
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    // Auto-cerrar alertas
-                    setTimeout(() => {
-                        const alerts = document.querySelectorAll('.alert');
-                        alerts.forEach(alert => {
-                            if (window.bootstrap && bootstrap.Alert) {
-                                new bootstrap.Alert(alert).close();
-                            }
-                        });
-                    }, 5000);
-                });
-            </script>
-        @stop
+@section('js')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.querySelectorAll('.alert').forEach(el => $(el).alert('close'));
+            }, 5000);
+        });
+    </script>
+@stop

@@ -1,0 +1,209 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* =============================================
+   Fuente global — Inter (igual que production-records)
+   ============================================= */
+body,
+.main-sidebar,
+.main-header,
+.navbar,
+.nav-sidebar,
+.brand-link,
+.dropdown-menu {
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* =============================================
+   Sidebar Brand / Logo
+   ============================================= */
+.main-sidebar .brand-link {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 8px;
+    text-align: center;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.main-sidebar .brand-link .brand-image {
+    float: none !important;
+    margin: 0 !important;
+    display: block;
+    width: 160px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.main-sidebar .brand-text {
+    display: none !important;
+}
+
+/* =============================================
+   Sidebar Navigation
+   ============================================= */
+.main-sidebar .nav-sidebar .nav-item > .nav-link {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #475569;
+    padding: 7px 12px;
+    border-radius: 6px;
+    margin: 1px 8px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.main-sidebar .nav-sidebar .nav-item > .nav-link:hover {
+    background: #f1f5f9;
+    color: #1d4ed8;
+}
+
+.main-sidebar .nav-sidebar .nav-item > .nav-link.active {
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+.main-sidebar .nav-sidebar .nav-item > .nav-link .nav-icon {
+    font-size: 0.88rem;
+    width: 1.4rem;
+    color: #64748b;
+}
+
+.main-sidebar .nav-sidebar .nav-item > .nav-link.active .nav-icon,
+.main-sidebar .nav-sidebar .nav-item > .nav-link:hover .nav-icon {
+    color: #1d4ed8;
+}
+
+/* Submenú */
+.main-sidebar .nav-sidebar .nav-item .nav-treeview .nav-link {
+    font-size: 0.79rem;
+    font-weight: 400;
+    color: #64748b;
+    padding: 5px 10px 5px 28px;
+}
+
+.main-sidebar .nav-sidebar .nav-item .nav-treeview .nav-link:hover,
+.main-sidebar .nav-sidebar .nav-item .nav-treeview .nav-link.active {
+    color: #1d4ed8;
+    background: #eff6ff;
+}
+
+/* Padding simétrico del contenedor de nav */
+.main-sidebar .sidebar {
+    padding-right: 0;
+    padding-left: 0;
+}
+
+/* Encabezados de sección */
+.main-sidebar .nav-header {
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    padding: 10px 14px 4px;
+}
+
+/* Buscador del sidebar */
+.sidebar-search-results,
+.sidebar-form .form-control {
+    font-size: 0.82rem;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* =============================================
+   Navbar
+   ============================================= */
+.main-header.navbar {
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+/* =============================================
+   Avatar con iniciales — estilo badge-soft-primary
+   ============================================= */
+.user-initials-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 2px solid #93c5fd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    font-family: 'Inter', sans-serif;
+    flex-shrink: 0;
+    user-select: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.user-initials-toggle:hover .user-initials-avatar,
+.user-initials-toggle.show .user-initials-avatar {
+    background-color: #dbeafe;
+    border-color: #1d4ed8;
+}
+
+.user-initials-avatar--lg {
+    width: 48px;
+    height: 48px;
+    font-size: 1rem;
+}
+
+/* =============================================
+   Dropdown del usuario
+   ============================================= */
+.user-initials-dropdown {
+    min-width: 220px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 16px rgba(0,0,0,.10);
+    border-radius: 10px;
+    overflow: hidden;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+.user-initials-header {
+    text-align: center;
+    padding: 16px 14px 12px;
+    background-color: #f8fafc;
+    color: #334155;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.user-initials-header small {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 400;
+}
+
+.user-initials-dropdown .dropdown-divider {
+    margin: 0;
+    border-color: #e2e8f0;
+}
+
+/* Botón Cerrar sesión */
+.user-initials-dropdown .btn-outline-danger {
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 7px;
+    border-color: #fca5a5;
+    color: #b91c1c;
+    background: #fff1f2;
+    transition: background 0.15s;
+}
+
+.user-initials-dropdown .btn-outline-danger:hover {
+    background: #fee2e2;
+    border-color: #f87171;
+    color: #991b1b;
+}
+
+/* Ocultar caret del dropdown */
+.user-menu > .nav-link.dropdown-toggle::after {
+    display: none !important;
+}

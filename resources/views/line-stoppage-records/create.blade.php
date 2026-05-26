@@ -3,110 +3,143 @@
 @section('title', 'Paro de Línea')
 
 @section('content_header')
-    <h1>{{ __('Paro de Línea') }}</h1>
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Paro de Línea</h1>
+        </div>
+    </div>
 @stop
 
 @section('content')
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
-        <div class="card-body">
+    <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+        <div class="card-body" style="padding: 1.75rem;">
             <form action="{{ route('line-stoppage-records.store') }}" method="POST" id="stoppageForm">
                 @csrf
 
-                <div class="row mb-3">
+                <div class="row">
                     <div class="col-md-6">
-                        <label for="line_stoppage_id" class="form-label fw-bold text-secondary">{{ __('Paro de Línea') }}
-                            *</label>
-                        <select
-                            class="form-control select2 border-light-subtle @error('line_stoppage_id') is-invalid @enderror"
-                            id="line_stoppage_id" name="line_stoppage_id" required>
-                            <option value="">Seleccione un paro de línea...</option>
-                            @foreach ($lineStoppages as $stoppage)
-                                <option value="{{ $stoppage->id }}"
-                                    {{ old('line_stoppage_id') == $stoppage->id ? 'selected' : '' }}>
-                                    {{ $stoppage->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('line_stoppage_id')
-                            <span class="invalid-feedback" role="alert">
-                                <strong>{{ $message }}</strong>
-                            </span>
-                        @enderror
+                        <div class="form-field">
+                            <label class="form-label-text">Paro de Línea <span class="text-danger">*</span></label>
+                            <div class="ss-dropdown" id="ss-line-stoppage">
+                                <div class="ss-trigger">
+                                    <span class="ss-value ss-placeholder">Seleccione un paro de línea...</span>
+                                    <i class="fas fa-chevron-down ss-arrow"></i>
+                                </div>
+                                <div class="ss-panel">
+                                    <div class="ss-search-wrap">
+                                        <i class="fas fa-search ss-search-icon"></i>
+                                        <input type="text" class="ss-search" placeholder="Buscar...">
+                                    </div>
+                                    <div class="ss-options">
+                                        @foreach ($lineStoppages as $stoppage)
+                                            <div class="ss-option {{ old('line_stoppage_id') == $stoppage->id ? 'ss-selected' : '' }}"
+                                                data-value="{{ $stoppage->id }}">
+                                                {{ $stoppage->name }}
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                            <select name="line_stoppage_id" id="line_stoppage_id" style="display:none;">
+                                <option value="">Seleccione...</option>
+                                @foreach ($lineStoppages as $stoppage)
+                                    <option value="{{ $stoppage->id }}"
+                                        {{ old('line_stoppage_id') == $stoppage->id ? 'selected' : '' }}>
+                                        {{ $stoppage->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('line_stoppage_id')
+                                <span class="form-error">{{ $message }}</span>
+                            @enderror
+                        </div>
                     </div>
 
                     <div class="col-md-6">
-                        <label for="work_center_id" class="form-label fw-bold text-secondary">{{ __('Centro de Trabajo') }}
-                            *</label>
-                        <select
-                            class="form-control select2 border-light-subtle @error('work_center_id') is-invalid @enderror"
-                            id="work_center_id" name="work_center_id" required>
-                            <option value="">Seleccione un centro de trabajo...</option>
-                            @foreach ($workCenters as $workCenter)
-                                <option value="{{ $workCenter->id }}"
-                                    {{ old('work_center_id') == $workCenter->id ? 'selected' : '' }}>
-                                    {{ $workCenter->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('work_center_id')
-                            <span class="invalid-feedback" role="alert">
-                                <strong>{{ $message }}</strong>
-                            </span>
-                        @enderror
+                        <div class="form-field">
+                            <label class="form-label-text">Centro de Trabajo <span class="text-danger">*</span></label>
+                            <div class="ss-dropdown" id="ss-work-center">
+                                <div class="ss-trigger">
+                                    <span class="ss-value ss-placeholder">Seleccione un centro de trabajo...</span>
+                                    <i class="fas fa-chevron-down ss-arrow"></i>
+                                </div>
+                                <div class="ss-panel">
+                                    <div class="ss-search-wrap">
+                                        <i class="fas fa-search ss-search-icon"></i>
+                                        <input type="text" class="ss-search" placeholder="Buscar...">
+                                    </div>
+                                    <div class="ss-options">
+                                        @foreach ($workCenters as $workCenter)
+                                            <div class="ss-option {{ old('work_center_id') == $workCenter->id ? 'ss-selected' : '' }}"
+                                                data-value="{{ $workCenter->id }}">
+                                                {{ $workCenter->name }}
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                            <select name="work_center_id" id="work_center_id" style="display:none;">
+                                <option value="">Seleccione...</option>
+                                @foreach ($workCenters as $workCenter)
+                                    <option value="{{ $workCenter->id }}"
+                                        {{ old('work_center_id') == $workCenter->id ? 'selected' : '' }}>
+                                        {{ $workCenter->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('work_center_id')
+                                <span class="form-error">{{ $message }}</span>
+                            @enderror
+                        </div>
                     </div>
                 </div>
 
-                <div class="row mb-3">
+                <div class="row">
                     <div class="col-md-4">
-                        <label for="start_time" class="form-label fw-bold text-secondary">{{ __('Hora de Inicio') }}
-                            *</label>
-                        <input type="datetime-local"
-                            class="form-control border-light-subtle @error('start_time') is-invalid @enderror"
-                            id="start_time" name="start_time" value="{{ old('start_time') }}" required>
-                        @error('start_time')
-                            <span class="invalid-feedback" role="alert">
-                                <strong>{{ $message }}</strong>
-                            </span>
-                        @enderror
+                        <div class="form-field">
+                            <label class="form-label-text">Hora de Inicio <span class="text-danger">*</span></label>
+                            <input type="datetime-local" id="start_time" name="start_time"
+                                class="form-input @error('start_time') is-invalid @enderror"
+                                value="{{ old('start_time') }}" required>
+                            @error('start_time')
+                                <span class="form-error">{{ $message }}</span>
+                            @enderror
+                        </div>
                     </div>
 
                     <div class="col-md-4">
-                        <label for="end_time" class="form-label fw-bold text-secondary">{{ __('Hora de Fin') }} *</label>
-                        <input type="datetime-local"
-                            class="form-control border-light-subtle @error('end_time') is-invalid @enderror" id="end_time"
-                            name="end_time" value="{{ old('end_time') }}" required>
-                        @error('end_time')
-                            <span class="invalid-feedback" role="alert">
-                                <strong>{{ $message }}</strong>
-                            </span>
-                        @enderror
+                        <div class="form-field">
+                            <label class="form-label-text">Hora de Fin <span class="text-danger">*</span></label>
+                            <input type="datetime-local" id="end_time" name="end_time"
+                                class="form-input @error('end_time') is-invalid @enderror"
+                                value="{{ old('end_time') }}" required>
+                            @error('end_time')
+                                <span class="form-error">{{ $message }}</span>
+                            @enderror
+                        </div>
                     </div>
 
                     <div class="col-md-4">
-                        <label for="minutes_stoppage" class="form-label fw-bold text-secondary">{{ __('Minutos de Paro') }}
-                            *</label>
-                        <input type="number"
-                            class="form-control border-light-subtle @error('minutes_stoppage') is-invalid @enderror"
-                            id="minutes_stoppage" name="minutes_stoppage" value="{{ old('minutes_stoppage') }}"
-                            placeholder="Se calculará automáticamente" min="1" readonly>
-                        <small class="text-muted">Se calculará automáticamente</small>
-                        @error('minutes_stoppage')
-                            <span class="invalid-feedback" role="alert">
-                                <strong>{{ $message }}</strong>
-                            </span>
-                        @enderror
+                        <div class="form-field">
+                            <label class="form-label-text">Minutos de Paro</label>
+                            <input type="number" id="minutes_stoppage" name="minutes_stoppage"
+                                class="form-input" style="background: #f1f5f9; color: #64748b;"
+                                value="{{ old('minutes_stoppage') }}"
+                                placeholder="Calculado automáticamente" min="1" readonly>
+                            @error('minutes_stoppage')
+                                <span class="form-error">{{ $message }}</span>
+                            @enderror
+                        </div>
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2 mt-4">
+                <div class="d-flex justify-content-end mt-3" style="gap: 0.5rem;">
                     <a href="{{ $source == 'production-records.index' ? route('production-records.index') : route('line-stoppage-records.index') }}"
-                        class="btn btn-outline-secondary rounded-3">
-                        <i class="fas fa-times"></i>
-                        <span class="ms-2">{{ __('Cancelar') }}</span>
+                        class="form-btn form-btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
                     </a>
-                    <button type="submit" class="btn btn-primary rounded-3">
-                        <i class="fas fa-save"></i>
-                        <span class="ms-2">{{ __('Guardar Registro') }}</span>
+                    <button type="submit" class="form-btn form-btn-primary">
+                        <i class="fas fa-save"></i> Guardar Registro
                     </button>
                 </div>
             </form>
@@ -115,139 +148,217 @@
 @stop
 
 @section('css')
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body,
-        .card,
-        .btn,
-        .form-control,
-        .table,
-        h1 {
-            font-family: 'Roboto', sans-serif !important;
-        }
+        body, .card, .btn, .form-control, h1 { font-family: 'Inter', sans-serif !important; }
 
-        .border-light-subtle {
-            border-color: #f0f0f0 !important;
+        .form-field { margin-bottom: 1.25rem; }
+        .form-label-text {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            margin-bottom: 0.35rem;
         }
-
-        .form-control {
-            border-radius: 8px !important;
-            padding: 0.5rem 1rem !important;
-            font-size: 0.95rem !important;
-            border: 1px solid #e0e0e0 !important;
-            transition: all 0.2s ease;
+        .form-input {
+            display: block;
+            width: 100%;
+            padding: 0.55rem 0.75rem;
+            font-size: 0.875rem;
+            color: #334155;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 7px;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
-
-        .form-control:focus {
-            border-color: #86b7fe !important;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
-            outline: none !important;
+        .form-input:focus {
+            border-color: #93c5fd;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
+            outline: none;
         }
+        .form-input::placeholder { color: #94a3b8; }
+        .form-error { font-size: 0.78rem; color: #b91c1c; margin-top: 0.25rem; display: block; }
 
-        .form-label {
-            font-size: 0.9rem !important;
-            margin-bottom: 0.5rem !important;
-            font-weight: 600 !important;
-        }
-
-        .select2-container--default .select2-selection--single {
-            height: 38px !important;
-            border: 1px solid #e0e0e0 !important;
-            border-radius: 8px !important;
-            padding: 0 !important;
-        }
-
-        .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height: 36px !important;
-            padding-left: 12px !important;
-            font-size: 0.95rem !important;
-        }
-
-        .select2-container--default.select2-container--focus .select2-selection--single {
-            border-color: #86b7fe !important;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
-        }
-
-        .btn {
-            border-radius: 8px !important;
-            padding: 0.5rem 1.5rem !important;
-            font-weight: 500 !important;
-            font-size: 0.95rem !important;
-            transition: all 0.2s ease;
-        }
-
-        .gap-2 {
+        /* ── Single select dropdown ── */
+        .ss-dropdown { position: relative; }
+        .ss-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 7px;
+            padding: 0.55rem 0.75rem;
+            cursor: pointer;
+            transition: border-color 0.15s, box-shadow 0.15s;
             gap: 0.5rem;
+            user-select: none;
         }
+        .ss-trigger.open {
+            border-color: #93c5fd;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
+        }
+        .ss-value { font-size: 0.875rem; color: #334155; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ss-placeholder { color: #94a3b8; }
+        .ss-arrow { font-size: 0.65rem; color: #94a3b8; transition: transform 0.2s; flex-shrink: 0; }
+        .ss-arrow.rotated { transform: rotate(180deg); }
+        .ss-panel {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0; right: 0;
+            background: #fff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            z-index: 999;
+            overflow: hidden;
+        }
+        .ss-panel.open { display: block; }
+        .ss-search-wrap {
+            display: flex;
+            align-items: center;
+            padding: 0.4rem 0.6rem;
+            border-bottom: 1px solid #f1f5f9;
+            gap: 0.4rem;
+        }
+        .ss-search-icon { font-size: 0.72rem; color: #94a3b8; }
+        .ss-search { border: none; outline: none; font-size: 0.8rem; color: #334155; width: 100%; font-family: 'Inter', sans-serif; }
+        .ss-search::placeholder { color: #94a3b8; }
+        .ss-options { max-height: 200px; overflow-y: auto; padding: 0.25rem 0; }
+        .ss-option {
+            padding: 0.42rem 0.75rem;
+            font-size: 0.82rem;
+            color: #334155;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .ss-option:hover { background: #f8fafc; }
+        .ss-option.ss-selected { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+        .ss-option.ss-hidden { display: none; }
 
-        .rounded-3 {
-            border-radius: 12px !important;
+        /* ── Botones ── */
+        .form-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 1.1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border-radius: 7px;
+            border: 1.5px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
         }
-
-        .invalid-feedback {
-            font-size: 0.85rem !important;
-        }
+        .form-btn-primary { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+        .form-btn-primary:hover { background: #1e40af; border-color: #1e40af; color: #fff; text-decoration: none; }
+        .form-btn-secondary { background: transparent; color: #64748b; border-color: #e2e8f0; }
+        .form-btn-secondary:hover { background: #f1f5f9; color: #475569; text-decoration: none; }
     </style>
 @stop
 
 @section('js')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <script>
-        $(document).ready(function() {
-            // Inicializar Select2
-            $('#line_stoppage_id, #work_center_id').select2({
-                placeholder: 'Seleccione una opción',
-                allowClear: false,
-                width: '100%'
+        function initSingleSelect(wrapperId, selectId) {
+            const wrapper = document.getElementById(wrapperId);
+            const select  = document.getElementById(selectId);
+            const trigger = wrapper.querySelector('.ss-trigger');
+            const value   = wrapper.querySelector('.ss-value');
+            const panel   = wrapper.querySelector('.ss-panel');
+            const arrow   = wrapper.querySelector('.ss-arrow');
+            const options = wrapper.querySelectorAll('.ss-option');
+            const search  = wrapper.querySelector('.ss-search');
+
+            function syncDisplay() {
+                const sel = select.options[select.selectedIndex];
+                if (sel && sel.value) {
+                    value.textContent = sel.text;
+                    value.classList.remove('ss-placeholder');
+                } else {
+                    value.textContent = value.dataset.placeholder || 'Seleccione...';
+                    value.classList.add('ss-placeholder');
+                }
+                options.forEach(o => o.classList.toggle('ss-selected', o.dataset.value == select.value));
+            }
+
+            // Guardar placeholder y sincronizar estado inicial (maneja old())
+            value.dataset.placeholder = value.textContent;
+            syncDisplay();
+
+            trigger.addEventListener('click', () => {
+                const open = panel.classList.toggle('open');
+                trigger.classList.toggle('open', open);
+                arrow.classList.toggle('rotated', open);
+                if (open) { search.focus(); search.value = ''; filterOpts(''); }
             });
 
-            // Calcular minutos
-            function calculateMinutes() {
-                const startTime = $('#start_time').val();
-                const endTime = $('#end_time').val();
+            options.forEach(opt => {
+                opt.addEventListener('click', () => {
+                    select.value = opt.dataset.value;
+                    syncDisplay();
+                    panel.classList.remove('open');
+                    trigger.classList.remove('open');
+                    arrow.classList.remove('rotated');
+                });
+            });
 
-                if (startTime && endTime) {
-                    const start = new Date(startTime);
-                    const end = new Date(endTime);
+            search.addEventListener('input', () => filterOpts(search.value));
 
-                    if (end <= start) {
-                        $('#minutes_stoppage').val('');
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: 'La hora de fin debe ser posterior a la hora de inicio.',
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 3000
-                        });
-                        return;
-                    }
+            function filterOpts(q) {
+                const term = q.toLowerCase();
+                options.forEach(o => o.classList.toggle('ss-hidden', !o.textContent.toLowerCase().includes(term)));
+            }
 
-                    const diffMs = end - start;
-                    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-                    if (diffMinutes < 1) {
-                        $('#minutes_stoppage').val('');
-                        return;
-                    }
-
-                    $('#minutes_stoppage').val(diffMinutes);
-                } else {
-                    $('#minutes_stoppage').val('');
+            document.addEventListener('click', e => {
+                if (!wrapper.contains(e.target)) {
+                    panel.classList.remove('open');
+                    trigger.classList.remove('open');
+                    arrow.classList.remove('rotated');
                 }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initSingleSelect('ss-line-stoppage', 'line_stoppage_id');
+            initSingleSelect('ss-work-center', 'work_center_id');
+
+            // Calcular minutos automáticamente
+            function calculateMinutes() {
+                const start = document.getElementById('start_time').value;
+                const end   = document.getElementById('end_time').value;
+                if (!start || !end) { document.getElementById('minutes_stoppage').value = ''; return; }
+                const diff = (new Date(end) - new Date(start)) / 60000;
+                if (diff <= 0) {
+                    document.getElementById('minutes_stoppage').value = '';
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'La hora de fin debe ser posterior a la de inicio.', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                    return;
+                }
+                document.getElementById('minutes_stoppage').value = Math.floor(diff);
             }
 
-            $('#start_time, #end_time').on('change', calculateMinutes);
+            document.getElementById('start_time').addEventListener('change', calculateMinutes);
+            document.getElementById('end_time').addEventListener('change', calculateMinutes);
 
-            // Calcular al cargar si hay valores
-            if ($('#start_time').val() && $('#end_time').val()) {
-                calculateMinutes();
-            }
+            // Validación antes de enviar
+            document.getElementById('stoppageForm').addEventListener('submit', function(e) {
+                if (!document.getElementById('line_stoppage_id').value) {
+                    e.preventDefault();
+                    Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Seleccione un paro de línea.', confirmButtonColor: '#1d4ed8' });
+                    return;
+                }
+                if (!document.getElementById('work_center_id').value) {
+                    e.preventDefault();
+                    Swal.fire({ icon: 'warning', title: 'Campo requerido', text: 'Seleccione un centro de trabajo.', confirmButtonColor: '#1d4ed8' });
+                }
+            });
         });
     </script>
 @stop

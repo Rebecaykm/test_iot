@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ProductionSummaryExport;
 use App\Models\History;
 use App\Models\LineStoppageRecord;
 use App\Models\ProductionRecord;
@@ -9,6 +10,7 @@ use App\Models\ScrapRecord;
 use App\Models\Shift;
 use App\Models\WorkCenter;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,9 +19,6 @@ use Illuminate\Support\Str;
 
 class ProductionRecordController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
         $search = $request->input('search');
@@ -78,9 +77,6 @@ class ProductionRecordController extends Controller
         return view('production-records.index', compact('productionRecords'));
     }
 
-    /**
-     * Summary view
-     */
     public function summary(Request $request)
     {
         try {
@@ -90,17 +86,20 @@ class ProductionRecordController extends Controller
             $workCenterNames = $workCenters->pluck('name')->toArray();
 
             $selectedCenters = $request->input('work_centers', []);
-            $searchPart = $request->input('search');
+            $searchPart      = $request->input('search');
+            $selectedShift   = $request->input('shift');
 
             $startDateStr = $request->input('startDate');
-            $endDateStr = $request->input('endDate');
+            $endDateStr   = $request->input('endDate');
 
             $startDate = $startDateStr ? Carbon::parse($startDateStr)->startOfDay() : Carbon::now()->startOfDay();
-            $endDate = $endDateStr ? Carbon::parse($endDateStr)->endOfDay() : Carbon::now()->endOfDay();
+            $endDate   = $endDateStr   ? Carbon::parse($endDateStr)->endOfDay()     : Carbon::now()->endOfDay();
 
             if ($startDate->gt($endDate)) {
                 $endDate = $startDate->copy()->endOfDay();
             }
+
+            $shifts = Shift::orderBy('start_time')->get();
 
             $query = ProductionRecord::with(['partNumber.workCenter', 'shift'])
                 ->select([
@@ -122,7 +121,7 @@ class ProductionRecordController extends Controller
                 ->whereIn('work_centers.name', $workCenterNames)
                 ->whereBetween('production_records.planned_date', [
                     $startDate->toDateString(),
-                    $endDate->toDateString()
+                    $endDate->toDateString(),
                 ]);
 
             if (!empty($selectedCenters)) {
@@ -133,20 +132,30 @@ class ProductionRecordController extends Controller
                 $query->where('part_numbers.number', 'like', "%{$searchPart}%");
             }
 
+            if (!empty($selectedShift)) {
+                $query->where('shifts.abbreviation', $selectedShift);
+            }
+
             $productionRecords = $query->orderBy('production_records.planned_date', 'desc')
                 ->orderBy('shifts.start_time', 'asc')
                 ->get();
 
-            $hasFilters = $request->filled('search') || $request->filled('work_centers') || $request->filled('startDate') || $request->filled('endDate');
+            $hasFilters = $request->filled('search')
+                || $request->filled('work_centers')
+                || $request->filled('startDate')
+                || $request->filled('endDate')
+                || $request->filled('shift');
 
             return view('production-records.summary', [
                 'productionRecords' => $productionRecords,
-                'workCenters' => $workCenters,
-                'selectedCenters' => $selectedCenters,
-                'search' => $searchPart,
-                'startDate' => $startDate->toDateString(),
-                'endDate' => $endDate->toDateString(),
-                'hasFilters' => $hasFilters
+                'workCenters'       => $workCenters,
+                'selectedCenters'   => $selectedCenters,
+                'search'            => $searchPart,
+                'startDate'         => $startDate->toDateString(),
+                'endDate'           => $endDate->toDateString(),
+                'shifts'            => $shifts,
+                'selectedShift'     => $selectedShift,
+                'hasFilters'        => $hasFilters,
             ]);
         } catch (\Exception $e) {
             Log::error('Error en resumen de producción: ' . $e->getMessage());
@@ -154,9 +163,64 @@ class ProductionRecordController extends Controller
         }
     }
 
-    /**
-     * Chart view
-     */
+    public function exportSummary(Request $request)
+    {
+        $workCenterNames = Auth::user()->workCenters->pluck('name')->toArray();
+
+        $selectedCenters = $request->input('work_centers', []);
+        $searchPart      = $request->input('search');
+        $selectedShift   = $request->input('shift');
+
+        $startDateStr = $request->input('startDate');
+        $endDateStr   = $request->input('endDate');
+
+        $startDate = $startDateStr ? Carbon::parse($startDateStr)->startOfDay() : Carbon::now()->startOfDay();
+        $endDate   = $endDateStr   ? Carbon::parse($endDateStr)->endOfDay()     : Carbon::now()->endOfDay();
+
+        if ($startDate->gt($endDate)) {
+            $endDate = $startDate->copy()->endOfDay();
+        }
+
+        $query = ProductionRecord::select([
+                'work_centers.number AS work_number',
+                'work_centers.name AS work_name',
+                'part_numbers.number AS part_number',
+                'part_numbers.name AS part_name',
+                'production_records.planned_date',
+                'shifts.abbreviation AS shift_name',
+                'production_records.planned_quantity',
+                'production_records.produced_quantity',
+                'production_records.production_start',
+                'production_records.production_end',
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->whereIn('work_centers.name', $workCenterNames)
+            ->whereBetween('production_records.planned_date', [
+                $startDate->toDateString(),
+                $endDate->toDateString(),
+            ]);
+
+        if (!empty($selectedCenters)) {
+            $query->whereIn('work_centers.name', $selectedCenters);
+        }
+        if (!empty($searchPart)) {
+            $query->where('part_numbers.number', 'like', "%{$searchPart}%");
+        }
+        if (!empty($selectedShift)) {
+            $query->where('shifts.abbreviation', $selectedShift);
+        }
+
+        $records = $query->orderBy('production_records.planned_date', 'desc')
+            ->orderBy('shifts.start_time', 'asc')
+            ->get();
+
+        $filename = 'ProductionReport_' . Carbon::now()->format('YmdHis') . '.xlsx';
+
+        return Excel::download(new ProductionSummaryExport($records), $filename);
+    }
+
     public function chart()
     {
         $productionRecords = ProductionRecord::join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
@@ -205,9 +269,6 @@ class ProductionRecordController extends Controller
         ]);
     }
 
-    /**
-     * Get production records
-     */
     public function getProductionRecords()
     {
         $now = Carbon::now();
@@ -259,9 +320,6 @@ class ProductionRecordController extends Controller
         return view('production-records.get-production-records', compact('groupedByWorkCenter'));
     }
 
-    /**
-     * Get hourly production graph
-     */
     public function getHourlyProductionGraph()
     {
         $now = Carbon::now();
@@ -394,9 +452,6 @@ class ProductionRecordController extends Controller
         ]);
     }
 
-    /**
-     * Export production report
-     */
     public function exportProductionReport()
     {
         $currentShift = Shift::getShift(Carbon::now());
@@ -479,9 +534,6 @@ class ProductionRecordController extends Controller
         return $pdf->download('reporte-produccion-' . $currentShiftDate->format('Y-m-d') . '.pdf');
     }
 
-    /**
-     * Mostrar formulario para filtrar reporte PDF
-     */
     public function showExportForm()
     {
         $user = Auth::user();
@@ -495,9 +547,6 @@ class ProductionRecordController extends Controller
         return view('production-records.export-form', compact('lines', 'workCenters'));
     }
 
-    /**
-     * Exportar reporte de producción filtrado
-     */
     public function exportProductionReportFiltered(Request $request)
     {
         $request->validate([

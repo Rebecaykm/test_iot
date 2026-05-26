@@ -588,6 +588,16 @@ return [
     */
 
     'plugins' => [
+        'CustomStyles' => [
+            'active' => true,
+            'files' => [
+                [
+                    'type' => 'css',
+                    'asset' => true,
+                    'location' => 'css/custom.css',
+                ],
+            ],
+        ],
         'Datatables' => [
             'active' => false,
             'files' => [

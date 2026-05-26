@@ -60,6 +60,7 @@ Route::middleware([
     Route::resource('line-stoppage-records', LineStoppageRecordController::class);
     Route::resource('production-records', ProductionRecordController::class);
     Route::get('production-records-summary', [ProductionRecordController::class, 'summary'])->name('production-records.summary');
+    Route::get('production-records-summary/export', [ProductionRecordController::class, 'exportSummary'])->name('production-records.summary.export');
 
     Route::get('/production/export-pdf-form', [ProductionRecordController::class, 'showExportForm'])->name('production.export-pdf-form');
     Route::post('/production/export-pdf-filtered', [ProductionRecordController::class, 'exportProductionReportFiltered'])->name('production.export-pdf-filtered');
