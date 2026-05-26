@@ -30,7 +30,7 @@
                     // Iniciar actualizaciones automáticas cada 30 segundos
                     refreshInterval = setInterval(() => {
                         $wire.dispatchSelf('refresh-graph');
-                    }, 10000);
+                    }, 30000);
                 },
 
                 createChart() {

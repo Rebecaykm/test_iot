@@ -93,11 +93,11 @@ class PressProductionTable extends Component
             ($this->planTurno / $totalShiftMinutes) * $elapsedMinutes
         );
 
-        $this->totalProducido = (int) History::getProductionHistory(
+        $this->totalProducido = History::getTotalProducedQuantity(
             $this->workCenter,
             $shiftStartDt,
             $now
-        )->sum('quantity');
+        );
 
         $this->diferencia = $this->totalProducido - $this->planActual;
 

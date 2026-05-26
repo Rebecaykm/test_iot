@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Cache;
 
 class History extends Model
 {
@@ -59,6 +60,16 @@ class History extends Model
      */
     public static function getProductionHistory($workCenter, $startDateTime, $endDateTime)
     {
+        $workCenterId = Cache::remember(
+            "work_center_id:{$workCenter}",
+            now()->addHours(6),
+            fn () => WorkCenter::where('name', $workCenter)->value('id')
+        );
+
+        if (! $workCenterId) {
+            return collect();
+        }
+
         return History::query()
             ->select([
                 'part_numbers.number AS part_number',
@@ -66,13 +77,67 @@ class History extends Model
                 'histories.created_at'
             ])
             ->join('part_numbers', 'part_numbers.id', '=', 'histories.part_number_id')
-            ->join('work_centers', 'work_centers.id', '=', 'part_numbers.work_center_id')
-            ->where('work_centers.name', $workCenter)
+            ->where('part_numbers.work_center_id', $workCenterId)
             ->whereBetween('histories.created_at', [
                 $startDateTime->format('Y-m-d H:i:s'),
                 $endDateTime->format('Y-m-d H:i:s')
             ])
             ->orderBy('histories.created_at', 'asc')
             ->get();
+    }
+
+    /**
+     * Devuelve solo (quantity, created_at) — no incluye part_number.
+     * Pensado para gráficas que solo necesitan agrupar por tiempo.
+     */
+    public static function getProducedTimeline($workCenter, $startDateTime, $endDateTime)
+    {
+        $workCenterId = Cache::remember(
+            "work_center_id:{$workCenter}",
+            now()->addHours(6),
+            fn () => WorkCenter::where('name', $workCenter)->value('id')
+        );
+
+        if (! $workCenterId) {
+            return collect();
+        }
+
+        return History::query()
+            ->select(['histories.quantity', 'histories.created_at'])
+            ->whereIn(
+                'histories.part_number_id',
+                PartNumber::where('work_center_id', $workCenterId)->select('id')
+            )
+            ->whereBetween('histories.created_at', [
+                $startDateTime->format('Y-m-d H:i:s'),
+                $endDateTime->format('Y-m-d H:i:s')
+            ])
+            ->orderBy('histories.created_at', 'asc')
+            ->get();
+    }
+
+    /**
+     * Suma la cantidad producida en un rango sin traer las filas a PHP.
+     */
+    public static function getTotalProducedQuantity($workCenter, $startDateTime, $endDateTime): int
+    {
+        $workCenterId = Cache::remember(
+            "work_center_id:{$workCenter}",
+            now()->addHours(6),
+            fn () => WorkCenter::where('name', $workCenter)->value('id')
+        );
+
+        if (! $workCenterId) {
+            return 0;
+        }
+
+        return (int) History::query()
+            ->join('part_numbers', 'part_numbers.id', '=', 'histories.part_number_id')
+            ->where('part_numbers.work_center_id', $workCenterId)
+            ->whereBetween('histories.created_at', [
+                $startDateTime->format('Y-m-d H:i:s'),
+                $endDateTime->format('Y-m-d H:i:s')
+            ])
+            ->sum('histories.quantity');
     }
 }

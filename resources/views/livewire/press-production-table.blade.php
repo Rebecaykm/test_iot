@@ -117,7 +117,7 @@
             startAutoRefresh() {
                 setInterval(() => {
                     $wire.dispatchSelf('refresh-table');
-                }, 10000);
+                }, 30000);
             }
         }));
     </script>

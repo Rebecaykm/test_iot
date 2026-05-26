@@ -145,8 +145,8 @@ class PressProductionGraph extends Component
      */
     private function calculateActualForShift(Carbon $start, Carbon $end, $timeBlocks, $now): array
     {
-        // Obtener el historial de producción para este turno
-        $histories = History::getProductionHistory($this->workCenter, $start, $end);
+        // Obtener el historial de producción para este turno (sólo quantity + created_at)
+        $histories = History::getProducedTimeline($this->workCenter, $start, $end);
 
         // Agrupar por bloques de tiempo
         $grouped = $histories->groupBy(function ($item) {
