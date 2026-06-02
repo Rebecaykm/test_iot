@@ -20,6 +20,8 @@ class PartNumber extends Model
         'efficiency',
         'item_class_id',
         'work_center_id',
+        'standard_pack_id',
+        'standard_pack_quantity',
         'is_obsolete',
         'production_order'
     ];
@@ -109,6 +111,14 @@ class PartNumber extends Model
     public function productionRecords(): HasMany
     {
         return $this->hasMany(ProductionRecord::class, 'part_number_id');
+    }
+
+    /**
+     *
+     */
+    public function standardPack(): BelongsTo
+    {
+        return $this->belongsTo(StandardPack::class, 'standard_pack_id');
     }
 
     /**

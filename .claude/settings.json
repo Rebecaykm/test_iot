@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -r \"echo file_exists\\('database/pulse.sqlite'\\) ? 'exists, size=' . filesize\\('database/pulse.sqlite'\\) . ' bytes' : 'missing';\")",
+      "Bash(composer remove *)"
+    ]
+  }
+}

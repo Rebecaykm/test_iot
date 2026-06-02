@@ -26,7 +26,7 @@ class GetPartNumberJob implements ShouldQueue
     {
 
         $itemMaster = IIM::query()
-            ->select('IPROD AS partNumber', 'IDESC AS partName', 'ICLAS AS class', 'IREF04 AS project', 'IMPLC AS isObsolete')
+            ->select('IPROD AS partNumber', 'IDESC AS partName', 'ICLAS AS class', 'IREF04 AS project', 'IMPLC AS isObsolete', 'IMSPKT AS standardPack', 'IMBOXQ AS quantityStandardPack')
             // ->where('IMPLC', 'LIKE', 'OBSOLETE  ')
             ->get();
 
@@ -36,7 +36,9 @@ class GetPartNumberJob implements ShouldQueue
                 preg_replace('/[^a-zA-Z0-9\/\-\s]/', '', trim($item->partName)),
                 trim($item->class),
                 $item->project,
-                $item->isObsolete
+                $item->isObsolete,
+                trim($item->standardPack),
+                trim($item->quantityStandardPack)
             );
         }
 
