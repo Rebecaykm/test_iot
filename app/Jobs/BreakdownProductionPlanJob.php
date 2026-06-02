@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\PartNumber;
 use App\Models\ProductionRecord;
+use App\Models\ProductionSequence;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -26,11 +26,8 @@ class BreakdownProductionPlanJob implements ShouldQueue
     {
         $productionPlans = ProductionRecord::query()
             ->select([
-                'production_records.shop_order_number AS orderNumber',
-                'part_numbers.id AS partNumberId',
+                'production_records.id AS productionRecordId',
                 'part_numbers.standard_pack_quantity AS standardPackQuantity',
-                'production_records.planned_date AS plannedDate',
-                'shifts.id AS shiftId',
                 'production_records.planned_quantity AS plannedQuantity'
             ])
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
@@ -47,8 +44,43 @@ class BreakdownProductionPlanJob implements ShouldQueue
             ->toBase()
             ->get();
 
-        foreach ($productionPlans as $productionPlan) {
-            dd($productionPlan);
+        foreach ($productionPlans as $plan) {
+
+            if (ProductionSequence::where('production_record_id', $plan->productionRecordId)->exists()) {
+                continue;
+            }
+
+            $plannedQty = (int) $plan->plannedQuantity;
+            $stdPackQty = (int) $plan->standardPackQuantity;
+
+            if ($stdPackQty <= 0) {
+                $stdPackQty = $plannedQty;
+            }
+
+            $remainingQty = $plannedQty;
+            $currentSequence = 1;
+
+            $sequencesToInsert = [];
+
+            while ($remainingQty > 0) {
+                $qtyForThisSequence = min($stdPackQty, $remainingQty);
+
+                $sequencesToInsert[] = [
+                    'production_record_id' => $plan->productionRecordId,
+                    'sequence_number'      => $currentSequence,
+                    'quantity'             => $qtyForThisSequence,
+                    'is_processed'         => 0,
+                    'created_at'           => now(),
+                    'updated_at'           => now(),
+                ];
+
+                $remainingQty -= $qtyForThisSequence;
+                $currentSequence++;
+            }
+
+            if (!empty($sequencesToInsert)) {
+                ProductionSequence::insert($sequencesToInsert);
+            }
         }
     }
 }

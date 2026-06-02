@@ -60,6 +60,14 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Relación con ProductionSequence
+     */
+    public function sequences()
+    {
+        return $this->hasMany(ProductionSequence::class);
+    }
+
+    /**
      * Método optimizado para obtener registros de producción con eficiencia
      */
     public static function getWorkCenterProductionRecord(string $workCenter, int $shiftId, $now): Collection
