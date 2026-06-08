@@ -103,7 +103,7 @@ class History extends Model
         }
 
         return History::query()
-            ->select(['histories.quantity', 'histories.created_at'])
+            ->select(['histories.part_number_id', 'histories.quantity', 'histories.created_at'])
             ->whereIn(
                 'histories.part_number_id',
                 PartNumber::where('work_center_id', $workCenterId)->select('id')
@@ -114,6 +114,38 @@ class History extends Model
             ])
             ->orderBy('histories.created_at', 'asc')
             ->get();
+    }
+
+    /**
+     * Suma de piezas producidas en un rango, agrupada por part_number_id.
+     * Devuelve [part_number_id => piezas]. Pensado para convertir a golpes
+     * aplicando el divisor de cada part (ver PartNumber::getShotDivisorsByWorkCenter).
+     */
+    public static function getProducedQuantityByPart($workCenter, $startDateTime, $endDateTime): array
+    {
+        $workCenterId = Cache::remember(
+            "work_center_id:{$workCenter}",
+            now()->addHours(6),
+            fn () => WorkCenter::where('name', $workCenter)->value('id')
+        );
+
+        if (! $workCenterId) {
+            return [];
+        }
+
+        return History::query()
+            ->whereIn(
+                'histories.part_number_id',
+                PartNumber::where('work_center_id', $workCenterId)->select('id')
+            )
+            ->whereBetween('histories.created_at', [
+                $startDateTime->format('Y-m-d H:i:s'),
+                $endDateTime->format('Y-m-d H:i:s')
+            ])
+            ->groupBy('histories.part_number_id')
+            ->selectRaw('histories.part_number_id, SUM(histories.quantity) AS qty')
+            ->pluck('qty', 'part_number_id')
+            ->toArray();
     }
 
     /**

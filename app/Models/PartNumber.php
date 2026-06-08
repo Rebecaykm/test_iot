@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\Cache;
 
 class PartNumber extends Model
 {
@@ -192,5 +193,77 @@ class PartNumber extends Model
             ->get()
             ->pluck('value', 'key')
             ->toArray();
+    }
+
+    /**
+     * Devuelve un mapa [part_number_id => divisor] para convertir piezas a golpes.
+     *
+     * Un golpe del troquel (atributo 'mid') produce simultáneamente piezas de
+     * TODOS los números de parte que comparten ese troquel, por eso el divisor
+     * es la SUMA de pieces_per_shot de esos parts:
+     *
+     *     golpes = piezas_del_part / divisor_del_part
+     *
+     * Así, sumando golpes por part se obtiene el total real del troquel sin
+     * duplicar (ej. troquel BDWK34831/841 con parts BDWK34831 y BDWK34841,
+     * cada uno pieces_per_shot=2 => divisor 4: 100/4 + 100/4 = 50 golpes).
+     *
+     * Los parts sin troquel forman su propio grupo (divisor = su pieces_per_shot).
+     */
+    public static function getShotDivisorsByWorkCenter(string $workCenter): array
+    {
+        $workCenterId = Cache::remember(
+            "work_center_id:{$workCenter}",
+            now()->addHours(6),
+            fn () => WorkCenter::where('name', $workCenter)->value('id')
+        );
+
+        if (! $workCenterId) {
+            return [];
+        }
+
+        $parts = static::query()
+            ->where('work_center_id', $workCenterId)
+            ->with(['customAttributes' => fn ($q) => $q->whereIn('key', ['mid', 'pieces_per_shot'])])
+            ->get();
+
+        return static::buildShotDivisors($parts);
+    }
+
+    /**
+     * Construye el mapa [part_number_id => divisor] a partir de una colección de
+     * PartNumber que ya tienen cargados sus customAttributes ('mid' y
+     * 'pieces_per_shot'). Ver getShotDivisorsByWorkCenter() para el detalle.
+     */
+    public static function buildShotDivisors($parts): array
+    {
+        $piecesPerShot = [];
+        $dieKey        = [];
+
+        foreach ($parts as $part) {
+            $attrs = $part->customAttributes->keyBy('key');
+
+            $pps = max(1, (int) ($attrs['pieces_per_shot']->value ?? 1));
+            $mid = trim((string) ($attrs['mid']->value ?? ''));
+
+            $piecesPerShot[$part->id] = $pps;
+            // Sin troquel => grupo propio para no mezclarlo con otros parts.
+            $dieKey[$part->id] = $mid !== '' ? $mid : "part:{$part->id}";
+        }
+
+        // Suma de pieces_per_shot por troquel.
+        $dieTotals = [];
+        foreach ($piecesPerShot as $partId => $pps) {
+            $key             = $dieKey[$partId];
+            $dieTotals[$key] = ($dieTotals[$key] ?? 0) + $pps;
+        }
+
+        // Cada part hereda como divisor el total de su troquel.
+        $divisors = [];
+        foreach ($dieKey as $partId => $key) {
+            $divisors[$partId] = max(1, $dieTotals[$key]);
+        }
+
+        return $divisors;
     }
 }

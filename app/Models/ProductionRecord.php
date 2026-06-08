@@ -155,6 +155,7 @@ class ProductionRecord extends Model
                 'production_records.id AS production_id',
                 'work_centers.number AS work_number',
                 'work_centers.name AS work_name',
+                'part_numbers.id AS part_number_id',
                 'part_numbers.number AS part_number',
                 'part_numbers.name AS part_name',
                 'part_numbers.production_rate as production_rate',

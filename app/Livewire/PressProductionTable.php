@@ -70,16 +70,13 @@ class PressProductionTable extends Component
             ->where('work_centers.name', 'LIKE', $this->workCenter)
             ->get();
 
-        $piecesPerShotMap = PartNumber::whereIn('id', $planRecords->pluck('part_number_id')->unique())
-            ->with(['customAttributes' => fn($q) => $q->where('key', 'pieces_per_shot')])
-            ->get()
-            ->mapWithKeys(fn($part) => [
-                $part->id => max(1, (int) ($part->customAttributes->first()?->value ?? 1)),
-            ]);
+        // Divisor por troquel: [part_number_id => suma de pieces_per_shot del troquel].
+        // Convierte piezas -> golpes. Ver PartNumber::getShotDivisorsByWorkCenter.
+        $divisors = PartNumber::getShotDivisorsByWorkCenter($this->workCenter);
 
         $this->planTurno = (int) round(
-            $planRecords->sum(function ($record) use ($piecesPerShotMap) {
-                $divisor = $piecesPerShotMap[$record->part_number_id] ?? 1;
+            $planRecords->sum(function ($record) use ($divisors) {
+                $divisor = $divisors[$record->part_number_id] ?? 1;
                 return $record->planned_quantity / $divisor;
             })
         );
@@ -93,16 +90,24 @@ class PressProductionTable extends Component
             ($this->planTurno / $totalShiftMinutes) * $elapsedMinutes
         );
 
-        $this->totalProducido = History::getTotalProducedQuantity(
+        // Total producido en golpes: piezas por part / divisor de su troquel.
+        $producedByPart = History::getProducedQuantityByPart(
             $this->workCenter,
             $shiftStartDt,
             $now
         );
 
+        $totalShots = 0.0;
+        foreach ($producedByPart as $partId => $pieces) {
+            $totalShots += $pieces / ($divisors[$partId] ?? 1);
+        }
+        $this->totalProducido = (int) round($totalShots);
+
         $this->diferencia = $this->totalProducido - $this->planActual;
 
         $this->data = ProductionRecord::query()
             ->select([
+                'part_numbers.id AS part_number_id',
                 'part_numbers.number AS part_number',
                 'production_records.produced_quantity',
             ])
@@ -118,7 +123,8 @@ class PressProductionTable extends Component
             ->get()
             ->map(fn($r) => [
                 'part_number'       => $r->part_number,
-                'produced_quantity' => (int) $r->produced_quantity,
+                // Golpes del part = piezas producidas / divisor de su troquel.
+                'produced_quantity' => (int) round($r->produced_quantity / ($divisors[$r->part_number_id] ?? 1)),
             ])
             ->values()
             ->toArray();
