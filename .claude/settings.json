@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(php -r \"echo file_exists\\('database/pulse.sqlite'\\) ? 'exists, size=' . filesize\\('database/pulse.sqlite'\\) . ' bytes' : 'missing';\")",
-      "Bash(composer remove *)"
+      "Bash(composer remove *)",
+      "PowerShell(php artisan route:list --name=production-sequences 2>&1)",
+      "PowerShell(php -l app/Http/Controllers/ProductionSequenceController.php)",
+      "PowerShell(php artisan config:clear)",
+      "PowerShell(php artisan view:clear)"
     ]
   }
 }

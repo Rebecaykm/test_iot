@@ -9,6 +9,7 @@ use App\Http\Controllers\MaterialValidationController;
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProductionRecordController;
+use App\Http\Controllers\ProductionSequenceController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ScrapController;
 use App\Http\Controllers\ScrapRecordController;
@@ -59,6 +60,7 @@ Route::middleware([
     Route::resource('line-stoppages', LineStoppageController::class);
     Route::resource('line-stoppage-records', LineStoppageRecordController::class);
     Route::resource('production-records', ProductionRecordController::class);
+    Route::resource('production-sequences', ProductionSequenceController::class);
     Route::get('production-records-summary', [ProductionRecordController::class, 'summary'])->name('production-records.summary');
     Route::get('production-records-summary/export', [ProductionRecordController::class, 'exportSummary'])->name('production-records.summary.export');
 

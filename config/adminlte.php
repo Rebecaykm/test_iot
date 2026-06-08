@@ -440,6 +440,12 @@ return [
                     'icon' => 'fas fa-fw fa-chart-bar',
                     'can' => 'view production records'
                 ],
+                [
+                    'text' => 'Secuencias de Producción',
+                    'route' => 'production-sequences.index',
+                    'icon' => 'fas fa-fw fa-list-ol',
+                    'can' => 'view production records'
+                ],
                 // [
                 //     'text' => 'Registro de Scrap',
                 //     'route' => 'scrap-records.index',
