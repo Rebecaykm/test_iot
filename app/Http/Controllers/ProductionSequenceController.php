@@ -24,6 +24,7 @@ class ProductionSequenceController extends Controller
 
         $sequences = ProductionSequence::query()
             ->select([
+                'production_records.shop_order_number AS order_number',
                 'production_sequences.id AS sequence_id',
                 'part_numbers.number AS part_number',
                 'part_numbers.name AS part_name',

@@ -93,6 +93,7 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr class="table-head-row">
+                            <th class="th-cell">N° de Orden</th>
                             <th class="th-cell">N° de Parte</th>
                             <th class="th-cell">Fecha</th>
                             <th class="th-cell">Turno</th>
@@ -105,6 +106,9 @@
                     <tbody>
                         @forelse($sequences as $sequence)
                             <tr class="td-row">
+                                <td class="td-cell">
+                                    <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ $sequence->order_number }}</div>
+                                </td>
                                 <td class="td-cell">
                                     <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ $sequence->part_number }}</div>
                                     <div class="text-muted" style="font-size: 0.75rem;">{{ $sequence->part_name }}</div>
@@ -148,7 +152,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-5">
+                                <td colspan="8" class="text-center py-5">
                                     <div class="text-muted">
                                         <i class="fas fa-inbox fa-3x mb-3 d-block" style="color: #cbd5e1;"></i>
                                         <p class="mb-1 fw-500" style="color: #475569;">No se encontraron secuencias</p>
