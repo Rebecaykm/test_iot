@@ -70,9 +70,13 @@ class PressProductionTable extends Component
             ->where('work_centers.name', 'LIKE', $this->workCenter)
             ->get();
 
-        // Divisor por troquel: [part_number_id => suma de pieces_per_shot del troquel].
-        // Convierte piezas -> golpes. Ver PartNumber::getShotDivisorsByWorkCenter.
-        $divisors = PartNumber::getShotDivisorsByWorkCenter($this->workCenter);
+        // Divisor por troquel: [part_number_id => suma de pieces_per_shot del troquel],
+        // calculado SOLO con los parts del turno (no todo el work center), para no
+        // inflar el divisor con revisiones viejas que comparten 'mid'. Convierte
+        // piezas -> golpes. Ver PartNumber::buildShotDivisorsForPartIds.
+        $divisors = PartNumber::buildShotDivisorsForPartIds(
+            $planRecords->pluck('part_number_id')->all()
+        );
 
         $this->planTurno = (int) round(
             $planRecords->sum(function ($record) use ($divisors) {

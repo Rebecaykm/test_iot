@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Support\Facades\Cache;
 
 class PartNumber extends Model
 {
@@ -196,34 +195,30 @@ class PartNumber extends Model
     }
 
     /**
-     * Devuelve un mapa [part_number_id => divisor] para convertir piezas a golpes.
+     * Devuelve un mapa [part_number_id => divisor] para convertir piezas a golpes,
+     * calculado SOLO sobre los part numbers indicados (los que están en juego en
+     * el turno/producción), no sobre todo el work center.
      *
-     * Un golpe del troquel (atributo 'mid') produce simultáneamente piezas de
-     * TODOS los números de parte que comparten ese troquel, por eso el divisor
-     * es la SUMA de pieces_per_shot de esos parts:
+     * Esto es clave: un troquel (atributo 'mid') puede estar registrado en part
+     * numbers que ya no se corren (revisiones viejas, ej. BDWK34811A vs BDWK34811B).
+     * Si esos contaran, el divisor se inflaría y los golpes saldrían más bajos.
+     * Por eso el divisor solo suma el pieces_per_shot de los parts presentes aquí.
      *
      *     golpes = piezas_del_part / divisor_del_part
      *
-     * Así, sumando golpes por part se obtiene el total real del troquel sin
-     * duplicar (ej. troquel BDWK34831/841 con parts BDWK34831 y BDWK34841,
-     * cada uno pieces_per_shot=2 => divisor 4: 100/4 + 100/4 = 50 golpes).
-     *
-     * Los parts sin troquel forman su propio grupo (divisor = su pieces_per_shot).
+     * Ej.: troquel BDWK34831/841 con BDWK34831 y BDWK34841 (ambos en el turno),
+     * cada uno produjo 1423 piezas (pps=1) => divisor 2 => 1423/2 + 1423/2 = 1423.
      */
-    public static function getShotDivisorsByWorkCenter(string $workCenter): array
+    public static function buildShotDivisorsForPartIds(array $partIds): array
     {
-        $workCenterId = Cache::remember(
-            "work_center_id:{$workCenter}",
-            now()->addHours(6),
-            fn () => WorkCenter::where('name', $workCenter)->value('id')
-        );
+        $partIds = array_values(array_unique(array_filter($partIds)));
 
-        if (! $workCenterId) {
+        if (empty($partIds)) {
             return [];
         }
 
         $parts = static::query()
-            ->where('work_center_id', $workCenterId)
+            ->whereIn('id', $partIds)
             ->with(['customAttributes' => fn ($q) => $q->whereIn('key', ['mid', 'pieces_per_shot'])])
             ->get();
 
@@ -232,8 +227,8 @@ class PartNumber extends Model
 
     /**
      * Construye el mapa [part_number_id => divisor] a partir de una colección de
-     * PartNumber que ya tienen cargados sus customAttributes ('mid' y
-     * 'pieces_per_shot'). Ver getShotDivisorsByWorkCenter() para el detalle.
+     * PartNumber (distintos) que ya tienen cargados sus customAttributes ('mid' y
+     * 'pieces_per_shot'). Ver buildShotDivisorsForPartIds() para el detalle.
      */
     public static function buildShotDivisors($parts): array
     {
