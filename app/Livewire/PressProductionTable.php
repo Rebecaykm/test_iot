@@ -111,7 +111,6 @@ class PressProductionTable extends Component
 
         $this->data = ProductionRecord::query()
             ->select([
-                'part_numbers.id AS part_number_id',
                 'part_numbers.number AS part_number',
                 'production_records.produced_quantity',
             ])
@@ -127,8 +126,7 @@ class PressProductionTable extends Component
             ->get()
             ->map(fn($r) => [
                 'part_number'       => $r->part_number,
-                // Golpes del part = piezas producidas / divisor de su troquel.
-                'produced_quantity' => (int) round($r->produced_quantity / ($divisors[$r->part_number_id] ?? 1)),
+                'produced_quantity' => (int) $r->produced_quantity,
             ])
             ->values()
             ->toArray();
