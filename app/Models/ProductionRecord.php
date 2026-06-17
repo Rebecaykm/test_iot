@@ -182,6 +182,36 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Obtiene los registros de producción de un turno con su ventana de tiempo
+     * (production_start / production_end) para dibujar una línea de tiempo (Gantt).
+     * Solo trae los registros que ya iniciaron producción.
+     */
+    public static function getShiftProductionTimeline(string $workCenter, int $shiftId, $date): Collection
+    {
+        return ProductionRecord::query()
+            ->select([
+                'production_records.id AS production_id',
+                'work_centers.name AS work_name',
+                'part_numbers.number AS part_number',
+                'part_numbers.name AS part_name',
+                'part_numbers.production_order as production_order',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'production_records.production_start AS production_start',
+                'production_records.production_end AS production_end',
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->where('production_records.planned_date', \Carbon\Carbon::parse($date)->toDateString())
+            ->where('shifts.id', $shiftId)
+            ->where('work_centers.name', 'LIKE', $workCenter)
+            ->whereNotNull('production_records.production_start')
+            ->orderBy('production_records.production_start', 'asc')
+            ->get();
+    }
+
+    /**
      * Método para obtener el siguiente part number que debe producirse
      * basado en el orden de producción
      */

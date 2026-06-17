@@ -110,6 +110,12 @@ Route::get('press-production/{workCenter}', function ($workCenter) {
     ]);
 })->name('press-production');
 
+Route::get('shift-production-timeline/{workCenter}', function ($workCenter) {
+    return view('shift-production-timeline', [
+        'workCenter' => $workCenter
+    ]);
+})->name('shift-production-timeline');
+
 
 // Guest Routes
 Route::get('guest/work-center-map', function () {
