@@ -92,9 +92,76 @@
                         label:         isDark ? '#ffffff' : '#111827',
                     };
 
+                    // Dibuja una etiqueta de hora con fondo de color sobre una línea vertical
+                    const drawTimeTag = (ctx, x, area, text, color) => {
+                        ctx.font = 'bold 11px sans-serif';
+                        const padding = 6;
+                        const boxW = ctx.measureText(text).width + padding * 2;
+                        const boxH = 18;
+                        let boxX = x - boxW / 2;
+                        boxX = Math.max(area.left, Math.min(boxX, area.right - boxW));
+                        const boxY = area.top + 2;
+                        ctx.fillStyle = color;
+                        ctx.fillRect(boxX, boxY, boxW, boxH);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(text, boxX + boxW / 2, boxY + boxH / 2);
+                    };
+
+                    // Plugin: línea "Ahora" (ámbar) fija + línea roja que sigue el mouse
+                    const crosshairPlugin = {
+                        id: 'crosshair',
+                        afterEvent(chart, args) {
+                            const e = args.event;
+                            const area = chart.chartArea;
+                            const inside = e.x >= area.left && e.x <= area.right
+                                && e.y >= area.top && e.y <= area.bottom;
+                            chart._crosshairX = (e.type === 'mousemove' && inside) ? e.x : null;
+                            if (e.type === 'mouseout') chart._crosshairX = null;
+                            args.changed = true; // forzar redibujo para mover la línea
+                        },
+                        afterDraw(chart) {
+                            const { ctx, chartArea: area, scales } = chart;
+
+                            // Línea "Ahora" (hora actual del turno)
+                            if (state.shiftStartIso) {
+                                const nowOffset = (Date.now() - new Date(state.shiftStartIso).getTime()) / 3600000;
+                                if (nowOffset >= 0 && nowOffset <= scales.x.max) {
+                                    const nx = scales.x.getPixelForValue(nowOffset);
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.setLineDash([5, 5]);
+                                    ctx.lineWidth = 1.5;
+                                    ctx.strokeStyle = '#f59e0b';
+                                    ctx.moveTo(nx, area.top);
+                                    ctx.lineTo(nx, area.bottom);
+                                    ctx.stroke();
+                                    ctx.setLineDash([]);
+                                    ctx.restore();
+                                }
+                            }
+
+                            // Línea roja que sigue el mouse + hora en ese punto
+                            const x = chart._crosshairX;
+                            if (x == null) return;
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.setLineDash([6, 6]);
+                            ctx.lineWidth = 1.5;
+                            ctx.strokeStyle = '#ef4444';
+                            ctx.moveTo(x, area.top);
+                            ctx.lineTo(x, area.bottom);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            drawTimeTag(ctx, x, area, clockLabel(scales.x.getValueForPixel(x)), '#ef4444');
+                            ctx.restore();
+                        }
+                    };
+
                     chart = new Chart(ctx, {
                         type: 'bar',
-                        plugins: [ChartDataLabels],
+                        plugins: [ChartDataLabels, crosshairPlugin],
                         data: {
                             labels: @json($labels),
                             datasets: [{
@@ -103,7 +170,7 @@
                                 backgroundColor: colors.barFill,
                                 borderColor: colors.barBorder,
                                 borderWidth: 1.5,
-                                borderRadius: 2,
+                                borderRadius: 8,
                                 borderSkipped: false,
                                 barThickness: 34,
                                 maxBarThickness: 40,
