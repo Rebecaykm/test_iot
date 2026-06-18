@@ -169,8 +169,8 @@
                                 data: @json($ranges),   // [[inicio, fin], ...] en horas de la línea
                                 backgroundColor: colors.barFill,
                                 borderColor: colors.barBorder,
-                                borderWidth: 1.5,
-                                borderRadius: 8,
+                                borderWidth: 1,
+                                borderRadius: 3,
                                 borderSkipped: false,
                                 barThickness: 26,
                                 maxBarThickness: 30,
@@ -200,6 +200,7 @@
                                     title: { display: true, text: 'Fecha y hora', color: colors.textMuted }
                                 },
                                 y: {
+                                    type: 'category',
                                     ticks: { color: colors.text, font: { size: 12 } },
                                     grid: { display: false },
                                     border: { display: false }

@@ -68,38 +68,43 @@ class ShiftProductionTimeline extends Component
         $this->shiftStartIso = $baseStart->toIso8601String();
         $this->durationHours = round(abs($baseStart->diffInMinutes($timelineEnd)) / 60, 2);
 
-        // Turno anterior primero (queda abajo), luego el actual
+        // Juntar los registros del turno anterior y el actual en una sola colección
+        $records = collect();
         if ($hasPrevious) {
-            $previousRecords = ProductionRecord::getShiftProductionTimeline(
+            $records = $records->concat(ProductionRecord::getShiftProductionTimeline(
                 $this->workCenter,
                 $previous->shift->id,
                 $previous->date
-            );
-            $this->appendRecords($previousRecords, $baseStart, $timelineEnd, $now);
+            ));
         }
-
-        $currentRecords = ProductionRecord::getShiftProductionTimeline(
+        $records = $records->concat(ProductionRecord::getShiftProductionTimeline(
             $this->workCenter,
             $current->shift->id,
             $current->date
-        );
-        $this->appendRecords($currentRecords, $baseStart, $timelineEnd, $now);
+        ));
+
+        $this->buildBars($records, $baseStart, $timelineEnd, $now);
 
         $this->dispatchTimeline();
     }
 
     /**
-     * Agrega las barras de una colección de registros, acotadas a [$baseStart, $timelineEnd]
-     * y con offsets en horas desde $baseStart.
+     * Construye los segmentos de la línea de tiempo. Cada número de parte ocupa
+     * UNA sola fila (no se repite), pero conserva un segmento por cada registro con
+     * su propio inicio y fin. Así un material producido de 01:00 a 02:00 y luego de
+     * 10:00 a 13:00 se muestra como dos barras en la misma fila.
      */
-    private function appendRecords($records, Carbon $baseStart, Carbon $timelineEnd, Carbon $now): void
+    private function buildBars($records, Carbon $baseStart, Carbon $timelineEnd, Carbon $now): void
     {
+        $segments = [];      // un elemento por registro (cada barra)
+        $firstStart = [];    // número de parte => timestamp del inicio más temprano
+
         foreach ($records as $record) {
             $start = Carbon::parse($record->production_start);
             $inProgress = empty($record->production_end);
             $end = $inProgress ? $now->copy() : Carbon::parse($record->production_end);
 
-            // Acotar la barra a la ventana visible de la línea de tiempo
+            // Acotar a la ventana visible de la línea de tiempo
             if ($start->lt($baseStart)) {
                 $start = $baseStart->copy();
             }
@@ -111,14 +116,37 @@ class ShiftProductionTimeline extends Component
                 continue;
             }
 
-            $startOffset = round(abs($baseStart->diffInMinutes($start)) / 60, 3);
-            $endOffset = round(abs($baseStart->diffInMinutes($end)) / 60, 3);
+            $partNumber = $record->part_number;
 
-            $this->labels[] = $record->part_number;
-            $this->ranges[] = [$startOffset, $endOffset];
-            $this->quantities[] = (int) $record->produced_quantity;
-            $this->timeLabels[] = $start->format('d-m H:i') . ' - '
-                . ($inProgress ? 'en proceso' : $end->format('d-m H:i'));
+            $segments[] = [
+                'part' => $partNumber,
+                'start' => $start,
+                'end' => $end,
+                'quantity' => (int) $record->produced_quantity,
+                'inProgress' => $inProgress,
+            ];
+
+            if (!isset($firstStart[$partNumber]) || $start->getTimestamp() < $firstStart[$partNumber]) {
+                $firstStart[$partNumber] = $start->getTimestamp();
+            }
+        }
+
+        // Categorías (eje Y): un número de parte por fila, ordenadas por su inicio más temprano
+        asort($firstStart);
+        $this->labels = array_keys($firstStart);
+
+        // Segmentos ordenados cronológicamente
+        usort($segments, fn ($a, $b) => $a['start']->getTimestamp() <=> $b['start']->getTimestamp());
+
+        foreach ($segments as $segment) {
+            $startOffset = round(abs($baseStart->diffInMinutes($segment['start'])) / 60, 3);
+            $endOffset = round(abs($baseStart->diffInMinutes($segment['end'])) / 60, 3);
+
+            // {x:[inicio,fin], y:número de parte} => varios segmentos pueden ir en la misma fila
+            $this->ranges[] = ['x' => [$startOffset, $endOffset], 'y' => $segment['part']];
+            $this->quantities[] = $segment['quantity'];
+            $this->timeLabels[] = $segment['start']->format('d-m H:i') . ' - '
+                . ($segment['inProgress'] ? 'en proceso' : $segment['end']->format('d-m H:i'));
         }
     }
 
