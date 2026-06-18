@@ -17,7 +17,7 @@ class ShiftProductionTimeline extends Component
     /** Etiquetas del eje Y: número de parte por barra */
     public array $labels = [];
 
-    /** Rango de cada barra en horas-desde-el-inicio-del-turno: [[inicio, fin], ...] */
+    /** Rango de cada barra en horas-desde-el-inicio-de-la-línea: [[inicio, fin], ...] */
     public array $ranges = [];
 
     /** Cantidad producida por barra (se pinta sobre la barra) */
@@ -26,17 +26,11 @@ class ShiftProductionTimeline extends Component
     /** Texto "HH:mm - HH:mm" por barra para el tooltip */
     public array $timeLabels = [];
 
-    /** Duración del turno en horas (ancho del eje X) */
+    /** Ancho total del eje X en horas (turno anterior + actual) */
     public float $durationHours = 12;
 
-    /** Inicio del turno en ISO, para calcular las etiquetas de hora en el eje X */
+    /** Inicio de la línea de tiempo en ISO (inicio del turno anterior si existe) */
     public ?string $shiftStartIso = null;
-
-    /** Nombre del turno actual */
-    public ?string $shiftName = null;
-
-    /** Fecha del turno actual */
-    public ?string $plannedDate = null;
 
     public function mount($workCenter): void
     {
@@ -50,6 +44,7 @@ class ShiftProductionTimeline extends Component
     {
         $now = Carbon::now();
         $current = Shift::getCurrentShiftInfo($now);
+        $previous = Shift::getPreviousShiftInfo($now);
 
         $this->labels = [];
         $this->ranges = [];
@@ -58,56 +53,73 @@ class ShiftProductionTimeline extends Component
 
         // Sin turno activo: mandar todo vacío
         if (!$current->shift || !$current->timeRange) {
-            $this->shiftName = null;
-            $this->plannedDate = null;
             $this->dispatchTimeline();
             return;
         }
 
-        $shiftStart = $current->timeRange->startDateTime->copy();
-        $shiftEnd = $current->timeRange->endDateTime->copy();
+        $currentStart = $current->timeRange->startDateTime->copy();
+        $currentEnd = $current->timeRange->endDateTime->copy();
 
-        $this->shiftStartIso = $shiftStart->toIso8601String();
-        $this->durationHours = round(abs($shiftStart->diffInMinutes($shiftEnd)) / 60, 2);
-        $this->shiftName = $current->shift->name;
-        $this->plannedDate = $shiftStart->format('d-m-Y');
+        // La línea de tiempo arranca en el turno anterior (si existe) y termina al final del actual
+        $hasPrevious = $previous->shift && $previous->timeRange;
+        $baseStart = $hasPrevious ? $previous->timeRange->startDateTime->copy() : $currentStart->copy();
+        $timelineEnd = $currentEnd->copy();
 
-        $records = ProductionRecord::getShiftProductionTimeline(
+        $this->shiftStartIso = $baseStart->toIso8601String();
+        $this->durationHours = round(abs($baseStart->diffInMinutes($timelineEnd)) / 60, 2);
+
+        // Turno anterior primero (queda abajo), luego el actual
+        if ($hasPrevious) {
+            $previousRecords = ProductionRecord::getShiftProductionTimeline(
+                $this->workCenter,
+                $previous->shift->id,
+                $previous->date
+            );
+            $this->appendRecords($previousRecords, $baseStart, $timelineEnd, $now);
+        }
+
+        $currentRecords = ProductionRecord::getShiftProductionTimeline(
             $this->workCenter,
             $current->shift->id,
             $current->date
         );
+        $this->appendRecords($currentRecords, $baseStart, $timelineEnd, $now);
 
+        $this->dispatchTimeline();
+    }
+
+    /**
+     * Agrega las barras de una colección de registros, acotadas a [$baseStart, $timelineEnd]
+     * y con offsets en horas desde $baseStart.
+     */
+    private function appendRecords($records, Carbon $baseStart, Carbon $timelineEnd, Carbon $now): void
+    {
         foreach ($records as $record) {
             $start = Carbon::parse($record->production_start);
-            // Si aún no termina, la barra llega hasta "ahora"
             $inProgress = empty($record->production_end);
             $end = $inProgress ? $now->copy() : Carbon::parse($record->production_end);
 
-            // Acotar la barra al horario del turno actual
-            if ($start->lt($shiftStart)) {
-                $start = $shiftStart->copy();
+            // Acotar la barra a la ventana visible de la línea de tiempo
+            if ($start->lt($baseStart)) {
+                $start = $baseStart->copy();
             }
-            if ($end->gt($shiftEnd)) {
-                $end = $shiftEnd->copy();
+            if ($end->gt($timelineEnd)) {
+                $end = $timelineEnd->copy();
             }
 
-            // Descartar barras sin duración válida dentro del turno
             if ($end->lessThanOrEqualTo($start)) {
                 continue;
             }
 
-            $startOffset = round(abs($shiftStart->diffInMinutes($start)) / 60, 3);
-            $endOffset = round(abs($shiftStart->diffInMinutes($end)) / 60, 3);
+            $startOffset = round(abs($baseStart->diffInMinutes($start)) / 60, 3);
+            $endOffset = round(abs($baseStart->diffInMinutes($end)) / 60, 3);
 
             $this->labels[] = $record->part_number;
             $this->ranges[] = [$startOffset, $endOffset];
             $this->quantities[] = (int) $record->produced_quantity;
-            $this->timeLabels[] = $start->format('H:i') . ' - '
-                . ($inProgress ? 'en proceso' : $end->format('H:i'));
+            $this->timeLabels[] = $start->format('d-m H:i') . ' - '
+                . ($inProgress ? 'en proceso' : $end->format('d-m H:i'));
         }
-
-        $this->dispatchTimeline();
     }
 
     private function dispatchTimeline(): void

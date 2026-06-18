@@ -3,22 +3,10 @@
 
         {{-- Encabezado --}}
         <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600">
-            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                <h2 class="text-lg font-bold text-blue-800 dark:text-blue-200 flex items-center">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full inline-block mr-2"></span>
-                    {{ $workCenter }}
-                </h2>
-                @if($shiftName)
-                    <div class="flex flex-wrap gap-2 text-sm font-medium">
-                        <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">
-                            {{ $plannedDate }}
-                        </span>
-                        <span class="bg-blue-600 dark:bg-blue-700 text-white px-3 py-1 rounded-full">
-                            {{ $shiftName }}
-                        </span>
-                    </div>
-                @endif
-            </div>
+            <h2 class="text-lg font-bold text-blue-800 dark:text-blue-200 flex items-center">
+                <span class="w-2 h-2 bg-blue-500 rounded-full inline-block mr-2"></span>
+                {{ $workCenter }}
+            </h2>
         </div>
 
         {{-- Chart --}}
@@ -50,16 +38,18 @@
                 shiftStartIso: @json($shiftStartIso),
             };
 
-            // Convierte un offset (horas desde el inicio del turno) a hora de reloj "HH:mm"
+            const pad = (n) => String(n).padStart(2, '0');
+
+            // Convierte un offset (horas desde el inicio de la línea) a "dd-mm HH:mm"
             const clockLabel = (hoursOffset) => {
                 if (!state.shiftStartIso) return hoursOffset;
                 const base = new Date(state.shiftStartIso);
                 const d = new Date(base.getTime() + hoursOffset * 3600000);
-                return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+                return `${pad(d.getDate())}-${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
             };
 
-            // Alto del lienzo: 56px por barra (mantiene barras gruesas + separación)
-            const heightFor = (count) => Math.max(360, count * 56 + 80);
+            // Alto del lienzo: poco espacio entre barras (barra 26px + ~6px de separación)
+            const heightFor = (count) => Math.max(300, count * 32 + 60);
 
             return {
                 isEmpty: @json(count($labels) === 0),
@@ -92,15 +82,19 @@
                         label:         isDark ? '#ffffff' : '#111827',
                     };
 
-                    // Dibuja una etiqueta de hora con fondo de color sobre una línea vertical
-                    const drawTimeTag = (ctx, x, area, text, color) => {
+                    // Dibuja una etiqueta de fecha/hora junto al puntero (x, y)
+                    const drawTimeTag = (ctx, x, y, area, text, color) => {
                         ctx.font = 'bold 11px sans-serif';
                         const padding = 6;
                         const boxW = ctx.measureText(text).width + padding * 2;
                         const boxH = 18;
-                        let boxX = x - boxW / 2;
+                        // Por defecto a la derecha del puntero; si no cabe, a la izquierda
+                        let boxX = x + 12;
+                        if (boxX + boxW > area.right) boxX = x - 12 - boxW;
                         boxX = Math.max(area.left, Math.min(boxX, area.right - boxW));
-                        const boxY = area.top + 2;
+                        // Centrada verticalmente en el puntero, acotada al área
+                        let boxY = y - boxH / 2;
+                        boxY = Math.max(area.top, Math.min(boxY, area.bottom - boxH));
                         ctx.fillStyle = color;
                         ctx.fillRect(boxX, boxY, boxW, boxH);
                         ctx.fillStyle = '#ffffff';
@@ -117,14 +111,19 @@
                             const area = chart.chartArea;
                             const inside = e.x >= area.left && e.x <= area.right
                                 && e.y >= area.top && e.y <= area.bottom;
-                            chart._crosshairX = (e.type === 'mousemove' && inside) ? e.x : null;
-                            if (e.type === 'mouseout') chart._crosshairX = null;
+                            if (e.type === 'mousemove' && inside) {
+                                chart._crosshairX = e.x;
+                                chart._crosshairY = e.y;
+                            } else {
+                                chart._crosshairX = null;
+                                chart._crosshairY = null;
+                            }
                             args.changed = true; // forzar redibujo para mover la línea
                         },
                         afterDraw(chart) {
                             const { ctx, chartArea: area, scales } = chart;
 
-                            // Línea "Ahora" (hora actual del turno)
+                            // Línea "Ahora" (hora actual)
                             if (state.shiftStartIso) {
                                 const nowOffset = (Date.now() - new Date(state.shiftStartIso).getTime()) / 3600000;
                                 if (nowOffset >= 0 && nowOffset <= scales.x.max) {
@@ -142,9 +141,10 @@
                                 }
                             }
 
-                            // Línea roja que sigue el mouse + hora en ese punto
+                            // Línea roja que sigue el mouse + fecha/hora junto al puntero
                             const x = chart._crosshairX;
                             if (x == null) return;
+                            const y = chart._crosshairY ?? area.top;
                             ctx.save();
                             ctx.beginPath();
                             ctx.setLineDash([6, 6]);
@@ -154,7 +154,7 @@
                             ctx.lineTo(x, area.bottom);
                             ctx.stroke();
                             ctx.setLineDash([]);
-                            drawTimeTag(ctx, x, area, clockLabel(scales.x.getValueForPixel(x)), '#ef4444');
+                            drawTimeTag(ctx, x, y, area, clockLabel(scales.x.getValueForPixel(x)), '#ef4444');
                             ctx.restore();
                         }
                     };
@@ -166,14 +166,14 @@
                             labels: @json($labels),
                             datasets: [{
                                 label: 'Producción',
-                                data: @json($ranges),   // [[inicio, fin], ...] en horas del turno
+                                data: @json($ranges),   // [[inicio, fin], ...] en horas de la línea
                                 backgroundColor: colors.barFill,
                                 borderColor: colors.barBorder,
                                 borderWidth: 1.5,
                                 borderRadius: 8,
                                 borderSkipped: false,
-                                barThickness: 34,
-                                maxBarThickness: 40,
+                                barThickness: 26,
+                                maxBarThickness: 30,
                                 }]
                         },
                         options: {
@@ -189,12 +189,15 @@
                                     ticks: {
                                         stepSize: 1,
                                         color: colors.textMuted,
-                                        font: { size: 11 },
+                                        font: { size: 10 },
+                                        maxRotation: 90,
+                                        minRotation: 90,
+                                        autoSkip: false,
                                         callback: (value) => clockLabel(value),
                                     },
                                     grid: { color: colors.grid },
                                     border: { display: false },
-                                    title: { display: true, text: 'Hora del turno', color: colors.textMuted }
+                                    title: { display: true, text: 'Fecha y hora', color: colors.textMuted }
                                 },
                                 y: {
                                     ticks: { color: colors.text, font: { size: 12 } },
@@ -243,6 +246,7 @@
                     chart.data.labels = data.labels;
                     chart.data.datasets[0].data = data.ranges;
                     chart.options.scales.x.max = data.durationHours;
+                    chart.options.scales.x.ticks.stepSize = 1;
                     // Esperar a que el contenedor cambie de alto antes de redibujar
                     this.$nextTick(() => { chart.resize(); chart.update('none'); });
                 },
