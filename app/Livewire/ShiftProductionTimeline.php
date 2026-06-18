@@ -29,13 +29,52 @@ class ShiftProductionTimeline extends Component
     /** Ancho total del eje X en horas (turno anterior + actual) */
     public float $durationHours = 12;
 
-    /** Inicio de la línea de tiempo en ISO (inicio del turno anterior si existe) */
+    /** Inicio de la línea de tiempo en ISO (inicio del turno seleccionado) */
     public ?string $shiftStartIso = null;
+
+    /** Fecha seleccionada (Y-m-d). Por defecto la del turno actual */
+    public string $selectedDate = '';
+
+    /** Turno seleccionado. Por defecto el turno actual */
+    public ?int $selectedShiftId = null;
+
+    /** Opciones del select de turnos [['id'=>, 'label'=>], ...] */
+    public array $shiftOptions = [];
+
+    /** True solo cuando se está viendo el turno actual en vivo (controla el auto-refresco) */
+    public bool $isLive = true;
 
     public function mount($workCenter): void
     {
         $this->chartId = 'timeline_' . Str::random(10);
         $this->workCenter = $workCenter;
+
+        // Catálogo de turnos para el select
+        $this->shiftOptions = Shift::getAllShifts()
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'label' => $s->name . ' (' . substr($s->start_time, 0, 5) . ' - ' . substr($s->end_time, 0, 5) . ')',
+            ])
+            ->values()
+            ->all();
+
+        // Por defecto: turno actual y su fecha
+        $now = Carbon::now();
+        $current = Shift::getCurrentShiftInfo($now);
+        $this->selectedShiftId = $current->shift?->id ?? ($this->shiftOptions[0]['id'] ?? null);
+        $this->selectedDate = ($current->date ?? $now)->toDateString();
+
+        $this->refreshTimeline();
+    }
+
+    /** Recargar al cambiar la fecha o el turno desde la vista */
+    public function updatedSelectedDate(): void
+    {
+        $this->refreshTimeline();
+    }
+
+    public function updatedSelectedShiftId(): void
+    {
         $this->refreshTimeline();
     }
 
@@ -43,45 +82,40 @@ class ShiftProductionTimeline extends Component
     public function refreshTimeline(): void
     {
         $now = Carbon::now();
-        $current = Shift::getCurrentShiftInfo($now);
-        $previous = Shift::getPreviousShiftInfo($now);
 
         $this->labels = [];
         $this->ranges = [];
         $this->quantities = [];
         $this->timeLabels = [];
 
-        // Sin turno activo: mandar todo vacío
-        if (!$current->shift || !$current->timeRange) {
+        $shift = $this->selectedShiftId ? Shift::find($this->selectedShiftId) : null;
+        $date = $this->selectedDate ? Carbon::parse($this->selectedDate) : null;
+        $range = ($shift && $date) ? Shift::getShiftDateTimeRange($shift, $date) : null;
+
+        // Selección inválida: mandar todo vacío
+        if (!$range) {
+            $this->isLive = false;
             $this->dispatchTimeline();
             return;
         }
 
-        $currentStart = $current->timeRange->startDateTime->copy();
-        $currentEnd = $current->timeRange->endDateTime->copy();
-
-        // La línea de tiempo arranca en el turno anterior (si existe) y termina al final del actual
-        $hasPrevious = $previous->shift && $previous->timeRange;
-        $baseStart = $hasPrevious ? $previous->timeRange->startDateTime->copy() : $currentStart->copy();
-        $timelineEnd = $currentEnd->copy();
+        $baseStart = $range->startDateTime->copy();
+        $timelineEnd = $range->endDateTime->copy();
 
         $this->shiftStartIso = $baseStart->toIso8601String();
         $this->durationHours = round(abs($baseStart->diffInMinutes($timelineEnd)) / 60, 2);
 
-        // Juntar los registros del turno anterior y el actual en una sola colección
-        $records = collect();
-        if ($hasPrevious) {
-            $records = $records->concat(ProductionRecord::getShiftProductionTimeline(
-                $this->workCenter,
-                $previous->shift->id,
-                $previous->date
-            ));
-        }
-        $records = $records->concat(ProductionRecord::getShiftProductionTimeline(
+        // ¿Es el turno actual en vivo? (controla si se sigue auto-refrescando)
+        $current = Shift::getCurrentShiftInfo($now);
+        $this->isLive = $current->shift
+            && $current->shift->id === $shift->id
+            && $current->date->toDateString() === $date->toDateString();
+
+        $records = ProductionRecord::getShiftProductionTimeline(
             $this->workCenter,
-            $current->shift->id,
-            $current->date
-        ));
+            $shift->id,
+            $date
+        );
 
         $this->buildBars($records, $baseStart, $timelineEnd, $now);
 
@@ -159,6 +193,7 @@ class ShiftProductionTimeline extends Component
             'timeLabels' => $this->timeLabels,
             'durationHours' => $this->durationHours,
             'shiftStartIso' => $this->shiftStartIso,
+            'isLive' => $this->isLive,
         ]);
     }
 

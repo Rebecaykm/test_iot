@@ -3,10 +3,87 @@
 
         {{-- Encabezado --}}
         <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600">
-            <h2 class="text-lg font-bold text-blue-800 dark:text-blue-200 flex items-center">
-                <span class="w-2 h-2 bg-blue-500 rounded-full inline-block mr-2"></span>
-                {{ $workCenter }}
-            </h2>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 class="text-lg font-bold text-blue-800 dark:text-blue-200 flex items-center">
+                    <span class="w-2 h-2 bg-blue-500 rounded-full inline-block mr-2"></span>
+                    {{ $workCenter }}
+                </h2>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    {{-- Indicador en vivo / histórico --}}
+                    @if($isLive)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                            <span class="relative flex h-2 w-2">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            En vivo
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                            Histórico
+                        </span>
+                    @endif
+
+                    {{-- Calendario (date picker) --}}
+                    <div x-data="datePicker(@js($selectedDate))" @click.away="open = false" class="relative">
+                        <button @click="open = !open" type="button"
+                            class="flex items-center gap-2 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                            </svg>
+                            <span x-text="label" class="text-gray-700 dark:text-gray-200 font-medium capitalize"></span>
+                        </button>
+
+                        <div x-show="open"
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="transform opacity-0 scale-95"
+                            x-transition:enter-end="transform opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-75"
+                            x-transition:leave-start="transform opacity-100 scale-100"
+                            x-transition:leave-end="transform opacity-0 scale-95"
+                            class="absolute right-0 mt-1.5 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 p-3"
+                            style="display: none;">
+                            {{-- Navegación de mes --}}
+                            <div class="flex items-center justify-between mb-2">
+                                <button type="button" @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                                </button>
+                                <span x-text="monthLabel" class="text-sm font-semibold text-gray-700 dark:text-gray-200 capitalize"></span>
+                                <button type="button" @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                                </button>
+                            </div>
+                            {{-- Días de la semana --}}
+                            <div class="grid grid-cols-7 gap-1 mb-1 text-center text-xs font-medium text-gray-400 dark:text-gray-500">
+                                <template x-for="d in ['Do','Lu','Ma','Mi','Ju','Vi','Sa']" :key="d"><span x-text="d"></span></template>
+                            </div>
+                            {{-- Días del mes --}}
+                            <div class="grid grid-cols-7 gap-1">
+                                <template x-for="(d, i) in days" :key="i">
+                                    <button type="button" x-text="d" @click="pick(d)" :disabled="!d || isFuture(d)"
+                                        :class="{
+                                            'invisible': !d,
+                                            'bg-blue-600 text-white font-semibold': isSelected(d),
+                                            'text-gray-300 dark:text-gray-600 cursor-not-allowed': d && isFuture(d),
+                                            'ring-1 ring-blue-400 text-gray-700 dark:text-gray-200': isToday(d) && !isSelected(d),
+                                            'hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200': d && !isFuture(d) && !isSelected(d) && !isToday(d)
+                                        }"
+                                        class="h-8 w-8 rounded-lg text-sm flex items-center justify-center transition-colors"></button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Select de turnos --}}
+                    <select wire:model.live="selectedShiftId"
+                        class="pl-3 pr-9 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer">
+                        @foreach($shiftOptions as $opt)
+                            <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
         </div>
 
         {{-- Chart --}}
@@ -16,7 +93,7 @@
             </div>
             <p x-show="isEmpty" x-cloak
                class="text-center py-8 text-gray-500 dark:text-gray-400">
-                No hay producción registrada en el turno actual.
+                No hay producción registrada en este turno.
             </p>
         </div>
 
@@ -27,9 +104,56 @@
 
     @script
     <script>
+        const pad = (n) => String(n).padStart(2, '0');
+
+        // ---- Calendario (date picker) ----
+        Alpine.data('datePicker', (initial) => ({
+            open: false,
+            selected: initial || '',
+            viewMonth: 0,
+            viewYear: 0,
+            days: [],
+            months: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+            init() {
+                const d = this.selected ? new Date(this.selected + 'T00:00:00') : new Date();
+                this.viewMonth = d.getMonth();
+                this.viewYear = d.getFullYear();
+                this.build();
+            },
+            get label() {
+                if (!this.selected) return 'Fecha';
+                return new Date(this.selected + 'T00:00:00')
+                    .toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+            },
+            get monthLabel() { return this.months[this.viewMonth] + ' ' + this.viewYear; },
+            build() {
+                const startDay = new Date(this.viewYear, this.viewMonth, 1).getDay();
+                const daysInMonth = new Date(this.viewYear, this.viewMonth + 1, 0).getDate();
+                const cells = [];
+                for (let i = 0; i < startDay; i++) cells.push(null);
+                for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+                this.days = cells;
+            },
+            prevMonth() { this.viewMonth === 0 ? (this.viewMonth = 11, this.viewYear--) : this.viewMonth--; this.build(); },
+            nextMonth() { this.viewMonth === 11 ? (this.viewMonth = 0, this.viewYear++) : this.viewMonth++; this.build(); },
+            iso(d) { return `${this.viewYear}-${pad(this.viewMonth + 1)}-${pad(d)}`; },
+            todayIso() { const n = new Date(); return `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}`; },
+            isFuture(d) { return d && this.iso(d) > this.todayIso(); },
+            isSelected(d) { return !!d && this.iso(d) === this.selected; },
+            isToday(d) { return !!d && this.iso(d) === this.todayIso(); },
+            pick(d) {
+                if (!d || this.isFuture(d)) return;
+                this.selected = this.iso(d);
+                this.open = false;
+                $wire.set('selectedDate', this.selected);
+            },
+        }));
+
         Alpine.data('shiftTimelineChart', () => {
             let chart = null;
             let refreshInterval = null;
+            // Solo se auto-refresca cuando se ve el turno actual en vivo
+            let live = @json($isLive);
 
             // Estado de los datos actuales
             let state = {
@@ -37,8 +161,6 @@
                 timeLabels: @json($timeLabels),
                 shiftStartIso: @json($shiftStartIso),
             };
-
-            const pad = (n) => String(n).padStart(2, '0');
 
             // Convierte un offset (horas desde el inicio de la línea) a "dd-mm HH:mm"
             const clockLabel = (hoursOffset) => {
@@ -62,8 +184,9 @@
                         this.updateChart(data[0]);
                     });
 
+                    // Auto-refresco solo si se está viendo el turno actual en vivo
                     refreshInterval = setInterval(() => {
-                        $wire.dispatchSelf('refresh-timeline');
+                        if (live) $wire.dispatchSelf('refresh-timeline');
                     }, 30000);
                 },
 
@@ -237,6 +360,7 @@
                 updateChart(data) {
                     if (!chart) return;
 
+                    live = data.isLive;
                     state.quantities = data.quantities;
                     state.timeLabels = data.timeLabels;
                     state.shiftStartIso = data.shiftStartIso;
