@@ -1,30 +1,15 @@
-<div class="w-full">
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+<div class="w-full h-full">
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden h-[640px] flex flex-col">
 
         {{-- Encabezado --}}
-        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                {{-- Indicador: última actualización / histórico (donde estaba el work center) --}}
-                @if($isLive)
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
-                        <span class="relative flex h-2 w-2">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                        </span>
-                        Última actualización {{ $lastUpdated }}
-                    </span>
-                @else
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                        Histórico
-                    </span>
-                @endif
-
-                <div class="flex flex-wrap items-center gap-2">
+        <div class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-600 flex-shrink-0">
+            <div class="flex items-center justify-end gap-2">
+                <div class="flex items-center gap-2">
                     {{-- Calendario (date picker) --}}
                     <div x-data="datePicker(@js($selectedDate))" @click.away="open = false" class="relative">
                         <button @click="open = !open" type="button"
-                            class="flex items-center gap-2 px-3 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                             </svg>
                             <span x-text="label" class="text-gray-700 dark:text-gray-200 font-medium capitalize"></span>
@@ -72,7 +57,7 @@
 
                     {{-- Select de turnos --}}
                     <select wire:model.live="selectedShiftId"
-                        class="pl-3 pr-9 py-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer">
+                        class="pl-2.5 pr-8 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer">
                         @foreach($shiftOptions as $opt)
                             <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
                         @endforeach
@@ -82,7 +67,7 @@
         </div>
 
         {{-- Chart --}}
-        <div x-data="shiftTimelineChart" wire:ignore class="px-4 py-5 sm:px-6">
+        <div x-data="shiftTimelineChart" wire:ignore class="px-4 py-5 sm:px-6 flex-1 min-h-0 overflow-y-auto">
             <div class="relative" :style="`height: ${chartHeight}px`">
                 <canvas id="{{ $chartId }}"></canvas>
             </div>
@@ -90,6 +75,24 @@
                class="text-center py-8 text-gray-500 dark:text-gray-400">
                 No hay producción registrada en este turno.
             </p>
+        </div>
+
+        {{-- Pie: leyenda "Real" (izquierda) y última actualización / histórico (derecha) --}}
+        <div class="px-6 py-2.5 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+            {{-- Leyenda: Real --}}
+            <span class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                Real
+            </span>
+
+            {{-- Última actualización / histórico --}}
+            <span>
+                @if($isLive)
+                    Última actualización {{ $lastUpdated }}
+                @else
+                    Histórico
+                @endif
+            </span>
         </div>
 
     </div>

@@ -1,7 +1,7 @@
 <x-guest-layout>
     <div class="pt-4 pb-4 bg-gray-100 dark:bg-gray-900">
         <div class="min-h-screen flex flex-col items-center pt-6 sm:pt-0">
-            <div class="w-full max-w-7xl px-6 lg:px-8">
+            <div class="w-full max-w-[1920px] px-6 lg:px-8">
                 <div class="grid grid-cols-1 gap-4">
 
                     @include('clock')
@@ -87,9 +87,12 @@
                         </div>
                     </div>
 
-                    <livewire:shift-production-timeline :work-center="$workCenter" />
+                    {{-- <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch"> --}}
+                        <livewire:production-week-table :work-center="$workCenter" />
 
-                    <livewire:production-week-table :work-center="$workCenter" />
+                        <livewire:shift-production-timeline :work-center="$workCenter" />
+
+                    {{-- </div> --}}
 
                 </div>
             </div>

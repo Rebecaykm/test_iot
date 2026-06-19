@@ -1,47 +1,40 @@
-<div x-data="weekTable" data-live="{{ $isCurrentWeek ? '1' : '0' }}" class="w-full">
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+<div x-data="weekTable" data-live="{{ $isCurrentWeek ? '1' : '0' }}" class="w-full h-full">
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden h-[640px] flex flex-col">
 
         {{-- Encabezado --}}
-        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {{-- Buscador de número de parte (en lugar del título) --}}
+        <div class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-600 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between flex-shrink-0">
+            {{-- Buscador de número de parte --}}
             <div class="relative">
-                <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                 </svg>
                 <input type="text" wire:model.live.debounce.300ms="search" placeholder="Buscar número de parte..."
-                    class="w-full sm:w-72 pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                    class="w-full sm:w-64 pl-8 pr-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
             </div>
 
-            <div class="flex flex-wrap items-center justify-end gap-2">
-                {{-- Leyenda de colores --}}
-                <div class="hidden md:flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mr-2">
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>Faltante</span>
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>Completado</span>
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>Excedente</span>
-                </div>
-
-                {{-- Navegación de semana --}}
+            {{-- Navegación de semana --}}
+            <div class="flex items-center justify-end gap-1.5">
                 <button wire:click="prevWeek" type="button"
-                    class="p-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    class="p-1 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                 </button>
-                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap min-w-[9rem] text-center">{{ $weekLabel }}</span>
+                <span class="text-xs font-semibold text-gray-700 dark:text-gray-200 whitespace-nowrap min-w-[8rem] text-center">{{ $weekLabel }}</span>
                 <button wire:click="nextWeek" type="button" @disabled($isCurrentWeek)
-                    class="p-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    class="p-1 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                 </button>
             </div>
         </div>
 
         {{-- Tabla --}}
-        <div class="overflow-auto max-h-[600px]">
+        <div class="overflow-auto flex-1 min-h-0">
             <table class="min-w-full border-collapse text-sm">
                 <thead>
                     <tr>
-                        <th class="sticky left-0 top-0 z-30 bg-gray-100 dark:bg-gray-700 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
+                        <th class="sticky left-0 top-0 z-30 w-36 whitespace-nowrap bg-gray-100 dark:bg-gray-700 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
                             Número de Parte
                         </th>
-                        <th class="sticky top-0 z-20 bg-gray-100 dark:bg-gray-700 px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
+                        <th class="sticky left-36 top-0 z-30 bg-gray-100 dark:bg-gray-700 px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300 border-b border-r border-gray-200 dark:border-gray-600">
                             Turno
                         </th>
                         @foreach($days as $day)
@@ -59,13 +52,13 @@
                                 {{-- Número de parte (agrupa los turnos con rowspan) --}}
                                 @if($i === 0)
                                     <td rowspan="{{ count($part['shifts']) }}"
-                                        class="sticky left-0 z-10 bg-white dark:bg-gray-800 px-4 py-1.5 align-middle text-xs font-semibold text-gray-800 dark:text-gray-100 tracking-wide border-r border-gray-200 dark:border-gray-700 whitespace-nowrap">
+                                        class="sticky left-0 z-10 w-36 bg-white dark:bg-gray-800 px-4 py-1.5 align-middle text-xs font-semibold text-gray-800 dark:text-gray-100 tracking-wide border-r border-gray-200 dark:border-gray-700 whitespace-nowrap">
                                         {{ $part['part_number'] }}
                                     </td>
                                 @endif
 
                                 {{-- Turno --}}
-                                <td class="px-3 py-1.5 text-center align-middle">
+                                <td class="sticky left-36 z-10 bg-white dark:bg-gray-800 px-3 py-1.5 text-center align-middle border-r border-gray-200 dark:border-gray-700">
                                     <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-semibold
                                         {{ $row['shift'] === 'D'
                                             ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
@@ -118,15 +111,19 @@
             </table>
         </div>
 
-        {{-- Pie: última actualización --}}
-        <div class="px-6 py-2.5 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-1.5 text-xs text-gray-400 dark:text-gray-500">
-            @if($isCurrentWeek)
-                <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-            @endif
-            Última actualización {{ $lastUpdated }}
+        {{-- Pie: leyenda (izquierda) y última actualización (derecha) --}}
+        <div class="px-6 py-2.5 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+            {{-- Leyenda de colores --}}
+            <div class="flex items-center gap-3">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>Faltante</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>Completado</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>Excedente</span>
+            </div>
+
+            {{-- Última actualización --}}
+            <div class="flex items-center gap-1.5">
+                Última actualización {{ $lastUpdated }}
+            </div>
         </div>
     </div>
 
