@@ -4,27 +4,22 @@
         {{-- Encabezado --}}
         <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 class="text-lg font-bold text-blue-800 dark:text-blue-200 flex items-center">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full inline-block mr-2"></span>
-                    {{ $workCenter }}
-                </h2>
+                {{-- Indicador: última actualización / histórico (donde estaba el work center) --}}
+                @if($isLive)
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        Última actualización {{ $lastUpdated }}
+                    </span>
+                @else
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        Histórico
+                    </span>
+                @endif
 
                 <div class="flex flex-wrap items-center gap-2">
-                    {{-- Indicador en vivo / histórico --}}
-                    @if($isLive)
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
-                            <span class="relative flex h-2 w-2">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                            </span>
-                            En vivo
-                        </span>
-                    @else
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                            Histórico
-                        </span>
-                    @endif
-
                     {{-- Calendario (date picker) --}}
                     <div x-data="datePicker(@js($selectedDate))" @click.away="open = false" class="relative">
                         <button @click="open = !open" type="button"

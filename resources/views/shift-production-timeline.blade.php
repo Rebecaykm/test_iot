@@ -8,8 +8,9 @@
 
                     <!-- Menú de navegación -->
                     <div class="flex justify-between items-center">
-                        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">
-                            Línea de Tiempo de Producción
+                        <h1 class="text-2xl font-bold text-gray-800 dark:text-white flex items-center">
+                            <span class="w-2.5 h-2.5 bg-blue-500 rounded-full inline-block mr-2.5"></span>
+                            {{ $workCenter }}
                         </h1>
                         <div class="relative" x-data="{ open: false }">
                             <button @click="open = !open" @click.away="open = false"
@@ -87,6 +88,8 @@
                     </div>
 
                     <livewire:shift-production-timeline :work-center="$workCenter" />
+
+                    <livewire:production-week-table :work-center="$workCenter" />
 
                 </div>
             </div>

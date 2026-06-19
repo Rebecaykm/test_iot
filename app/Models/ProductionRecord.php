@@ -212,6 +212,39 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Obtiene los registros de producción de un work center en un rango de fechas
+     * (p. ej. una semana de domingo a sábado), con plan y producido por registro.
+     * Se usa para la tabla semanal de cumplimiento de producción.
+     */
+    public static function getWeeklyProductionRecords(string $workCenter, $startDate, $endDate): Collection
+    {
+        return ProductionRecord::query()
+            ->select([
+                'work_centers.name AS work_name',
+                'production_records.shop_order_number AS order_number',
+                'part_numbers.number AS part_number',
+                'part_numbers.production_order AS production_order',
+                'production_records.planned_date AS planned_date',
+                'shifts.abbreviation AS shift',
+                'shifts.name AS shift_name',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->whereBetween('production_records.planned_date', [
+                \Carbon\Carbon::parse($startDate)->toDateString(),
+                \Carbon\Carbon::parse($endDate)->toDateString(),
+            ])
+            ->where('work_centers.name', 'LIKE', $workCenter)
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('shifts.abbreviation', 'asc')
+            ->orderBy('part_numbers.number', 'asc')
+            ->get();
+    }
+
+    /**
      * Método para obtener el siguiente part number que debe producirse
      * basado en el orden de producción
      */

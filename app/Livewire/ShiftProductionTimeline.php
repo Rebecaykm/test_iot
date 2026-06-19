@@ -44,6 +44,9 @@ class ShiftProductionTimeline extends Component
     /** True solo cuando se está viendo el turno actual en vivo (controla el auto-refresco) */
     public bool $isLive = true;
 
+    /** Hora (HH:MM:SS) de la última actualización de los datos */
+    public ?string $lastUpdated = null;
+
     public function mount($workCenter): void
     {
         $this->chartId = 'timeline_' . Str::random(10);
@@ -82,6 +85,7 @@ class ShiftProductionTimeline extends Component
     public function refreshTimeline(): void
     {
         $now = Carbon::now();
+        $this->lastUpdated = $now->format('H:i:s');
 
         $this->labels = [];
         $this->ranges = [];
