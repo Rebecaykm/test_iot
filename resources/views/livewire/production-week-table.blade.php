@@ -1,4 +1,4 @@
-<div {{ $isCurrentWeek ? 'wire:poll.60s' : '' }} class="w-full">
+<div x-data="weekTable" data-live="{{ $isCurrentWeek ? '1' : '0' }}" class="w-full">
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
 
         {{-- Encabezado --}}
@@ -117,5 +117,31 @@
                 </tbody>
             </table>
         </div>
+
+        {{-- Pie: última actualización --}}
+        <div class="px-6 py-2.5 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+            @if($isCurrentWeek)
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+            @endif
+            Última actualización {{ $lastUpdated }}
+        </div>
     </div>
+
+    @script
+    <script>
+        Alpine.data('weekTable', () => ({
+            init() {
+                // Auto-actualización cada 30 s, solo en la semana actual (igual que la línea de tiempo)
+                setInterval(() => {
+                    if (this.$root.dataset.live === '1') {
+                        $wire.$refresh();
+                    }
+                }, 30000);
+            }
+        }));
+    </script>
+    @endscript
 </div>

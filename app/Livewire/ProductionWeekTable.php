@@ -116,6 +116,7 @@ class ProductionWeekTable extends Component
             'parts' => $parts,
             'weekLabel' => $start->format('d') . ' – ' . $end->format('d') . ' ' . $meses[$end->month - 1] . ' ' . $end->year,
             'isCurrentWeek' => $this->weekStart === $currentWeekStart,
+            'lastUpdated' => Carbon::now()->format('H:i:s'),
         ]);
     }
 }
