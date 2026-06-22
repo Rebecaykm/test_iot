@@ -86,13 +86,9 @@
                             </div>
                         </div>
                     </div>
-
-                    {{-- <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch"> --}}
                         <livewire:production-week-table :work-center="$workCenter" />
 
                         <livewire:shift-production-timeline :work-center="$workCenter" />
-
-                    {{-- </div> --}}
 
                 </div>
             </div>

@@ -1,5 +1,5 @@
 <div class="w-full h-full">
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden h-[640px] flex flex-col">
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
 
         {{-- Encabezado --}}
         <div class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-600 flex-shrink-0">
@@ -67,7 +67,7 @@
         </div>
 
         {{-- Chart --}}
-        <div x-data="shiftTimelineChart" wire:ignore class="px-4 py-5 sm:px-6 flex-1 min-h-0 overflow-y-auto">
+        <div x-data="shiftTimelineChart" wire:ignore class="px-4 py-5 sm:px-6 overflow-y-auto max-h-[560px]">
             <div class="relative" :style="`height: ${chartHeight}px`">
                 <canvas id="{{ $chartId }}"></canvas>
             </div>
@@ -79,10 +79,16 @@
 
         {{-- Pie: leyenda "Real" (izquierda) y última actualización / histórico (derecha) --}}
         <div class="px-6 py-2.5 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-            {{-- Leyenda: Real --}}
-            <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                Real
+            {{-- Leyenda: Plan (azul) y Real (verde) --}}
+            <span class="flex items-center gap-3">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                    Plan
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                    Real
+                </span>
             </span>
 
             {{-- Última actualización / histórico --}}
@@ -157,6 +163,8 @@
             let state = {
                 quantities: @json($quantities),
                 timeLabels: @json($timeLabels),
+                planQuantities: @json($planQuantities),
+                planTimeLabels: @json($planTimeLabels),
                 shiftStartIso: @json($shiftStartIso),
             };
 
@@ -168,8 +176,8 @@
                 return `${pad(d.getDate())}-${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
             };
 
-            // Alto del lienzo: poco espacio entre barras (barra 26px + ~6px de separación)
-            const heightFor = (count) => Math.max(300, count * 32 + 60);
+            // Alto del lienzo: 2 barras por fila (plan + real) => ~30px c/u + separación
+            const heightFor = (count) => Math.max(300, count * 64 + 60);
 
             return {
                 isEmpty: @json(count($labels) === 0),
@@ -200,6 +208,8 @@
                         tooltipBorder: isDark ? '#374151' : '#e5e7eb',
                         barFill:       isDark ? 'rgba(52,211,153,0.18)' : 'rgba(16,185,129,0.15)',
                         barBorder:     isDark ? '#34d399' : '#059669',
+                        planFill:      isDark ? 'rgba(59,130,246,0.18)' : 'rgba(37,99,235,0.15)',
+                        planBorder:    isDark ? '#60a5fa' : '#2563eb',
                         label:         isDark ? '#ffffff' : '#111827',
                     };
 
@@ -286,8 +296,18 @@
                         data: {
                             labels: @json($labels),
                             datasets: [{
-                                label: 'Producción',
-                                data: @json($ranges),   // [[inicio, fin], ...] en horas de la línea
+                                label: 'Plan',
+                                data: @json($planRanges),   // {x:[inicio,fin], y:parte} en horas de la línea
+                                backgroundColor: colors.planFill,
+                                borderColor: colors.planBorder,
+                                borderWidth: 1,
+                                borderRadius: 3,
+                                borderSkipped: false,
+                                barThickness: 26,
+                                maxBarThickness: 30,
+                            }, {
+                                label: 'Real',
+                                data: @json($ranges),   // {x:[inicio,fin], y:parte} en horas de la línea
                                 backgroundColor: colors.barFill,
                                 borderColor: colors.barBorder,
                                 borderWidth: 1,
@@ -295,7 +315,7 @@
                                 borderSkipped: false,
                                 barThickness: 26,
                                 maxBarThickness: 30,
-                                }]
+                            }]
                         },
                         options: {
                             indexAxis: 'y',
@@ -341,9 +361,11 @@
                                     callbacks: {
                                         title: (items) => items.length ? items[0].label : '',
                                         label: (ctx) => {
-                                            const horario = state.timeLabels[ctx.dataIndex] || '';
-                                            const q = state.quantities[ctx.dataIndex] || 0;
+                                            const isPlan = ctx.datasetIndex === 0;
+                                            const horario = (isPlan ? state.planTimeLabels : state.timeLabels)[ctx.dataIndex] || '';
+                                            const q = (isPlan ? state.planQuantities : state.quantities)[ctx.dataIndex] || 0;
                                             return [
+                                                isPlan ? ' Plan' : ' Real',
                                                 ` Horario: ${horario}`,
                                                 ` Cantidad: ${Number(q).toLocaleString('es-MX')}`,
                                             ];
@@ -361,13 +383,16 @@
                     live = data.isLive;
                     state.quantities = data.quantities;
                     state.timeLabels = data.timeLabels;
+                    state.planQuantities = data.planQuantities;
+                    state.planTimeLabels = data.planTimeLabels;
                     state.shiftStartIso = data.shiftStartIso;
 
                     this.isEmpty = !data.labels || data.labels.length === 0;
                     this.chartHeight = heightFor(data.labels ? data.labels.length : 0);
 
                     chart.data.labels = data.labels;
-                    chart.data.datasets[0].data = data.ranges;
+                    chart.data.datasets[0].data = data.planRanges;
+                    chart.data.datasets[1].data = data.ranges;
                     chart.options.scales.x.max = data.durationHours;
                     chart.options.scales.x.ticks.stepSize = 1;
                     // Esperar a que el contenedor cambie de alto antes de redibujar

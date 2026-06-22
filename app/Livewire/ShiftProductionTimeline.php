@@ -2,8 +2,10 @@
 
 namespace App\Livewire;
 
+use App\Models\PartNumber;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
+use App\Models\WorkCenter;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Livewire\Attributes\On;
@@ -17,14 +19,26 @@ class ShiftProductionTimeline extends Component
     /** Etiquetas del eje Y: número de parte por barra */
     public array $labels = [];
 
-    /** Rango de cada barra en horas-desde-el-inicio-de-la-línea: [[inicio, fin], ...] */
+    /** Rango de cada barra REAL en horas-desde-el-inicio-de-la-línea: [{x:[ini,fin], y:parte}, ...] */
     public array $ranges = [];
 
-    /** Cantidad producida por barra (se pinta sobre la barra) */
+    /** Cantidad producida por barra real (tooltip) */
     public array $quantities = [];
 
-    /** Texto "HH:mm - HH:mm" por barra para el tooltip */
+    /** Texto "HH:mm - HH:mm" por barra real (tooltip) */
     public array $timeLabels = [];
+
+    /** Rango de cada barra de PLAN (azul): [{x:[ini,fin], y:parte}, ...] */
+    public array $planRanges = [];
+
+    /** Cantidad planeada por barra de plan (tooltip) */
+    public array $planQuantities = [];
+
+    /** Texto "HH:mm - HH:mm" (ventana planeada completa) por barra de plan (tooltip) */
+    public array $planTimeLabels = [];
+
+    /** True si el work center pertenece al área de estampado (production_rate = SPM) */
+    public bool $isStamping = false;
 
     /** Ancho total del eje X en horas (turno anterior + actual) */
     public float $durationHours = 12;
@@ -51,6 +65,11 @@ class ShiftProductionTimeline extends Component
     {
         $this->chartId = 'timeline_' . Str::random(10);
         $this->workCenter = $workCenter;
+
+        // ¿El área es estampado? Entonces production_rate viene en SPM (golpes/min)
+        $wc = WorkCenter::with('line.area')->where('name', $workCenter)->first();
+        $this->isStamping = $wc && $wc->line && $wc->line->area
+            && strtolower($wc->line->area->name) === 'estampado';
 
         // Catálogo de turnos para el select
         $this->shiftOptions = Shift::getAllShifts()
@@ -91,6 +110,9 @@ class ShiftProductionTimeline extends Component
         $this->ranges = [];
         $this->quantities = [];
         $this->timeLabels = [];
+        $this->planRanges = [];
+        $this->planQuantities = [];
+        $this->planTimeLabels = [];
 
         $shift = $this->selectedShiftId ? Shift::find($this->selectedShiftId) : null;
         $date = $this->selectedDate ? Carbon::parse($this->selectedDate) : null;
@@ -121,7 +143,13 @@ class ShiftProductionTimeline extends Component
             $date
         );
 
-        $this->buildBars($records, $baseStart, $timelineEnd, $now);
+        $planParts = ProductionRecord::getShiftPlannedSchedule(
+            $this->workCenter,
+            $shift->id,
+            $date
+        );
+
+        $this->buildBars($records, $planParts, $baseStart, $timelineEnd, $now);
 
         $this->dispatchTimeline();
     }
@@ -132,11 +160,23 @@ class ShiftProductionTimeline extends Component
      * su propio inicio y fin. Así un material producido de 01:00 a 02:00 y luego de
      * 10:00 a 13:00 se muestra como dos barras en la misma fila.
      */
-    private function buildBars($records, Carbon $baseStart, Carbon $timelineEnd, Carbon $now): void
+    private function buildBars($records, $planParts, Carbon $baseStart, Carbon $timelineEnd, Carbon $now): void
     {
-        $segments = [];      // un elemento por registro (cada barra)
-        $firstStart = [];    // número de parte => timestamp del inicio más temprano
+        // Orden de las filas (eje Y): por production_order; si una parte no tiene
+        // orden, se ordena al final usando su número de parte como criterio.
+        $planParts = $planParts->sort(function ($a, $b) {
+            $ao = is_null($a->production_order) ? PHP_INT_MAX : (int) $a->production_order;
+            $bo = is_null($b->production_order) ? PHP_INT_MAX : (int) $b->production_order;
+            return $ao === $bo
+                ? strcmp((string) $a->part_number, (string) $b->part_number)
+                : $ao <=> $bo;
+        })->values();
 
+        // Categorías (eje Y): un número de parte por fila, en orden de producción
+        $this->labels = $planParts->pluck('part_number')->all();
+
+        // ----- Barras REALES (verde): un segmento por registro iniciado -----
+        $segments = [];
         foreach ($records as $record) {
             $start = Carbon::parse($record->production_start);
             $inProgress = empty($record->production_end);
@@ -154,24 +194,14 @@ class ShiftProductionTimeline extends Component
                 continue;
             }
 
-            $partNumber = $record->part_number;
-
             $segments[] = [
-                'part' => $partNumber,
+                'part' => $record->part_number,
                 'start' => $start,
                 'end' => $end,
                 'quantity' => (int) $record->produced_quantity,
                 'inProgress' => $inProgress,
             ];
-
-            if (!isset($firstStart[$partNumber]) || $start->getTimestamp() < $firstStart[$partNumber]) {
-                $firstStart[$partNumber] = $start->getTimestamp();
-            }
         }
-
-        // Categorías (eje Y): un número de parte por fila, ordenadas por su inicio más temprano
-        asort($firstStart);
-        $this->labels = array_keys($firstStart);
 
         // Segmentos ordenados cronológicamente
         usort($segments, fn ($a, $b) => $a['start']->getTimestamp() <=> $b['start']->getTimestamp());
@@ -186,6 +216,89 @@ class ShiftProductionTimeline extends Component
             $this->timeLabels[] = $segment['start']->format('d-m H:i') . ' - '
                 . ($segment['inProgress'] ? 'en proceso' : $segment['end']->format('d-m H:i'));
         }
+
+        // ----- Barras de PLAN (azul): secuenciadas por production_order -----
+        $this->buildPlanBars($planParts, $baseStart, $now);
+    }
+
+    /**
+     * Construye la barra de plan de cada número de parte siguiendo el production_order.
+     *
+     * Las partes que comparten el MISMO production_order se producen en paralelo: todas
+     * arrancan a la misma hora y el reloj del plan no avanza hasta que termina la barra
+     * MÁS LARGA del grupo (la siguiente orden empieza cuando el grupo entero acaba). Las
+     * partes sin orden van solas, una tras otra. La primera orden arranca al inicio del
+     * turno. El largo de cada barra es el tiempo para producir su cantidad planeada según
+     * production_rate (en estampado, SPM convertido a piezas/hora). La barra sólo se pinta
+     * hasta "ahora": no se marca producción planeada en el futuro.
+     */
+    private function buildPlanBars($planParts, Carbon $baseStart, Carbon $now): void
+    {
+        // Divisor de golpes por troquel (sólo estampado): piezas/hora = SPM * 60 * divisor
+        $divisors = $this->isStamping
+            ? PartNumber::buildShotDivisorsForPartIds($planParts->pluck('part_number_id')->all())
+            : [];
+
+        // "Ahora" en horas desde el inicio del turno, acotado a la duración del turno.
+        // Turno pasado: nowOffset > durationHours => se muestra el plan completo.
+        $nowOffset = ($now->getTimestamp() - $baseStart->getTimestamp()) / 3600;
+        $cap = min($nowOffset, $this->durationHours);
+
+        // Tiempo necesario (horas) para producir la cantidad planeada de una parte.
+        $durationFor = function ($part) use ($divisors) {
+            $plannedQty = (int) $part->planned_quantity;
+            $rate = (float) $part->production_rate;
+            $ratePerHour = $this->isStamping
+                ? $rate * 60 * ($divisors[$part->part_number_id] ?? 1) // SPM (golpes/min) -> piezas/hora
+                : $rate;                                               // ya viene en piezas/hora
+            return $ratePerHour > 0 ? $plannedQty / $ratePerHour : 0.0;
+        };
+
+        $parts = $planParts->values()->all();
+        $n = count($parts);
+        $cursor = 0.0; // horas acumuladas desde el inicio del turno
+        $i = 0;
+
+        while ($i < $n) {
+            // Reunir el grupo de partes con el mismo production_order (en paralelo).
+            // Las partes SIN orden van solas (cada una su propio grupo).
+            $order = $parts[$i]->production_order;
+            $group = [$parts[$i]];
+            $j = $i + 1;
+            if (!is_null($order)) {
+                while ($j < $n && !is_null($parts[$j]->production_order)
+                    && (int) $parts[$j]->production_order === (int) $order) {
+                    $group[] = $parts[$j];
+                    $j++;
+                }
+            }
+
+            // Todas las del grupo arrancan en $cursor; el reloj avanza con la más larga.
+            $planStart = $cursor;
+            $groupEnd = $cursor;
+
+            foreach ($group as $part) {
+                $planEnd = $planStart + $durationFor($part);
+                $groupEnd = max($groupEnd, $planEnd);
+
+                // Recortar la barra a "ahora"; nada de plan en el futuro
+                $visibleEnd = min($planEnd, $cap);
+                if ($visibleEnd <= $planStart) {
+                    continue;
+                }
+
+                $this->planRanges[] = ['x' => [round($planStart, 3), round($visibleEnd, 3)], 'y' => $part->part_number];
+                $this->planQuantities[] = (int) $part->planned_quantity;
+
+                // Tooltip: ventana planeada COMPLETA (aunque la barra esté recortada)
+                $ps = $baseStart->copy()->addSeconds((int) round($planStart * 3600));
+                $pe = $baseStart->copy()->addSeconds((int) round($planEnd * 3600));
+                $this->planTimeLabels[] = $ps->format('d-m H:i') . ' - ' . $pe->format('d-m H:i');
+            }
+
+            $cursor = $groupEnd;
+            $i = $j;
+        }
     }
 
     private function dispatchTimeline(): void
@@ -195,6 +308,9 @@ class ShiftProductionTimeline extends Component
             'ranges' => $this->ranges,
             'quantities' => $this->quantities,
             'timeLabels' => $this->timeLabels,
+            'planRanges' => $this->planRanges,
+            'planQuantities' => $this->planQuantities,
+            'planTimeLabels' => $this->planTimeLabels,
             'durationHours' => $this->durationHours,
             'shiftStartIso' => $this->shiftStartIso,
             'isLive' => $this->isLive,
