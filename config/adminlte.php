@@ -429,6 +429,12 @@ return [
             'icon' => 'fas fa-fw fa-chart-line',
             'submenu' => [
                 [
+                    'text' => 'Reportes Generales',
+                    'route' => 'reports.index',
+                    'icon' => 'fas fa-fw fa-folder-open',
+                    // 'can' => 'view production records'
+                ],
+                [
                     'text' => 'Registro de Producción',
                     'route'  => 'production-records.index',
                     'icon' => 'fas fa-fw fa-clipboard-check',

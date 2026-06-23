@@ -67,7 +67,7 @@
         </div>
 
         {{-- Chart --}}
-        <div x-data="shiftTimelineChart" wire:ignore class="px-4 py-5 sm:px-6 overflow-y-auto max-h-[560px]">
+        <div x-data="shiftTimelineChart" wire:ignore class="px-4 py-5 sm:px-6">
             <div class="relative" :style="`height: ${chartHeight}px`">
                 <canvas id="{{ $chartId }}"></canvas>
             </div>
@@ -79,17 +79,8 @@
 
         {{-- Pie: leyenda "Real" (izquierda) y última actualización / histórico (derecha) --}}
         <div class="px-6 py-2.5 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-            {{-- Leyenda: Plan (azul) y Real (verde) --}}
-            <span class="flex items-center gap-3">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-                    Plan
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                    Real
-                </span>
-            </span>
+            {{-- La leyenda Plan/Real ahora vive dentro de la gráfica (interactiva) --}}
+            <span></span>
 
             {{-- Última actualización / histórico --}}
             <span>
@@ -213,8 +204,15 @@
                         label:         isDark ? '#ffffff' : '#111827',
                     };
 
+                    // Color de la cruz (+) que sigue el cursor: negra en claro, blanca en oscuro
+                    const crosshairColor = isDark ? '#ffffff' : '#000000';
+                    // Texto de la etiqueta: tonos suaves para no ser tan duros a la vista
+                    const crosshairTextColor = isDark ? '#1f2937' : '#f9fafb';
+                    // Línea "Ahora": violeta, agradable y distinto del azul (plan) y verde (real)
+                    const nowLineColor = isDark ? '#a78bfa' : '#8b5cf6';
+
                     // Dibuja una etiqueta de fecha/hora junto al puntero (x, y)
-                    const drawTimeTag = (ctx, x, y, area, text, color) => {
+                    const drawTimeTag = (ctx, x, y, area, text, color, textColor) => {
                         ctx.font = 'bold 11px sans-serif';
                         const padding = 6;
                         const boxW = ctx.measureText(text).width + padding * 2;
@@ -228,13 +226,13 @@
                         boxY = Math.max(area.top, Math.min(boxY, area.bottom - boxH));
                         ctx.fillStyle = color;
                         ctx.fillRect(boxX, boxY, boxW, boxH);
-                        ctx.fillStyle = '#ffffff';
+                        ctx.fillStyle = textColor;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(text, boxX + boxW / 2, boxY + boxH / 2);
                     };
 
-                    // Plugin: línea "Ahora" (ámbar) fija + línea roja que sigue el mouse
+                    // Plugin: línea "Ahora" (ámbar) fija + cruz (+) que sigue el mouse
                     const crosshairPlugin = {
                         id: 'crosshair',
                         afterEvent(chart, args) {
@@ -263,7 +261,7 @@
                                     ctx.beginPath();
                                     ctx.setLineDash([5, 5]);
                                     ctx.lineWidth = 1.5;
-                                    ctx.strokeStyle = '#f59e0b';
+                                    ctx.strokeStyle = nowLineColor;
                                     ctx.moveTo(nx, area.top);
                                     ctx.lineTo(nx, area.bottom);
                                     ctx.stroke();
@@ -272,7 +270,7 @@
                                 }
                             }
 
-                            // Línea roja que sigue el mouse + fecha/hora junto al puntero
+                            // Cruz (+) que sigue el mouse + fecha/hora junto al puntero
                             const x = chart._crosshairX;
                             if (x == null) return;
                             const y = chart._crosshairY ?? area.top;
@@ -280,12 +278,16 @@
                             ctx.beginPath();
                             ctx.setLineDash([6, 6]);
                             ctx.lineWidth = 1.5;
-                            ctx.strokeStyle = '#ef4444';
+                            ctx.strokeStyle = crosshairColor;
+                            // Línea vertical
                             ctx.moveTo(x, area.top);
                             ctx.lineTo(x, area.bottom);
+                            // Línea horizontal (forma la cruz)
+                            ctx.moveTo(area.left, y);
+                            ctx.lineTo(area.right, y);
                             ctx.stroke();
                             ctx.setLineDash([]);
-                            drawTimeTag(ctx, x, y, area, clockLabel(scales.x.getValueForPixel(x)), '#ef4444');
+                            drawTimeTag(ctx, x, y, area, clockLabel(scales.x.getValueForPixel(x)), crosshairColor, crosshairTextColor);
                             ctx.restore();
                         }
                     };
@@ -348,7 +350,17 @@
                                 }
                             },
                             plugins: {
-                                legend: { display: false },
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                    labels: {
+                                        color: colors.text,
+                                        font: { size: 12, weight: 'bold' },
+                                        usePointStyle: true,
+                                        pointStyle: 'rectRounded',
+                                        padding: 16,
+                                    }
+                                },
                                 datalabels: { display: false },
                                 tooltip: {
                                     backgroundColor: colors.tooltipBg,

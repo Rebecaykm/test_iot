@@ -226,6 +226,7 @@ class ProductionRecord extends Model
                 'part_numbers.number AS part_number',
                 'part_numbers.production_order AS production_order',
                 'part_numbers.production_rate AS production_rate',
+                'part_numbers.efficiency AS efficiency',
                 DB::raw('SUM(production_records.planned_quantity) AS planned_quantity'),
             ])
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
@@ -238,7 +239,8 @@ class ProductionRecord extends Model
                 'part_numbers.id',
                 'part_numbers.number',
                 'part_numbers.production_order',
-                'part_numbers.production_rate'
+                'part_numbers.production_rate',
+                'part_numbers.efficiency'
             )
             ->get();
     }

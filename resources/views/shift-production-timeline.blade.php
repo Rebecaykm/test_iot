@@ -86,10 +86,9 @@
                             </div>
                         </div>
                     </div>
-                        <livewire:production-week-table :work-center="$workCenter" />
+                    <livewire:production-week-table :work-center="$workCenter" />
 
-                        <livewire:shift-production-timeline :work-center="$workCenter" />
-
+                    <livewire:shift-production-timeline :work-center="$workCenter" />
                 </div>
             </div>
         </div>

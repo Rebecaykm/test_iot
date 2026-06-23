@@ -1,5 +1,5 @@
 <div x-data="weekTable" data-live="{{ $isCurrentWeek ? '1' : '0' }}" class="w-full h-full">
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden h-[640px] flex flex-col">
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
 
         {{-- Encabezado --}}
         <div class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-600 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between flex-shrink-0">
@@ -27,7 +27,7 @@
         </div>
 
         {{-- Tabla --}}
-        <div class="overflow-auto flex-1 min-h-0">
+        <div class="overflow-auto max-h-[545px]">
             <table class="min-w-full border-collapse text-sm">
                 <thead>
                     <tr>
@@ -85,13 +85,13 @@
                                                         ? 'bg-yellow-50 dark:bg-yellow-900/20'
                                                         : 'bg-green-50 dark:bg-green-900/20');
                                             @endphp
-                                            <div class="px-2.5 py-1.5 whitespace-nowrap leading-snug text-[11px] {{ $rbg }} {{ !$loop->last ? 'border-b border-gray-200 dark:border-gray-700' : '' }}">
+                                            <div class="px-1 py-1.5 whitespace-nowrap leading-snug text-[11px] {{ $rbg }} {{ !$loop->last ? 'border-b border-gray-200 dark:border-gray-700' : '' }}">
                                                 <span class="text-gray-500 dark:text-gray-400 font-medium">P: {{ number_format($rec['plan']) }}</span>
-                                                <span class="mx-1 text-gray-300 dark:text-gray-600">·</span>
+                                                <span class="mx-0.5 text-gray-300 dark:text-gray-600">·</span>
                                                 <span class="font-bold {{ $rcolor }}">R: {{ number_format($rec['real']) }}</span>
                                             </div>
                                         @empty
-                                            <span class="inline-block px-2.5 py-1.5 text-gray-300 dark:text-gray-600 text-[11px]">–</span>
+                                            <span class="inline-block px-1 py-1.5 text-gray-300 dark:text-gray-600 text-[11px]">–</span>
                                         @endforelse
                                     </td>
                                 @endforeach

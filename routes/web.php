@@ -9,6 +9,7 @@ use App\Http\Controllers\MaterialValidationController;
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProductionRecordController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ScrapController;
 use App\Http\Controllers\ScrapRecordController;
@@ -61,6 +62,10 @@ Route::middleware([
     Route::resource('production-records', ProductionRecordController::class);
     Route::get('production-records-summary', [ProductionRecordController::class, 'summary'])->name('production-records.summary');
     Route::get('production-records-summary/export', [ProductionRecordController::class, 'exportSummary'])->name('production-records.summary.export');
+
+    // Reportes Generales
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/mdi/export', [ReportController::class, 'exportMdi'])->name('reports.mdi.export');
 
     Route::get('/production/export-pdf-form', [ProductionRecordController::class, 'showExportForm'])->name('production.export-pdf-form');
     Route::post('/production/export-pdf-filtered', [ProductionRecordController::class, 'exportProductionReportFiltered'])->name('production.export-pdf-filtered');

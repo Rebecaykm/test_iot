@@ -234,10 +234,20 @@ class ShiftProductionTimeline extends Component
      */
     private function buildPlanBars($planParts, Carbon $baseStart, Carbon $now): void
     {
-        // Divisor de golpes por troquel (sólo estampado): piezas/hora = SPM * 60 * divisor
-        $divisors = $this->isStamping
-            ? PartNumber::buildShotDivisorsForPartIds($planParts->pluck('part_number_id')->all())
-            : [];
+        // Estampado: piezas por golpe (pieces_per_shot) PROPIO de cada parte.
+        // Para el TIEMPO se usa el pps propio, NO el divisor por troquel sumado:
+        // las partes que comparten troquel se estampan en paralelo (salen juntas en
+        // el mismo golpe), así que el tiempo de cada una depende sólo de cuántas
+        // piezas de ESA parte salen por golpe. piezas/hora = SPM * 60 * pps.
+        $piecesPerShot = [];
+        if ($this->isStamping) {
+            $parts = PartNumber::whereIn('id', $planParts->pluck('part_number_id')->all())
+                ->with(['customAttributes' => fn ($q) => $q->where('key', 'pieces_per_shot')])
+                ->get();
+            foreach ($parts as $p) {
+                $piecesPerShot[$p->id] = max(1, (int) ($p->customAttributes->firstWhere('key', 'pieces_per_shot')?->value ?? 1));
+            }
+        }
 
         // "Ahora" en horas desde el inicio del turno, acotado a la duración del turno.
         // Turno pasado: nowOffset > durationHours => se muestra el plan completo.
@@ -245,12 +255,20 @@ class ShiftProductionTimeline extends Component
         $cap = min($nowOffset, $this->durationHours);
 
         // Tiempo necesario (horas) para producir la cantidad planeada de una parte.
-        $durationFor = function ($part) use ($divisors) {
+        // Dos cálculos según el área:
+        //  - Estampado: production_rate es SPM (golpes/min). piezas/hora = SPM * 60 * pps.
+        //  - No estampado: igual que /production-dashboard => piezas/hora = rate * (eficiencia/100).
+        $durationFor = function ($part) use ($piecesPerShot) {
             $plannedQty = (int) $part->planned_quantity;
             $rate = (float) $part->production_rate;
-            $ratePerHour = $this->isStamping
-                ? $rate * 60 * ($divisors[$part->part_number_id] ?? 1) // SPM (golpes/min) -> piezas/hora
-                : $rate;                                               // ya viene en piezas/hora
+
+            if ($this->isStamping) {
+                $ratePerHour = $rate * 60 * ($piecesPerShot[$part->part_number_id] ?? 1);
+            } else {
+                $eff = max((float) ($part->efficiency ?? 100), 1);
+                $ratePerHour = $rate * ($eff / 100);
+            }
+
             return $ratePerHour > 0 ? $plannedQty / $ratePerHour : 0.0;
         };
 
