@@ -7,8 +7,9 @@ use App\Http\Controllers\LineStoppageController;
 use App\Http\Controllers\LineStoppageRecordController;
 use App\Http\Controllers\MaterialValidationController;
 use App\Http\Controllers\PartNumberController;
-use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProductionRecordController;
+use App\Http\Controllers\ProductionTracking\HourlyShiftReportController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ScrapController;
 use App\Http\Controllers\ScrapRecordController;
@@ -93,10 +94,9 @@ Route::get('home', function () {
 
 Route::get('production-dashboard/{workCenter}', function ($workCenter) {
     return view('production-dashboard', [
-        'workCenter' => $workCenter
+        'workCenter' => $workCenter,
     ]);
 })->name('production-dashboard');
-
 
 // Revisar
 // Route::get('production-plan-summary', function () {
@@ -106,10 +106,9 @@ Route::get('production-dashboard/{workCenter}', function ($workCenter) {
 // Press Routes
 Route::get('press-production/{workCenter}', function ($workCenter) {
     return view('press-production', [
-        'workCenter' => $workCenter
+        'workCenter' => $workCenter,
     ]);
 })->name('press-production');
-
 
 // Guest Routes
 Route::get('guest/work-center-map', function () {
@@ -125,3 +124,6 @@ Route::get('guest/production-records/{workCenterId}', function ($workCenterId) {
 Route::get('guest/work-center-dashboard', function () {
     return view('guest.work-center-dashboard');
 });
+
+// Production Tracking Status
+Route::get('production-tracking/hourly-shift-report', [HourlyShiftReportController::class, '__invoke'])->name('production-tracking.hourly-shift-report');
