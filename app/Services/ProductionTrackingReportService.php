@@ -8,35 +8,35 @@ class ProductionTrackingReportService
 {
     public function __construct() {}
 
-    public function hourlyShiftReport(array $productionTrackingDataSet, Shift $shift): array
+    public function hourlyShiftReport(array $productionTrackingDataSet, Shift $shift, array $hourlyRange): array
     {
         $shiftRange = Shift::shiftRange($shift);
-        $hourlyReport = $this->generateHourRange($shiftRange[0], $shiftRange[1]);
-        $totalHours = count($hourlyReport) - 1; // Exclute lunch and breaks (1 hour)
+        $totalHours = count($hourlyRange);
 
         $report = [];
         foreach ($productionTrackingDataSet as $record) {
             $report[] = [
                 'product' => $record['productCode'],
+                'workCenterDescription' => $record['workCenterDescription'],
                 'SNP' => $record['standardPackQuantity'],
                 'plannedSequences' => $record['AS4PlannedSequences'],
                 'cycleTime' => $record['cycleTime'],
                 'shopOrderNumber' => trim($record['shopOrderNumber']),
-                'hourlyData' => $this->distribute(trim($record['shopOrderNumber']) ?? 'UNKNOWN', $record['AS4PlannedSequences'], $record['cycleTime'], $hourlyReport),
+                'hourlyData' => $this->distribute(trim($record['shopOrderNumber']) ?? 'UNKNOWN', $record['AS4PlannedSequences'], $record['cycleTime'], $hourlyRange),
             ];
         }
 
         return $report;
     }
 
-    private function generateHourRange(string $from, string $to): array
+    public function generateHourRange(string $from, string $to): array
     {
         $hours = [];
         $currentHour = strtotime($from);
         $endHour = strtotime($to);
 
         while ($currentHour <= $endHour) {
-            $hours[] = date('H:i:s', $currentHour);
+            $hours[] = date('H:i', $currentHour);
             $currentHour = strtotime('+1 hour', $currentHour);
         }
 
@@ -49,7 +49,7 @@ class ProductionTrackingReportService
      *
      * @param  int  $plannedSequences  e.g., 2
      * @param  float  $cycleTime  e.g., 2.5 (hours per sequence)
-     * @param  array  $hourlyReport  e.g., ["08:00:00", "09:00:00", ...]
+     * @param  array  $hourlyReport  e.g., ["08:00", "09:00", ...]
      * @return array Structured array with hours as keys and their sequence label.
      */
     private function distribute(string $shopOrderNumber, int $plannedSequences, float $cycleTime, array $hourlyReport): array

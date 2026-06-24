@@ -22,6 +22,7 @@ class HourlyShiftReportController extends Controller
     public function __invoke(Request $request)
     {
         $shift = Shift::from($request->query('shift', Shift::Day->value));
+        $shiftRange = Shift::shiftRange($shift);
 
         $productionTrackingDataSet = $this->productionTrackingService->getProductionTrackingStatus(
             productionDate: new DateTimeImmutable('2026-06-23'),
@@ -29,13 +30,14 @@ class HourlyShiftReportController extends Controller
             workcenterCode: '122070'
         );
 
+        $hourlyRange = $this->productionTrackingReportService->generateHourRange($shiftRange[0], $shiftRange[1]);
+
         $report = $this->productionTrackingReportService->hourlyShiftReport(
             productionTrackingDataSet: $productionTrackingDataSet,
-            shift: $shift
+            shift: $shift,
+            hourlyRange: $hourlyRange
         );
 
-        dd($report);
-
-        return view('production-tracking.hourly-shift-report', compact('report'));
+        return view('production-tracking.hourly-shift-report', compact('report', 'hourlyRange'));
     }
 }
