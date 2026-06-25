@@ -12,14 +12,14 @@ class ProductionTrackingService
 {
     public function __construct() {}
 
-    public function getProductionTrackingStatus(DateTimeImmutable $productionDate, Shift $shift, string $workcenterCode): array
+    public function getProductionTrackingStatus(DateTimeImmutable $productionDate, string $workcenterCode, ?Shift $shift = null): array
     {
         $query = 'EXEC dbo.GetProductionTrackingStatus @productionDate = ?, @shift = ?, @workCenterCode = ?';
 
         $statement = DB::connection()->getPdo()->prepare($query);
 
         $statement->bindValue(1, $productionDate->format('Ymd'));
-        $statement->bindValue(2, $shift->value);
+        $statement->bindValue(2, $shift?->value);
         $statement->bindValue(3, $workcenterCode);
 
         $rc = $statement->execute();

@@ -21,7 +21,7 @@ class HourlyShiftReportController extends Controller
      */
     public function __invoke(Request $request)
     {
-        $shift = Shift::from($request->query('shift', Shift::Day->value));
+        $shift = Shift::tryFrom('D');
         $shiftRange = Shift::shiftRange($shift);
 
         $productionTrackingDataSet = $this->productionTrackingService->getProductionTrackingStatus(
@@ -30,7 +30,13 @@ class HourlyShiftReportController extends Controller
             workcenterCode: '122450'
         );
 
-        $hourlyRange = $this->productionTrackingReportService->generateHourRange($shiftRange[0], $shiftRange[1]);
+        $shiftRange[0] = empty($shift) ? date('Y-m-d').' 08:00:00' : $shiftRange[0];
+        $shiftRange[1] = empty($shift) ? now()->addDay()->format('Y-m-d').' 08:00:00' : $shiftRange[1];
+
+        $hourlyRange = $this->productionTrackingReportService->generateHourRange(
+            from: $shiftRange[0],
+            to: $shiftRange[1]
+        );
 
         $report = $this->productionTrackingReportService->hourlyShiftReport(
             productionTrackingDataSet: $productionTrackingDataSet,
@@ -43,17 +49,14 @@ class HourlyShiftReportController extends Controller
 
         $totalHours = count($hourlyRange);
 
-        // Hora actual
         $currentHour = date('H');
 
-        // Buscar la posición actual dentro del rango
         $currentHourIndex = collect($hourlyRange)->search(function ($hour) use ($currentHour) {
             return (int) substr($hour, 0, 2) == (int) $currentHour;
         });
 
         $currentHourIndex = $currentHourIndex === false ? $totalHours : $currentHourIndex + 1;
 
-        // Producción esperada a esta hora
         $expectedByNow = ($totalPlanned / $totalHours) * $currentHourIndex;
 
         $variance = $totalCompleted - $expectedByNow;
