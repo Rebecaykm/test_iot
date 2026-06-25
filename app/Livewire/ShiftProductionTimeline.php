@@ -143,6 +143,7 @@ class ShiftProductionTimeline extends Component
             $date
         );
 
+        // Filas = solo las partes que tuvieron cantidad planeada o producida en el turno.
         $planParts = ProductionRecord::getShiftPlannedSchedule(
             $this->workCenter,
             $shift->id,

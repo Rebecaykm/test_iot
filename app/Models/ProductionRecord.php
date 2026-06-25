@@ -242,6 +242,8 @@ class ProductionRecord extends Model
                 'part_numbers.production_rate',
                 'part_numbers.efficiency'
             )
+            // Solo partes que tuvieron cantidad planeada o producida en el turno
+            ->havingRaw('SUM(production_records.planned_quantity) > 0 OR SUM(production_records.produced_quantity) > 0')
             ->get();
     }
 
