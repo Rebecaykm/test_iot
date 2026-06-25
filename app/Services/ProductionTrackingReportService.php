@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Dtos\ProductionTracking;
+use App\Dtos\Reports\HourlyShift;
 use App\Enums\Shift;
 use DateTime;
 
@@ -17,6 +18,9 @@ class ProductionTrackingReportService
      */
     public function hourlyShiftReport(array $productionTrackingDataSet, array $hourlyRange, ?Shift $shift = null): array
     {
+        $data = new HourlyShift(productionTrackingDataSet: $productionTrackingDataSet, shift: $shift);
+        dd($data->toReport());
+
         $shiftRange = Shift::shiftRange($shift);
         $totalHours = count($hourlyRange);
 
