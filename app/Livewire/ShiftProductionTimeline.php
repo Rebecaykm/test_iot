@@ -162,14 +162,38 @@ class ShiftProductionTimeline extends Component
      */
     private function buildBars($records, $planParts, Carbon $baseStart, Carbon $timelineEnd, Carbon $now): void
     {
-        // Orden de las filas (eje Y): por production_order; si una parte no tiene
-        // orden, se ordena al final usando su número de parte como criterio.
-        $planParts = $planParts->sort(function ($a, $b) {
+        // Atributos de estampado por parte: MID (troquel) y pieces_per_shot.
+        // El MID se usa para ordenar y para agrupar en paralelo cuando no hay
+        // production_order; pieces_per_shot, para el tiempo de cada barra.
+        $midByPart = [];
+        $piecesPerShot = [];
+        if ($this->isStamping) {
+            $stampParts = PartNumber::whereIn('id', $planParts->pluck('part_number_id')->all())
+                ->with(['customAttributes' => fn ($q) => $q->whereIn('key', ['mid', 'pieces_per_shot'])])
+                ->get();
+            foreach ($stampParts as $p) {
+                $attrs = $p->customAttributes->keyBy('key');
+                $midByPart[$p->id] = (string) ($attrs['mid']->value ?? '');
+                $piecesPerShot[$p->id] = max(1, (int) ($attrs['pieces_per_shot']->value ?? 1));
+            }
+        }
+
+        // Orden de las filas (eje Y): por production_order; si una parte no tiene orden
+        // (o empatan), se desempata por MID ascendente en estampado, y por número de
+        // parte ascendente en lo demás.
+        $planParts = $planParts->sort(function ($a, $b) use ($midByPart) {
             $ao = is_null($a->production_order) ? PHP_INT_MAX : (int) $a->production_order;
             $bo = is_null($b->production_order) ? PHP_INT_MAX : (int) $b->production_order;
-            return $ao === $bo
-                ? strcmp((string) $a->part_number, (string) $b->part_number)
-                : $ao <=> $bo;
+            if ($ao !== $bo) {
+                return $ao <=> $bo;
+            }
+            if ($this->isStamping) {
+                $cmp = strcmp($midByPart[$a->part_number_id] ?? '', $midByPart[$b->part_number_id] ?? '');
+                if ($cmp !== 0) {
+                    return $cmp;
+                }
+            }
+            return strcmp((string) $a->part_number, (string) $b->part_number);
         })->values();
 
         // Categorías (eje Y): un número de parte por fila, en orden de producción
@@ -218,36 +242,34 @@ class ShiftProductionTimeline extends Component
         }
 
         // ----- Barras de PLAN (azul): secuenciadas por production_order -----
-        $this->buildPlanBars($planParts, $baseStart, $now);
+        $this->buildPlanBars($planParts, $baseStart, $now, $midByPart, $piecesPerShot);
     }
 
     /**
      * Construye la barra de plan de cada número de parte siguiendo el production_order.
      *
-     * Las partes que comparten el MISMO production_order se producen en paralelo: todas
-     * arrancan a la misma hora y el reloj del plan no avanza hasta que termina la barra
-     * MÁS LARGA del grupo (la siguiente orden empieza cuando el grupo entero acaba). Las
-     * partes sin orden van solas, una tras otra. La primera orden arranca al inicio del
-     * turno. El largo de cada barra es el tiempo para producir su cantidad planeada según
-     * production_rate (en estampado, SPM convertido a piezas/hora). La barra sólo se pinta
-     * hasta "ahora": no se marca producción planeada en el futuro.
+     * Las partes se agrupan en PARALELO (mismo arranque; el reloj del plan no avanza
+     * hasta que termina la barra más larga del grupo) cuando:
+     *   - comparten production_order, o
+     *   - en estampado sin production_order, comparten el mismo MID (troquel): salen
+     *     en el mismo golpe, así que van a la misma hora pero cada una en su fila.
+     * Lo demás va en secuencia. La primera arranca al inicio del turno. El largo de
+     * cada barra es el tiempo para producir su cantidad planeada según production_rate
+     * (en estampado, SPM convertido a piezas/hora). La barra sólo se pinta hasta
+     * "ahora": no se marca producción planeada en el futuro.
      */
-    private function buildPlanBars($planParts, Carbon $baseStart, Carbon $now): void
+    private function buildPlanBars($planParts, Carbon $baseStart, Carbon $now, array $midByPart, array $piecesPerShot): void
     {
-        // Estampado: piezas por golpe (pieces_per_shot) PROPIO de cada parte.
-        // Para el TIEMPO se usa el pps propio, NO el divisor por troquel sumado:
-        // las partes que comparten troquel se estampan en paralelo (salen juntas en
-        // el mismo golpe), así que el tiempo de cada una depende sólo de cuántas
-        // piezas de ESA parte salen por golpe. piezas/hora = SPM * 60 * pps.
-        $piecesPerShot = [];
-        if ($this->isStamping) {
-            $parts = PartNumber::whereIn('id', $planParts->pluck('part_number_id')->all())
-                ->with(['customAttributes' => fn ($q) => $q->where('key', 'pieces_per_shot')])
-                ->get();
-            foreach ($parts as $p) {
-                $piecesPerShot[$p->id] = max(1, (int) ($p->customAttributes->firstWhere('key', 'pieces_per_shot')?->value ?? 1));
+        // Clave de agrupación en paralelo de cada parte (ver doc del método).
+        $groupKey = function ($part) use ($midByPart) {
+            if (!is_null($part->production_order)) {
+                return 'ord:' . (int) $part->production_order;
             }
-        }
+            if ($this->isStamping && ($midByPart[$part->part_number_id] ?? '') !== '') {
+                return 'mid:' . $midByPart[$part->part_number_id];
+            }
+            return 'solo:' . $part->part_number_id; // única => va sola (en secuencia)
+        };
 
         // "Ahora" en horas desde el inicio del turno, acotado a la duración del turno.
         // Turno pasado: nowOffset > durationHours => se muestra el plan completo.
@@ -278,17 +300,14 @@ class ShiftProductionTimeline extends Component
         $i = 0;
 
         while ($i < $n) {
-            // Reunir el grupo de partes con el mismo production_order (en paralelo).
-            // Las partes SIN orden van solas (cada una su propio grupo).
-            $order = $parts[$i]->production_order;
+            // Reunir el grupo de partes que van en paralelo (misma clave de grupo).
+            // El orden previo deja juntas las partes de la misma clave.
+            $key = $groupKey($parts[$i]);
             $group = [$parts[$i]];
             $j = $i + 1;
-            if (!is_null($order)) {
-                while ($j < $n && !is_null($parts[$j]->production_order)
-                    && (int) $parts[$j]->production_order === (int) $order) {
-                    $group[] = $parts[$j];
-                    $j++;
-                }
+            while ($j < $n && $groupKey($parts[$j]) === $key) {
+                $group[] = $parts[$j];
+                $j++;
             }
 
             // Todas las del grupo arrancan en $cursor; el reloj avanza con la más larga.

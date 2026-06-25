@@ -56,7 +56,7 @@ class ReportController extends Controller
             ->orderBy('part_numbers.number')
             ->get();
 
-        $filename = 'MDI_' . Carbon::now()->format('YmdHis') . '.xlsx';
+        $filename = 'MDI_' . Carbon::now()->format('YmdHis') .  '.xlsx';
 
         return Excel::download(new MdiReportExport($parts), $filename);
     }
