@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Dtos\ProductionTracking;
 use App\Enums\Shift;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
@@ -32,29 +33,7 @@ class ProductionTrackingService
         $result = [];
 
         foreach ($dataSet as $row) {
-            $result[] = [
-                'productionDate' => date_create_immutable($row['productionDate']),
-                'shopOrderNumber' => $row['shopOrderNumber'] ?? null,
-                'productCode' => $row['productCode'],
-                'productDescription' => $row['productDescription'],
-                'classCode' => $row['classCode'],
-                'classDescription' => $row['classDescription'],
-                'workCenterCode' => $row['workCenterCode'],
-                'workCenterDescription' => $row['workCenterDescription'],
-                'shift' => $row['shift'],
-                'standardPackQuantity' => (int) $row['standardPackQuantity'],
-                'laborHours' => (float) $row['laborHours'],
-                'cycleTime' => (float) $row['cycleTime'],
-                'AS4QuantityRequired' => (int) $row['AS4QuantityRequired'],
-                'AS4QuantityFinished' => (int) $row['AS4QuantityFinished'],
-                'IoTQuantityRequired' => (int) $row['IoTQuantityRequired'],
-                'IoTQuantityFinished' => (int) $row['IoTQuantityFinished'],
-                'AS4PlannedSequences' => (float) $row['AS4PlannedSequences'],
-                'IoTPlannedSequences' => (float) $row['IoTPlannedSequences'],
-                'AS4CompletedSequences' => (float) $row['AS4CompletedSequences'],
-                'IoTCompletedSequences' => (float) $row['IoTCompletedSequences'],
-                'recordConciliation' => $row['recordConciliation'],
-            ];
+            $result[] = ProductionTracking::fromArray($row);
         }
 
         return $result;

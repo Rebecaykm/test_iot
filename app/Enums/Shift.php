@@ -18,8 +18,8 @@ enum Shift: string
     public static function shiftRange(Shift $shift): array
     {
         return match ($shift) {
-            self::Day => ['08:00:00', '18:00:00'],
-            self::Night => ['20:00:00', '06:00:00'],
+            self::Day => ['08:00:00', '20:00:00'],
+            self::Night => ['20:00:00', '08:00:00'],
         };
     }
 }

@@ -2,12 +2,18 @@
 
 namespace App\Services;
 
+use App\Dtos\ProductionTracking;
 use App\Enums\Shift;
 
 class ProductionTrackingReportService
 {
     public function __construct() {}
 
+    /**
+     * Undocumented function
+     *
+     * @param  ProductionTracking[]  $productionTrackingDataSet
+     */
     public function hourlyShiftReport(array $productionTrackingDataSet, Shift $shift, array $hourlyRange): array
     {
         $shiftRange = Shift::shiftRange($shift);
@@ -16,15 +22,26 @@ class ProductionTrackingReportService
         $report = [];
         foreach ($productionTrackingDataSet as $record) {
             $report[] = [
-                'product' => $record['productCode'],
-                'workCenterDescription' => $record['workCenterDescription'],
-                'SNP' => $record['standardPackQuantity'],
-                'plannedSequences' => $record['AS4PlannedSequences'],
-                'cycleTime' => $record['cycleTime'],
-                'shopOrderNumber' => trim($record['shopOrderNumber']),
-                'hourlyData' => $this->distribute(trim($record['shopOrderNumber']) ?? 'UNKNOWN', $record['AS4PlannedSequences'], $record['cycleTime'], $hourlyRange),
+                'product' => $record->productCode,
+                'workCenterDescription' => $record->workCenterDescription,
+                'SNP' => $record->standardPackQuantity,
+                'plannedQty' => $record->AS4QuantityRequired,
+                'completedQty' => $record->IoTQuantityFinished,
+                'plannedSequences' => $record->AS4PlannedSequences,
+                'completedSequences' => $record->IoTCompletedSequences,
+                'quantityRequired' => $record->AS4QuantityRequired,
+                'sequencesPerHour' => $record->sequencesPerHour,
+                'shopOrderNumber' => trim($record->shopOrderNumber),
+                'hourlyData' => $this->distribute(
+                    $record,
+                    $hourlyRange
+                ),
             ];
         }
+
+        $response = [
+            'totalSequences' => array_sum(array_column($report, 'plannedSequences')),
+        ];
 
         return $report;
     }
@@ -44,36 +61,51 @@ class ProductionTrackingReportService
     }
 
     /**
-     * Distributes the planned sequences across the hourly report strings,
-     * showing exactly which sequence number is being processed in each hour.
+     * Distributes the sequences across the hourly report strings,
+     * separating explicitly what was planned, what was completed, and the hours used.
      *
-     * @param  int  $plannedSequences  e.g., 2
-     * @param  float  $cycleTime  e.g., 2.5 (hours per sequence)
      * @param  array  $hourlyReport  e.g., ["08:00", "09:00", ...]
-     * @return array Structured array with hours as keys and their sequence label.
+     * @return array Structured array with hours as keys, planned, completed and hoursUsed.
      */
-    private function distribute(string $shopOrderNumber, int $plannedSequences, float $cycleTime, array $hourlyReport): array
-    {
+    private function distribute(
+        ProductionTracking $record,
+        array $hourlyReport
+    ): array {
         $distributedReport = [];
 
-        // Paso 1: Inicializar todas las horas vacías
+        // Paso 1: Inicializar todas las horas con la estructura requerida
         foreach ($hourlyReport as $hour) {
             $distributedReport[$hour] = [
-                'sequences' => '', // 'IDLE' o vacío si no se produce nada
-                'hoursUsed' => 0.0,
+                'plannedSequences' => '', // Secuencias planificadas trabajadas en esta hora
+                'completedSequences' => '', // Secuencias completadas trabajadas en esta hora
+                'hoursUsed' => 0.0, // Horas totales ocupadas
             ];
         }
 
-        if ($plannedSequences <= 0 || $cycleTime <= 0 || empty($hourlyReport)) {
+        $plannedSequences = $record->AS4PlannedSequences;
+        $completedSequences = $record->IoTCompletedSequences;
+        $cycleTimeRate = $record->sequencesPerHour; // Ej: 4 (secuencias por hora)
+
+        // IMPORTANTE: Si cycleTimeRate es la tasa por hora, el tiempo de cada secuencia es (1 / tasa)
+        if ($plannedSequences <= 0 || $cycleTimeRate <= 0 || empty($hourlyReport)) {
             return $distributedReport;
         }
+
+        // Calcular las horas que consume CADA secuencia de forma individual
+        $hoursPerSequence = 1.0 / $cycleTimeRate; // Ej: 1 / 4 = 0.25 horas por secuencia
 
         $currentHourIndex = 0;
         $hoursCount = count($hourlyReport);
 
-        // Recorremos una a una las secuencias planeadas (Secuencia 1, Secuencia 2...)
+        // Recorremos una a una las secuencias planeadas
         for ($sequenceNumber = 1; $sequenceNumber <= $plannedSequences; $sequenceNumber++) {
-            $timeNeededForCurrentSequence = $cycleTime; // 2.5 horas para esta secuencia
+
+            // Usamos el nuevo tiempo calculado por secuencia
+            $timeNeededForCurrentSequence = $hoursPerSequence;
+
+            // Identificar si la secuencia actual entra en el rango de completadas
+            $isCompleted = ($sequenceNumber <= $completedSequences);
+            $sequenceLabel = ($record->shopOrderNumber ?? '').'-'.$sequenceNumber;
 
             // Consumir el tiempo de esta secuencia en las horas del turno
             while ($timeNeededForCurrentSequence > 0 && $currentHourIndex < $hoursCount) {
@@ -89,21 +121,34 @@ class ProductionTrackingReportService
                     continue;
                 }
 
-                // Asignar el nombre de la secuencia a esta hora
-                $sequenceLabel = $shopOrderNumber.'-'.$sequenceNumber;
-                if ($currentHourData['sequences'] === '') {
-                    $currentHourData['sequences'] = $sequenceLabel;
+                // 1. Registrar en 'plannedSequences'
+                if ($currentHourData['plannedSequences'] === '') {
+                    $currentHourData['plannedSequences'] = $sequenceLabel;
                 } else {
-                    // Si ya había otra secuencia en esta misma hora (transición), las combinamos
-                    $currentHourData['sequences'] .= '|'.$sequenceLabel;
+                    if (strpos($currentHourData['plannedSequences'], $sequenceLabel) === false) {
+                        $currentHourData['plannedSequences'] .= '|'.$sequenceLabel;
+                    }
                 }
 
-                if ($timeNeededForCurrentSequence <= $availableTimeInSlot) {
-                    // La secuencia se termina por completo en esta hora
+                // 2. Registrar en 'completedSequences' (Solo si se cumplió)
+                if ($isCompleted) {
+                    if ($currentHourData['completedSequences'] === '') {
+                        $currentHourData['completedSequences'] = $sequenceLabel;
+                    } else {
+                        if (strpos($currentHourData['completedSequences'], $sequenceLabel) === false) {
+                            $currentHourData['completedSequences'] .= '|'.$sequenceLabel;
+                        }
+                    }
+                }
+
+                // 3. Acumular el tiempo transcurrido
+                // Usamos un pequeño delta (1e-9) para mitigar problemas de precisión de flotantes en PHP
+                if ($timeNeededForCurrentSequence <= ($availableTimeInSlot + 1e-9)) {
+                    // La secuencia se termina por completo en esta hora o remanente exacto
                     $currentHourData['hoursUsed'] += $timeNeededForCurrentSequence;
-                    $timeNeededForCurrentSequence = 0; // Secuencia completada
+                    $timeNeededForCurrentSequence = 0;
                 } else {
-                    // La secuencia es más larga que el tiempo que le queda a esta hora, la llenamos y pasamos a la siguiente
+                    // La secuencia es más larga, llenamos la hora y pasamos a la siguiente
                     $currentHourData['hoursUsed'] = 1.0;
                     $timeNeededForCurrentSequence -= $availableTimeInSlot;
                     $currentHourIndex++;
