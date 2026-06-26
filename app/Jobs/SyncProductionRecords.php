@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
@@ -30,9 +31,18 @@ class SyncProductionRecords implements ShouldQueue
      */
     public function handle(): void
     {
-        Log::info('Iniciando sincronización masiva con Infor');
+        // Evita que dos ejecuciones (programada + manual, o solapadas) procesen
+        // el mismo lote de registros antes de que cualquiera marque synced_to_infor.
+        $lock = Cache::lock('sync-production-records', $this->timeout + 30);
+
+        if (!$lock->get()) {
+            Log::warning('SyncProductionRecords: ya hay una sincronización en curso, se omite esta ejecución');
+            return;
+        }
 
         try {
+            Log::info('Iniciando sincronización masiva con Infor');
+
             $productionRecords = $this->getEligibleProductionRecords();
 
             if ($productionRecords->isEmpty()) {
@@ -71,6 +81,8 @@ class SyncProductionRecords implements ShouldQueue
         } catch (Exception $e) {
             Log::error('FALLO CRÍTICO en SyncProductionRecords: ' . $e->getMessage());
             throw $e;
+        } finally {
+            $lock->release();
         }
     }
 
@@ -131,12 +143,29 @@ class SyncProductionRecords implements ShouldQueue
             ? Carbon::parse($record->production_end)
             : null;
 
+        $plannedDateFormatted = $record->planned_date ? Carbon::parse($record->planned_date)->format('Ymd') : '';
+
+        if ($this->existsInInfor($record, $plannedDateFormatted)) {
+            Log::warning('SyncProductionRecords: el registro ya existía en YF013, se omite el insert duplicado', [
+                'Production Record' => $record->id,
+                'Shop order number' => $record->shop_order_number,
+                'Work Center' => $record->work_number,
+            ]);
+
+            ProductionRecord::where('id', $record->id)->update([
+                'synced_to_infor' => true,
+                'synced_at' => $now,
+            ]);
+
+            return ['success' => true];
+        }
+
         // Intentar insertar en la tabla de paso YF013
         $inserted = YF013::query()
             ->insert([
                 'YFWRKC' => $record->work_number ?? '',
                 'YFWRKN' => $record->work_name ?? '',
-                'YFRDTE' => $record->planned_date ? Carbon::parse($record->planned_date)->format('Ymd') : '',
+                'YFRDTE' => $plannedDateFormatted,
                 'YFSHFT' => $record->shift_abbreviation ?? '',
                 'YFPPNO' => '',
                 'YFSORD' => $record->shop_order_number ?? '',
@@ -173,6 +202,21 @@ class SyncProductionRecords implements ShouldQueue
         }
 
         return ['success' => false, 'message' => 'Fallo al insertar en YF013'];
+    }
+
+    /**
+     * Verifica si el registro ya existe en la tabla puente de Infor YF013
+     *
+     */
+    protected function existsInInfor($record, string $plannedDateFormatted): bool
+    {
+        return YF013::query()
+            ->where('YFWRKC', $record->work_number ?? '')
+            ->where('YFSORD', $record->shop_order_number ?? '')
+            ->where('YFRDTE', $plannedDateFormatted)
+            ->where('YFSHFT', $record->shift_abbreviation ?? '')
+            ->where('YFPROD', $record->part_number ?? '')
+            ->count() > 0;
     }
 
     /**
