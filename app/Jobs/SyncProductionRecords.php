@@ -74,7 +74,7 @@ class SyncProductionRecords implements ShouldQueue
 
             // Solo ejecutamos el procedimiento si hubo inserciones exitosas
             if ($successCount > 0) {
-                $this->executeInforProcedure();
+                // $this->executeInforProcedure();
             }
 
             $this->logResults($successCount, $errorCount, $errors);
@@ -234,7 +234,7 @@ class SyncProductionRecords implements ShouldQueue
             throw new Exception("Fallo de conexión ODBC: " . odbc_errormsg());
         }
 
-        $result = odbc_exec($conn, "CALL LX834OU01.YSF013C");
+        $result = @odbc_exec($conn, "CALL LX834OU01.YSF013C");
 
         if (!$result) {
             $error = odbc_errormsg($conn);
