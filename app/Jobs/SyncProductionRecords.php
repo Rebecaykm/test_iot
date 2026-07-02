@@ -234,7 +234,7 @@ class SyncProductionRecords implements ShouldQueue
             throw new Exception("Fallo de conexión ODBC: " . odbc_errormsg());
         }
 
-        $result = @odbc_exec($conn, "CALL LX834OU01.YSF013C");
+        $result = @odbc_exec($conn, "CALL LX834OU.YSF013C");
 
         if (!$result) {
             $error = odbc_errormsg($conn);
