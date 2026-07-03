@@ -26,10 +26,6 @@ class SyncProductionRecordsProtoCommand extends Command
      */
     public function handle()
     {
-        info("Process SyncProductionRecordsProto is running at ". now());
-
         SyncProductionRecordsProto::dispatch();
-
-        info("Process SyncProductionRecordsProto completed at ". now());
     }
 }

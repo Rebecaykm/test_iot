@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\InforSyncSetting;
 use App\Models\ProductionRecord;
 use App\Models\YF013Proto;
 use Carbon\Carbon;
@@ -14,11 +15,6 @@ use Illuminate\Support\Facades\Log;
 class SyncProductionRecordsProto implements ShouldQueue
 {
     use Queueable;
-
-    /**
-     * Centros de trabajo que sincronizan al ambiente Proto (2500T TR)
-     */
-    protected array $workCenters = ['111010'];
 
     public $tries = 3;
     public $backoff = 60;
@@ -44,20 +40,27 @@ class SyncProductionRecordsProto implements ShouldQueue
         }
 
         try {
-            Log::info('Iniciando sincronización masiva con Infor (Proto)');
+            $setting = InforSyncSetting::forEnvironment(InforSyncSetting::ENVIRONMENT_PROTO);
 
-            $productionRecords = $this->getEligibleProductionRecords();
+            if (!$setting || !$setting->enabled) {
+                return;
+            }
+
+            $workCenterNumbers = $setting->workCenterNumbers();
+
+            if (empty($workCenterNumbers)) {
+                return;
+            }
+
+            $productionRecords = $this->getEligibleProductionRecords($workCenterNumbers);
 
             if ($productionRecords->isEmpty()) {
-                Log::info('No hay registros pendientes para sincronizar');
                 return;
             }
 
             $successCount = 0;
             $errorCount = 0;
             $errors = [];
-
-            Log::info("Procesando {$productionRecords->count()} registros");
 
             foreach ($productionRecords as $record) {
                 try {
@@ -89,7 +92,7 @@ class SyncProductionRecordsProto implements ShouldQueue
         }
     }
 
-    protected function getEligibleProductionRecords()
+    protected function getEligibleProductionRecords(array $workCenterNumbers)
     {
         return ProductionRecord::query()
             ->select([
@@ -117,7 +120,7 @@ class SyncProductionRecordsProto implements ShouldQueue
             ->where('production_records.synced_to_infor', false)
             ->where('production_records.produced_quantity', '>', 0)
             ->where('statuses.name', 'Detenido')
-            ->whereIn('work_centers.number', $this->workCenters)
+            ->whereIn('work_centers.number', $workCenterNumbers)
             ->whereBetween('production_records.planned_date', [
                 Carbon::now()->startOfWeek(),
                 Carbon::now()->endOfWeek()
@@ -221,8 +224,6 @@ class SyncProductionRecordsProto implements ShouldQueue
      */
     protected function executeInforProcedure()
     {
-        Log::info('Ejecutando procedimiento LX834OU02.YSF013C');
-
         $dsn = "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR";
 
         $conn = odbc_connect($dsn, "", "");
@@ -247,9 +248,8 @@ class SyncProductionRecordsProto implements ShouldQueue
      */
     protected function logResults($successCount, $errorCount, $errors)
     {
-        Log::info("Sincronización terminada (Proto). Éxitos: $successCount, Errores: $errorCount");
         if ($errorCount > 0) {
-            Log::warning("Detalle de errores: " . implode(', ', $errors));
+            Log::warning("SyncProductionRecordsProto terminó con $errorCount errores. Detalle: " . implode(', ', $errors));
         }
     }
 

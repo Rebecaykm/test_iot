@@ -422,6 +422,11 @@ return [
                     'icon' => 'fas fa-fw fa-stop-circle',
                     'can' => 'view line stoppages'
                 ],
+                [
+                    'text' => 'Sincronización Infor',
+                    'route' => 'infor-sync.index',
+                    'icon' => 'fas fa-fw fa-cloud-upload-alt',
+                ],
             ]
         ],
         [

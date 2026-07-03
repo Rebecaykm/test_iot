@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Models\InforSyncSetting;
 use App\Models\ProductionRecord;
-use App\Models\WorkCenter;
 use App\Models\YF013Live;
 use Carbon\Carbon;
 use Exception;
@@ -11,7 +11,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 
 class SyncProductionRecordsLive implements ShouldQueue
 {
@@ -41,20 +40,27 @@ class SyncProductionRecordsLive implements ShouldQueue
         }
 
         try {
-            Log::info('Iniciando sincronización masiva con Infor (Live)');
+            $setting = InforSyncSetting::forEnvironment(InforSyncSetting::ENVIRONMENT_LIVE);
 
-            $productionRecords = $this->getEligibleProductionRecords();
+            if (!$setting || !$setting->enabled) {
+                return;
+            }
+
+            $workCenterNumbers = $setting->workCenterNumbers();
+
+            if (empty($workCenterNumbers)) {
+                return;
+            }
+
+            $productionRecords = $this->getEligibleProductionRecords($workCenterNumbers);
 
             if ($productionRecords->isEmpty()) {
-                Log::info('No hay registros pendientes para sincronizar');
                 return;
             }
 
             $successCount = 0;
             $errorCount = 0;
             $errors = [];
-
-            Log::info("Procesando {$productionRecords->count()} registros");
 
             foreach ($productionRecords as $record) {
                 try {
@@ -72,7 +78,6 @@ class SyncProductionRecordsLive implements ShouldQueue
                 }
             }
 
-            // Solo ejecutamos el procedimiento si hubo inserciones exitosas
             if ($successCount > 0) {
                 // $this->executeInforProcedure();
             }
@@ -86,14 +91,8 @@ class SyncProductionRecordsLive implements ShouldQueue
         }
     }
 
-    protected function getEligibleProductionRecords()
+    protected function getEligibleProductionRecords(array $workCenterNumbers)
     {
-        $workCentersArray = WorkCenter::whereHas('line', function ($q) {
-            $q->whereIn('name', ['Miniceldas']);
-        })
-            ->pluck('number')
-            ->toArray();
-
         return ProductionRecord::query()
             ->select([
                 'production_records.id',
@@ -120,7 +119,7 @@ class SyncProductionRecordsLive implements ShouldQueue
             ->where('production_records.synced_to_infor', false)
             ->where('production_records.produced_quantity', '>', 0)
             ->where('statuses.name', 'Detenido')
-            ->whereIn('work_centers.number', $workCentersArray)
+            ->whereIn('work_centers.number', $workCenterNumbers)
             ->whereBetween('production_records.planned_date', [
                 Carbon::now()->startOfWeek(),
                 Carbon::now()->endOfWeek()
@@ -224,8 +223,6 @@ class SyncProductionRecordsLive implements ShouldQueue
      */
     protected function executeInforProcedure()
     {
-        Log::info('Ejecutando procedimiento LX834OU.YSF013C');
-
         $dsn = "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR";
 
         $conn = odbc_connect($dsn, "", "");
@@ -250,9 +247,8 @@ class SyncProductionRecordsLive implements ShouldQueue
      */
     protected function logResults($successCount, $errorCount, $errors)
     {
-        Log::info("Sincronización terminada (Live). Éxitos: $successCount, Errores: $errorCount");
         if ($errorCount > 0) {
-            Log::warning("Detalle de errores: " . implode(', ', $errors));
+            Log::warning("SyncProductionRecordsLive terminó con $errorCount errores. Detalle: " . implode(', ', $errors));
         }
     }
 

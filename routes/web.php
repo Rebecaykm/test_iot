@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\InforSyncSettingController;
 use App\Http\Controllers\LineController;
 use App\Http\Controllers\LineStoppageController;
 use App\Http\Controllers\LineStoppageRecordController;
@@ -64,6 +65,10 @@ Route::middleware([
     Route::resource('production-records', ProductionRecordController::class);
     Route::get('production-records-summary', [ProductionRecordController::class, 'summary'])->name('production-records.summary');
     Route::get('production-records-summary/export', [ProductionRecordController::class, 'exportSummary'])->name('production-records.summary.export');
+
+    // Sincronización a Infor (Live / Proto)
+    Route::get('infor-sync', [InforSyncSettingController::class, 'index'])->name('infor-sync.index');
+    Route::put('infor-sync', [InforSyncSettingController::class, 'update'])->name('infor-sync.update');
 
     // Reportes Generales
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
