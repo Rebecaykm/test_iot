@@ -80,6 +80,7 @@ class SyncProductionRecordsProto implements ShouldQueue
 
             // Solo ejecutamos el procedimiento si hubo inserciones exitosas
             if ($successCount > 0) {
+                $this->logInforTableSnapshot();
                 $this->executeInforProcedure();
             }
 
@@ -217,6 +218,38 @@ class SyncProductionRecordsProto implements ShouldQueue
             ->where('YFSHFT', $record->shift_abbreviation ?? '')
             ->where('YFPROD', $record->part_number ?? '')
             ->count() > 0;
+    }
+
+    /**
+     * Registra en el log todo el contenido de la tabla YF013 antes de ejecutar
+     * el programa de Infor, para poder rastrear registros duplicados
+     */
+    protected function logInforTableSnapshot()
+    {
+        $rows = YF013Proto::query()->get();
+
+        Log::info("SyncProductionRecordsProto: contenido de LX834FU02.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
+
+        foreach ($rows as $index => $row) {
+            Log::info(sprintf(
+                'YF013 Proto [%d] | WorkCenter: %s (%s) | Orden: %s | Parte: %s | Fecha: %s | Turno: %s | Inicio: %s | Fin: %s | Plan: %s | Prod: %s | Scrap: %s | Creado: %s %s por %s',
+                $index + 1,
+                trim($row->YFWRKC ?? ''),
+                trim($row->YFWRKN ?? ''),
+                trim($row->YFSORD ?? ''),
+                trim($row->YFPROD ?? ''),
+                trim($row->YFRDTE ?? ''),
+                trim($row->YFSHFT ?? ''),
+                trim($row->YFSTIM ?? ''),
+                trim($row->YFETIM ?? ''),
+                $row->YFQPLA ?? '',
+                $row->YFQPRO ?? '',
+                $row->YFQSCR ?? '',
+                trim($row->YFCRDT ?? ''),
+                trim($row->YFCRTM ?? ''),
+                trim($row->YFCRUS ?? '')
+            ));
+        }
     }
 
     /**
