@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Imports\ProductionOrdersImport;
 use App\Jobs\GetPartNumberJob;
 use App\Models\PartNumber;
 use App\Models\VisualAid;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PartNumberController extends Controller
 {
@@ -166,6 +168,57 @@ class PartNumberController extends Controller
     public function destroy(string $id)
     {
         //
+    }
+
+    /**
+     * Importa órdenes de producción desde un archivo Excel/CSV con encabezados
+     * NO PARTE y ORDEN, actualizando production_order de cada número de parte.
+     */
+    public function importProductionOrders(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv,txt,ods',
+        ], [
+            'file.required' => 'Selecciona un archivo para importar.',
+            'file.mimes' => 'El archivo debe ser Excel o CSV (xlsx, xls, csv, ods).',
+        ]);
+
+        $import = new ProductionOrdersImport();
+
+        try {
+            Excel::import($import, $request->file('file'));
+        } catch (\Throwable $e) {
+            return redirect()->route('part-numbers.index')
+                ->with('error', 'No se pudo procesar el archivo: ' . $e->getMessage());
+        }
+
+        if (!$import->headersValid) {
+            return redirect()->route('part-numbers.index')
+                ->with('error', 'El archivo debe contener los encabezados "NO PARTE" y "ORDEN".');
+        }
+
+        $warnings = [];
+
+        if (!empty($import->notFound)) {
+            $notFound = array_values(array_unique($import->notFound));
+            $shown = array_slice($notFound, 0, 15);
+            $rest = count($notFound) - count($shown);
+            $warnings[] = 'Números de parte no encontrados (o obsoletos): ' . implode(', ', $shown)
+                . ($rest > 0 ? " y {$rest} más." : '.');
+        }
+
+        if (!empty($import->invalidRows)) {
+            $warnings[] = 'Filas con datos vacíos o inválidos: ' . implode(', ', $import->invalidRows) . '.';
+        }
+
+        if ($import->updated === 0 && empty($warnings)) {
+            return redirect()->route('part-numbers.index')
+                ->with('error', 'El archivo no contiene filas para procesar.');
+        }
+
+        return redirect()->route('part-numbers.index')
+            ->with('success', "Órdenes de producción actualizadas: {$import->updated}.")
+            ->with('import_warnings', $warnings);
     }
 
     /**

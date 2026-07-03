@@ -43,6 +43,8 @@ Route::middleware([
     Route::resource('roles', RoleController::class);
     Route::resource('areas', AreaController::class);
     Route::resource('lines', LineController::class);
+    Route::post('part-numbers/import-production-orders', [PartNumberController::class, 'importProductionOrders'])
+        ->name('part-numbers.import-production-orders');
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('work-centers', WorkCenterController::class);
     Route::resource('tags', TagController::class);

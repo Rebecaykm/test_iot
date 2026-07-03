@@ -3,70 +3,124 @@
 @section('title', 'Números de Parte')
 
 @section('content_header')
-    <h1>{{ __('Números de Parte') }}</h1>
+    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+        <div>
+            <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Números de Parte</h1>
+        </div>
+
+        <div class="d-flex" style="gap: 0.5rem;">
+            @can('edit part numbers')
+                <form id="import-production-orders-form" method="POST"
+                    action="{{ route('part-numbers.import-production-orders') }}" enctype="multipart/form-data"
+                    class="d-none">
+                    @csrf
+                    <input type="file" name="file" id="import-production-orders-file"
+                        accept=".xlsx,.xls,.csv,.ods">
+                </form>
+                <button type="button" id="btn-import-production-orders" class="btn-action btn-action-success">
+                    <i class="fas fa-file-excel"></i>
+                    <span class="d-none d-md-inline">Orden de Producción</span>
+                </button>
+            @endcan
+        </div>
+    </div>
 @stop
 
 @section('content')
     @if (session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert"
+            style="border-radius: 8px;">
+            <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+                <span aria-hidden="true">&times;</span>
+            </button>
         </div>
     @endif
 
     @if (session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert"
+            style="border-radius: 8px;">
+            <i class="fas fa-exclamation-triangle mr-2"></i>{{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+                <span aria-hidden="true">&times;</span>
+            </button>
         </div>
     @endif
 
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
-        <!-- Header con buscador -->
-        <div class="card-header bg-white border-0 py-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <!-- Buscador -->
-                <div class="search-box">
-                    <form method="GET" action="{{ route('part-numbers.index') }}">
-                        <div class="input-group">
-                            <input type="text" name="search" class="form-control border-end-0" placeholder="Buscar..."
-                                aria-label="Buscar" value="{{ $search ?? '' }}">
-                            <button type="submit" class="input-group-text bg-white border-start-0">
-                                <i class="fas fa-search text-secondary"></i>
-                            </button>
-                            @if (!empty($search))
-                                <a href="{{ route('part-numbers.index') }}" class="input-group-text bg-white border-start-0">
-                                    <i class="fas fa-times text-danger"></i>
-                                </a>
-                            @endif
-                        </div>
-                    </form>
+    @if (session('import_warnings') && count(session('import_warnings')) > 0)
+        <div class="alert alert-warning alert-dismissible fade show border-0 shadow-sm" role="alert"
+            style="border-radius: 8px;">
+            <i class="fas fa-exclamation-circle mr-2"></i><strong>Advertencias de la importación:</strong>
+            <ul class="mb-0 mt-1 pl-4">
+                @foreach (session('import_warnings') as $warning)
+                    <li>{{ $warning }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert"
+            style="border-radius: 8px;">
+            <i class="fas fa-exclamation-triangle mr-2"></i>{{ $errors->first() }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+
+        {{-- Filtros --}}
+        <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
+            <form method="GET" action="{{ route('part-numbers.index') }}">
+                <div class="d-flex flex-wrap align-items-center justify-content-end" style="gap: 0.5rem;">
+
+                    <div class="filter-group" style="width: 280px;">
+                        <i class="fas fa-search filter-icon"></i>
+                        <input type="text" name="search" class="filter-input"
+                            placeholder="Buscar parte, estación, línea..."
+                            value="{{ request('search') }}">
+                    </div>
+
+                    <button type="submit" class="btn-filter-submit">
+                        <i class="fas fa-search mr-1"></i>Buscar
+                    </button>
+
+                    @if (request()->filled('search'))
+                        <a href="{{ route('part-numbers.index') }}" class="btn-filter-clear">
+                            <i class="fas fa-times mr-1"></i>Limpiar
+                        </a>
+                    @endif
                 </div>
-            </div>
+            </form>
         </div>
 
-        <!-- Cuerpo con tabla -->
+        {{-- Tabla --}}
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light sticky-top">
-                        <tr>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Línea') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Centro de Trabajo') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Número de Parte') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Clase') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Tasa') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle">{{ __('Estado') }}</th>
-                            <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">{{ __('Acciones') }}</th>
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr class="table-head-row">
+                            <th class="th-cell">Línea</th>
+                            <th class="th-cell">Centro de Trabajo</th>
+                            <th class="th-cell">Número de Parte</th>
+                            <th class="th-cell text-center">Clase</th>
+                            <th class="th-cell text-center">Tasa</th>
+                            <th class="th-cell text-center">Orden Prod.</th>
+                            <th class="th-cell text-center">Estado</th>
+                            <th class="th-cell text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($partNumbers as $partNumber)
-                            <tr class="border-light-subtle">
-                                <!-- Línea -->
-                                <td class="py-3">
+                            <tr class="td-row">
+                                <td class="td-cell">
                                     @if ($partNumber->workCenter && $partNumber->workCenter->line)
-                                        <span class="badge-status bg-primary bg-opacity-10 text-primary">
+                                        <span class="badge-soft badge-primary">
                                             {{ $partNumber->workCenter->line->name }}
                                         </span>
                                     @else
@@ -74,32 +128,32 @@
                                     @endif
                                 </td>
 
-                                <!-- Centro de Trabajo -->
-                                <td class="py-3">
+                                <td class="td-cell">
                                     @if ($partNumber->workCenter)
-                                        <div class="fw-500">{{ $partNumber->workCenter->number }}</div>
-                                        <div class="text-muted small">{{ $partNumber->workCenter->name }}</div>
+                                        <div class="fw-600 text-dark" style="font-size: 0.85rem;">
+                                            {{ $partNumber->workCenter->number }}
+                                        </div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">
+                                            {{ $partNumber->workCenter->name }}
+                                        </div>
                                     @else
                                         <span class="text-muted">-</span>
                                     @endif
                                 </td>
 
-                                <!-- Número de Parte -->
-                                <td class="py-3">
-                                    <div class="fw-500">{{ $partNumber->number }}</div>
-                                    <div class="text-muted small">{{ $partNumber->name }}</div>
+                                <td class="td-cell">
+                                    <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ $partNumber->number }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ $partNumber->name }}</div>
                                 </td>
 
-                                <!-- Clase -->
-                                <td class="py-3">
-                                    <span class="badge-status bg-secondary bg-opacity-10 text-secondary">
+                                <td class="td-cell text-center">
+                                    <span class="badge-soft badge-secondary">
                                         {{ $partNumber->itemClass->abbreviation ?? '-' }}
                                     </span>
                                 </td>
 
-                                <!-- Tasa de Producción -->
-                                <td class="py-3">
-                                    <span class="badge-status bg-primary bg-opacity-10 text-primary">
+                                <td class="td-cell text-center">
+                                    <span class="badge-soft badge-primary">
                                         @if ($partNumber->production_rate != 0)
                                             {{ number_format(60 / $partNumber->production_rate, 2) }}
                                         @else
@@ -108,47 +162,52 @@
                                     </span>
                                 </td>
 
-                                <!-- Estado -->
-                                <td class="py-3">
-                                    @if ($partNumber->is_obsolete)
-                                        <span class="badge-status bg-danger bg-opacity-10 text-danger">
-                                            <i class="fas fa-times-circle me-1"></i> Obsoleto
+                                <td class="td-cell text-center">
+                                    @if ($partNumber->production_order !== null)
+                                        <span class="badge-soft badge-secondary"
+                                            style="font-family: 'SFMono-Regular', Consolas, monospace;">
+                                            {{ $partNumber->production_order }}
                                         </span>
                                     @else
-                                        <span class="badge-status bg-success bg-opacity-10 text-success">
-                                            <i class="fas fa-check-circle me-1"></i> Activo
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+
+                                <td class="td-cell text-center">
+                                    @if ($partNumber->is_obsolete)
+                                        <span class="badge-soft badge-danger">
+                                            <i class="fas fa-times-circle mr-1"></i>Obsoleto
+                                        </span>
+                                    @else
+                                        <span class="badge-soft badge-success">
+                                            <i class="fas fa-check-circle mr-1"></i>Activo
                                         </span>
                                     @endif
                                 </td>
 
-                                <!-- Acciones -->
-                                <td class="py-3 text-center">
-                                    <div class="d-flex justify-content-center gap-2">
-                                        @can('edit part numbers')
-                                            <a href="{{ route('part-numbers.edit', $partNumber) }}" class="btn btn-sm btn-outline-primary rounded-3">
-                                                <i class="fas fa-edit me-1"></i>
-                                                <span>Editar</span>
-                                            </a>
-                                        @endcan
-                                    </div>
+                                <td class="td-cell text-center">
+                                    @can('edit part numbers')
+                                        <a href="{{ route('part-numbers.edit', $partNumber) }}" class="btn-action btn-action-primary btn-action-sm">
+                                            <i class="fas fa-edit"></i>
+                                            <span>Editar</span>
+                                        </a>
+                                    @endcan
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-4">
-                                    <div class="d-flex flex-column align-items-center">
-                                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                                        <span class="text-secondary">
-                                            @if (!empty($search))
-                                                No se encontraron resultados para "{{ $search }}"
+                                <td colspan="8" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <i class="fas fa-inbox fa-3x mb-3 d-block" style="color: #cbd5e1;"></i>
+                                        <p class="mb-1 fw-500" style="color: #475569;">
+                                            @if (request()->filled('search'))
+                                                No se encontraron resultados para "{{ request('search') }}"
                                             @else
                                                 No hay números de parte registrados
                                             @endif
-                                        </span>
-                                        @if (!empty($search))
-                                            <a href="{{ route('part-numbers.index') }}" class="btn btn-sm btn-link mt-2">
-                                                Limpiar búsqueda
-                                            </a>
+                                        </p>
+                                        @if (request()->filled('search'))
+                                            <small>Intenta ajustar la búsqueda</small>
                                         @endif
                                     </div>
                                 </td>
@@ -159,230 +218,247 @@
             </div>
         </div>
 
-        <!-- Pie de página con paginación -->
+        {{-- Paginación --}}
         @if ($partNumbers->hasPages() || $partNumbers->total() > 0)
-            <div class="card-footer bg-white border-0 py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <!-- Información de resultados -->
-                    <div class="text-muted small">
-                        Mostrando {{ $partNumbers->firstItem() ?? 0 }} a {{ $partNumbers->lastItem() ?? 0 }} de
-                        {{ $partNumbers->total() }} resultados
-                    </div>
-
-                    <!-- Controles de paginación -->
+            <div class="card-footer bg-white py-3" style="border-top: 1px solid #e9ecef;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
+                    <small class="text-muted">
+                        Mostrando <strong>{{ $partNumbers->firstItem() ?? 0 }}</strong> –
+                        <strong>{{ $partNumbers->lastItem() ?? 0 }}</strong> de
+                        <strong>{{ $partNumbers->total() }}</strong> registros
+                    </small>
                     @if ($partNumbers->hasPages())
                         {{ $partNumbers->links('pagination::bootstrap-4') }}
                     @endif
                 </div>
             </div>
         @endif
+
     </div>
 @stop
 
 @section('css')
-    <!-- Fuente Google Roboto -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Aplicar fuente a elementos específicos sin afectar AdminLTE */
-        .card,
-        .btn,
-        .form-control,
-        .table,
-        .content-header h1 {
-            font-family: 'Roboto', sans-serif !important;
+        body, .card, .btn, .form-control, .table, .content-header h1 {
+            font-family: 'Inter', sans-serif !important;
         }
 
-        /* Estilos adicionales para la tabla */
-        .border-light-subtle {
-            border-color: #f0f0f0 !important;
-        }
-
-        .table-hover tbody tr:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            transform: translateY(-1px);
-            transition: all 0.2s ease;
-        }
-
-        .rounded-3 {
-            border-radius: 12px !important;
-        }
-
-        /* Mejoras en jerarquía tipográfica */
-        .table thead th {
-            font-weight: 700 !important;
-            font-size: 0.85rem;
-        }
-
-        .table tbody td {
-            font-size: 0.875rem;
-        }
-
-        /* Buscador sin contorno azul */
-        .search-box .input-group {
-            width: 380px;
-        }
-
-        .search-box .form-control {
-            border-radius: 20px 0 0 20px !important;
-            border-right: none;
-            padding: 0.5rem 1.5rem;
-            height: 42px;
-            font-size: 0.95rem;
-        }
-
-        .search-box .input-group-text {
-            border-radius: 0 20px 20px 0 !important;
-            border-left: none;
-            background-color: white;
-            padding: 0 1.25rem;
-            font-size: 1rem;
-        }
-
-        /* Botón de limpiar búsqueda */
-        .search-box .input-group-text .fa-times {
-            transition: all 0.2s ease;
-        }
-
-        .search-box .input-group-text:hover .fa-times {
-            transform: scale(1.1);
-        }
-
-        /* Quitar contorno azul al enfocar */
-        .search-box .form-control:focus {
-            border-color: #dee2e6 !important;
-            box-shadow: none !important;
-            outline: none !important;
-        }
-
-        /* Badges simétricos */
-        .badge-status {
-            display: inline-block;
-            min-width: 70px;
-            padding: 0.5em 0.75em;
-            text-align: center;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .badge-status.bg-primary {
-            background-color: rgba(13, 110, 253, 0.1) !important;
-            color: #0d6efd !important;
-        }
-
-        .badge-status.bg-secondary {
-            background-color: rgba(108, 117, 125, 0.1) !important;
-            color: #6c757d !important;
-        }
-
-        .badge-status.bg-success {
-            background-color: rgba(25, 135, 84, 0.1) !important;
-            color: #198754 !important;
-        }
-
-        .badge-status.bg-danger {
-            background-color: rgba(220, 53, 69, 0.1) !important;
-            color: #dc3545 !important;
-        }
-
-        .badge-status.bg-info {
-            background-color: rgba(13, 202, 240, 0.1) !important;
-            color: #0dcaf0 !important;
-        }
-
-        /* Estilos para la paginación */
-        .pagination {
-            margin-bottom: 0;
-        }
-
-        .page-item .page-link {
-            border-radius: 8px;
-            margin: 0 3px;
-            border: none;
-            color: #6c757d;
-            font-size: 0.9rem;
-            min-width: 32px;
-            text-align: center;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-            padding: 6px 12px;
-        }
-
-        .page-item.active .page-link {
-            background-color: #1a73e8;
-            color: white;
-        }
-
-        .page-item:not(.active) .page-link:hover {
-            background-color: #f8f9fa;
-            color: #1a73e8;
-        }
-
-        .page-item.disabled .page-link {
-            opacity: 0.5;
-        }
-
-        /* Estilos para el contador de resultados */
-        .text-muted.small {
-            font-size: 0.85rem;
-            color: #6c757d;
-        }
-
-        /* Ajustes de espaciado para paginación */
-        .card-footer .pagination {
-            margin-bottom: 0;
-        }
-
-        /* Estilos para los botones de acción */
-        .btn {
+        /* ── Botones de acción ── */
+        .btn-action {
             display: inline-flex;
             align-items: center;
+            gap: 0.4rem;
+            padding: 0.42rem 0.9rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 7px;
+            border: 1.5px solid transparent;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        .btn-action-sm {
+            padding: 0.3rem 0.7rem;
+            font-size: 0.75rem;
+        }
+        .btn-action-primary {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #93c5fd;
+        }
+        .btn-action-primary:hover {
+            background: #dbeafe;
+            color: #1e40af;
+            text-decoration: none;
+        }
+        .btn-action-success {
+            background: #f0fdf4;
+            color: #15803d;
+            border-color: #86efac;
+        }
+        .btn-action-success:hover {
+            background: #dcfce7;
+            color: #166534;
+            text-decoration: none;
+        }
+        .btn-action:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        /* ── Filtros ── */
+        .filter-group {
+            display: inline-flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 7px;
+            padding: 0 0.6rem;
+            height: 34px;
+            transition: border-color 0.15s;
+        }
+        .filter-group:focus-within {
+            border-color: #93c5fd;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
+        }
+        .filter-icon {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            margin-right: 0.45rem;
+        }
+        .filter-input {
+            border: none;
+            background: transparent;
+            font-size: 0.82rem;
+            color: #334155;
+            outline: none;
+            height: 100%;
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+        .filter-input::placeholder {
+            color: #94a3b8;
+        }
+        .btn-filter-submit {
+            display: inline-flex;
+            align-items: center;
+            height: 34px;
+            padding: 0 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 7px;
+            background: #1d4ed8;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-filter-submit:hover {
+            background: #1e40af;
+        }
+        .btn-filter-clear {
+            display: inline-flex;
+            align-items: center;
+            height: 34px;
+            padding: 0 0.75rem;
+            font-size: 0.8rem;
             font-weight: 500;
-            transition: all 0.2s ease;
+            border-radius: 7px;
+            background: transparent;
+            color: #64748b;
+            border: 1.5px solid #e2e8f0;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .btn-filter-clear:hover {
+            background: #f1f5f9;
+            color: #475569;
+            text-decoration: none;
         }
 
-        .btn i {
-            margin-right: 0.5rem;
+        /* ── Tabla ── */
+        .table-head-row {
+            background: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .th-cell {
+            font-size: 0.7rem !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #64748b !important;
+            border: none !important;
+            padding: 0.65rem 0.85rem !important;
+            white-space: nowrap;
+        }
+        .td-row {
+            border-bottom: 1px solid #f1f5f9 !important;
+            transition: background 0.1s ease;
+        }
+        .td-row:hover {
+            background-color: #f8fafc !important;
+        }
+        .td-cell {
+            padding: 0.5rem 0.85rem !important;
+            vertical-align: middle !important;
+            border-top: none !important;
         }
 
-        .btn-sm {
-            padding: 0.35rem 0.75rem;
-            font-size: 0.85rem;
+        /* ── Badges ── */
+        .badge-soft {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.28em 0.65em;
+            border-radius: 5px;
+            font-size: 0.73rem;
+            font-weight: 600;
+            white-space: nowrap;
         }
+        .badge-soft.badge-primary   { background: #eff6ff; color: #1d4ed8; }
+        .badge-soft.badge-success   { background: #f0fdf4; color: #15803d; }
+        .badge-soft.badge-danger    { background: #fef2f2; color: #b91c1c; }
+        .badge-soft.badge-warning   { background: #fefce8; color: #92400e; }
+        .badge-soft.badge-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
 
-        .gap-2 {
-            gap: 0.5rem;
+        /* ── Paginación ── */
+        .pagination { margin-bottom: 0; }
+        .pagination .page-link {
+            border-radius: 6px !important;
+            margin: 0 2px;
+            border-color: #e2e8f0;
+            color: #475569;
+            font-size: 0.8rem;
+            padding: 0.3rem 0.6rem;
         }
-
-        /* Alertas */
-        .alert {
-            border-radius: 8px;
+        .pagination .page-item.active .page-link {
+            background-color: #1d4ed8;
+            border-color: #1d4ed8;
+            color: #fff;
         }
+        .pagination .page-item.disabled .page-link { color: #cbd5e1; }
 
-        .btn-close {
-            background-size: 0.75rem;
-            padding: 0.5rem;
-        }
+        .fw-500 { font-weight: 500; }
+        .fw-600 { font-weight: 600; }
 
-        .fw-500 {
-            font-weight: 500;
+        @media (max-width: 767px) {
+            .filter-group, .btn-filter-submit, .btn-filter-clear {
+                width: 100%;
+            }
+            .card-header form > div {
+                flex-direction: column;
+            }
         }
     </style>
 @stop
 
 @section('js')
     <script>
-        // Cerrar alertas automáticamente después de 5 segundos
-        setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                }
-            });
-        }, 5000);
+        document.addEventListener('DOMContentLoaded', () => {
+            // Cerrar alertas automáticamente después de 8 segundos
+            setTimeout(() => {
+                document.querySelectorAll('.alert').forEach(el => $(el).alert('close'));
+            }, 8000);
+
+            // Importación de órdenes de producción
+            const importBtn = document.getElementById('btn-import-production-orders');
+            const importForm = document.getElementById('import-production-orders-form');
+            const importFile = document.getElementById('import-production-orders-file');
+
+            if (importBtn && importForm && importFile) {
+                importBtn.addEventListener('click', () => importFile.click());
+
+                importFile.addEventListener('change', () => {
+                    if (!importFile.files.length) return;
+
+                    importBtn.disabled = true;
+                    importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>' +
+                        '<span class="d-none d-md-inline">Procesando...</span>';
+                    importForm.submit();
+                });
+            }
+        });
     </script>
 @stop
