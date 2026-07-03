@@ -426,6 +426,7 @@ return [
                     'text' => 'Sincronización Infor',
                     'route' => 'infor-sync.index',
                     'icon' => 'fas fa-fw fa-cloud-upload-alt',
+                    'can' => 'sync infor',
                 ],
             ]
         ],
