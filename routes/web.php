@@ -123,6 +123,13 @@ Route::get('shift-production-timeline/{workCenter}', function ($workCenter) {
     ]);
 })->name('shift-production-timeline');
 
+// Línea de tiempo de producción por MDI (exclusiva de prensas / estampado)
+Route::get('press-production-timeline/{workCenter}', function ($workCenter) {
+    return view('press-production-timeline', [
+        'workCenter' => $workCenter
+    ]);
+})->name('press-production-timeline');
+
 
 // Guest Routes
 Route::get('guest/work-center-map', function () {

@@ -224,7 +224,7 @@ class SyncProductionRecords implements ShouldQueue
      */
     protected function executeInforProcedure()
     {
-        Log::info('Ejecutando procedimiento LX834OU01.YSF013C');
+        Log::info('Ejecutando procedimiento LX834OU.YSF013C');
 
         $dsn = "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR";
 
