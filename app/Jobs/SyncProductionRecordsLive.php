@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\ProductionRecord;
 use App\Models\WorkCenter;
-use App\Models\YF013;
+use App\Models\YF013Live;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
-class SyncProductionRecords implements ShouldQueue
+class SyncProductionRecordsLive implements ShouldQueue
 {
     use Queueable;
 
@@ -33,15 +33,15 @@ class SyncProductionRecords implements ShouldQueue
     {
         // Evita que dos ejecuciones (programada + manual, o solapadas) procesen
         // el mismo lote de registros antes de que cualquiera marque synced_to_infor.
-        $lock = Cache::lock('sync-production-records', $this->timeout + 30);
+        $lock = Cache::lock('sync-production-records-live', $this->timeout + 30);
 
         if (!$lock->get()) {
-            Log::warning('SyncProductionRecords: ya hay una sincronización en curso, se omite esta ejecución');
+            Log::warning('SyncProductionRecordsLive: ya hay una sincronización en curso, se omite esta ejecución');
             return;
         }
 
         try {
-            Log::info('Iniciando sincronización masiva con Infor');
+            Log::info('Iniciando sincronización masiva con Infor (Live)');
 
             $productionRecords = $this->getEligibleProductionRecords();
 
@@ -79,7 +79,7 @@ class SyncProductionRecords implements ShouldQueue
 
             $this->logResults($successCount, $errorCount, $errors);
         } catch (Exception $e) {
-            Log::error('FALLO CRÍTICO en SyncProductionRecords: ' . $e->getMessage());
+            Log::error('FALLO CRÍTICO en SyncProductionRecordsLive: ' . $e->getMessage());
             throw $e;
         } finally {
             $lock->release();
@@ -146,7 +146,7 @@ class SyncProductionRecords implements ShouldQueue
         $plannedDateFormatted = $record->planned_date ? Carbon::parse($record->planned_date)->format('Ymd') : '';
 
         if ($this->existsInInfor($record, $plannedDateFormatted)) {
-            Log::warning('SyncProductionRecords: el registro ya existía en YF013, se omite el insert duplicado', [
+            Log::warning('SyncProductionRecordsLive: el registro ya existía en YF013, se omite el insert duplicado', [
                 'Production Record' => $record->id,
                 'Shop order number' => $record->shop_order_number,
                 'Work Center' => $record->work_number,
@@ -161,7 +161,7 @@ class SyncProductionRecords implements ShouldQueue
         }
 
         // Intentar insertar en la tabla de paso YF013
-        $inserted = YF013::query()
+        $inserted = YF013Live::query()
             ->insert([
                 'YFWRKC' => $record->work_number ?? '',
                 'YFWRKN' => $record->work_name ?? '',
@@ -183,7 +183,7 @@ class SyncProductionRecords implements ShouldQueue
                 'YFCRUS' => 'IOT',
             ]);
 
-        Log::info('SyncProductionRecords', [
+        Log::info('SyncProductionRecordsLive', [
             'Shop order number' => $record->shop_order_number,
             'Work Center' => $record->work_number,
             'Part Number' => $record->part_number,
@@ -210,7 +210,7 @@ class SyncProductionRecords implements ShouldQueue
      */
     protected function existsInInfor($record, string $plannedDateFormatted): bool
     {
-        return YF013::query()
+        return YF013Live::query()
             ->where('YFWRKC', $record->work_number ?? '')
             ->where('YFSORD', $record->shop_order_number ?? '')
             ->where('YFRDTE', $plannedDateFormatted)
@@ -250,7 +250,7 @@ class SyncProductionRecords implements ShouldQueue
      */
     protected function logResults($successCount, $errorCount, $errors)
     {
-        Log::info("Sincronización terminada. Éxitos: $successCount, Errores: $errorCount");
+        Log::info("Sincronización terminada (Live). Éxitos: $successCount, Errores: $errorCount");
         if ($errorCount > 0) {
             Log::warning("Detalle de errores: " . implode(', ', $errors));
         }
@@ -261,6 +261,6 @@ class SyncProductionRecords implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
-        Log::error('El Job SyncProductionRecords ha fallado definitivamente: ' . $exception->getMessage());
+        Log::error('El Job SyncProductionRecordsLive ha fallado definitivamente: ' . $exception->getMessage());
     }
 }
