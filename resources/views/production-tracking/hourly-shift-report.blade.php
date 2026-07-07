@@ -10,6 +10,18 @@
 .overflow {
     background: #ef4444;
 }
+
+.p {
+    background: #ffeb3b;
+}
+
+.t {
+    background: #f2dede;
+}
+
+.g{
+    background: #dff0d8;
+}
     </style>
     <div class="min-h-screen bg-gray-100 dark:bg-gray-950 text-[11px] leading-tight antialiased">
         <div class="w-full px-2 py-2" x-data="productionDashboard()" x-init="init()">
