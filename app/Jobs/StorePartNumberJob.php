@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\ItemClass;
 use App\Models\PartNumber;
 use App\Models\Project;
-use App\Models\WorkCenter;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -38,24 +37,9 @@ class StorePartNumberJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $partNumber = PartNumber::query()->where([['number', $this->partNumber], ['name', $this->partName]])->first();
         $itemClass = ItemClass::query()->where('abbreviation', $this->itemClass)->first();
-
-        if ($partNumber !== null) {
-            $partNumber->update([
-                'number' => $this->partNumber,
-                'name' => $this->partName,
-                'item_class_id' => $itemClass->id,
-                'is_obsolete' => ($this->isObsolete == "OBSOLETE  ") ? true : false,
-            ]);
-        } else {
-            $partNumber = PartNumber::create([
-                'number' => $this->partNumber,
-                'name' => $this->partName,
-                'item_class_id' => $itemClass->id,
-                'is_obsolete' => ($this->isObsolete == "OBSOLETE  ") ? true : false,
-            ]);
-        }
+        $isObsolete = $this->isObsolete == "OBSOLETE  ";
+        $facility = "YK1";
 
         $routingMaster = DB::connection('infor-live')
             ->table('LX834F01.FRT')
@@ -63,140 +47,26 @@ class StorePartNumberJob implements ShouldQueue
                 'LX834F01.LWK.WWRKC AS workNumber',
                 'LX834F01.LWK.WDESC AS workName',
                 'LX834F01.FRT.RLAB AS productionRate',
+                'LX834F01.FRT.RTWHS AS facility'
             ])
             ->join('LX834F01.IIM', 'LX834F01.IIM.IPROD', '=', 'LX834F01.FRT.RPROD')
             ->join('LX834F01.LWK', 'LX834F01.LWK.WWRKC', '=', 'LX834F01.FRT.RWRKC')
-            ->where('LX834F01.IIM.IPROD', '=', $partNumber->number)
+            ->where('LX834F01.IIM.IPROD', '=', $this->partNumber)
+            ->where('LX834F01.FRT.RTWHS', '=', $facility)
             ->first();
 
-        if ($routingMaster !== null) {
-            $workCenter = WorkCenter::query()->where([['number', $routingMaster->workNumber], ['name', $routingMaster->workName]])->first();
+        $partNumber = PartNumber::storeFromInfor($this->partNumber, $this->partName, $itemClass, $isObsolete, $routingMaster);
+        Log::info("StorePartNumberJob.- Guardado No. Parte : {$partNumber->number}, Nombre : {$partNumber->name}");
+        $this->syncProjects($partNumber);
+    }
 
-            $partNumber->update([
-                'work_center_id' => $workCenter->id,
-                'production_rate' => $routingMaster->productionRate
-            ]);
-        }
-
-        switch (trim($this->project)) {
-            case '1':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '2':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '3':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '4':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '5':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '7':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '8':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '9':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '10':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '11':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '3Y':
-                $project = Project::where('type', '3Y')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '20':
-                $project = Project::where('type', trim($this->project))->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '12':
-                $project = Project::where('type', '1')->orWhere('type', '2')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '123':
-                $project = Project::where('type', '1')->orWhere('type', '2')->orWhere('type', '3')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '13':
-                $project = Project::where('type', '1')->orWhere('type', '3')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '23':
-                $project = Project::where('type', '2')->orWhere('type', '3')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '45':
-                $project = Project::where('type', '4')->orWhere('type', '5')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '56':
-                $project = Project::where('type', '5')->orWhere('type', '6')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '710':
-                $project = Project::where('type', '7')->orWhere('type', '10')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '79':
-                $project = Project::where('type', '7')->orWhere('type', '9')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '47':
-                $project = Project::where('type', '4')->orWhere('type', '7')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '57':
-                $project = Project::where('type', '5')->orWhere('type', '7')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            case '811':
-                $project = Project::where('type', '8')->orWhere('type', '11')->pluck('id')->toArray();
-                $partNumber->projects()->sync($project);
-                break;
-
-            default:
-                Log::notice("StorePartNumberJob.- Sin Proyecto No. Parte : " . $this->partNumber . ", Proyecto : " . $this->project);
-                break;
+    /**
+     * Asocia el número de parte con sus proyectos según el código IREF04 de Infor.
+     */
+    protected function syncProjects(PartNumber $partNumber): void
+    {
+        if (! Project::syncPartNumberByInforCode($partNumber, $this->project)) {
+            // Log::notice("StorePartNumberJob.- Sin Proyecto No. Parte : {$this->partNumber}, Proyecto : {$this->project}");
         }
     }
 }

@@ -25,6 +25,40 @@ class PartNumber extends Model
     ];
 
     /**
+     * Crea o actualiza el registro del número de parte a partir de los datos
+     * de Infor y su renglón de routing (FRT), del cual toma el work center
+     * y el production rate.
+     */
+    public static function storeFromInfor(string $number, ?string $name, ?ItemClass $itemClass, bool $isObsolete, ?object $routingMaster = null): self
+    {
+        $attributes = [
+            'number' => $number,
+            'name' => $name,
+            'item_class_id' => $itemClass?->id,
+            'is_obsolete' => $isObsolete,
+        ];
+
+        if ($routingMaster !== null) {
+            $workCenter = WorkCenter::query()->where([['number', $routingMaster->workNumber], ['name', $routingMaster->workName]])->first();
+
+            if ($workCenter !== null) {
+                $attributes['work_center_id'] = $workCenter->id;
+                $attributes['production_rate'] = $routingMaster->productionRate;
+            }
+        }
+
+        $partNumber = self::query()->where([['number', $number], ['name', $name]])->first();
+
+        if ($partNumber !== null) {
+            $partNumber->update($attributes);
+
+            return $partNumber;
+        }
+
+        return self::create($attributes);
+    }
+
+    /**
      * Scope para ordenar por orden de producción
      */
     public function scopeOrderByProduction($query)
