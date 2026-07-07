@@ -116,8 +116,11 @@ Route::get('guest/work-center-map', function () {
 })->name('guest.work-center-map');
 
 Route::get('guest/production-records/{workCenterId}', function ($workCenterId) {
+    $workCenter = \App\Models\WorkCenter::findOrFail($workCenterId);
+
     return view('guest.production-record-view', [
         'workCenterId' => $workCenterId,
+        'number' => $workCenter->number,
     ]);
 })->name('guest.production-records');
 

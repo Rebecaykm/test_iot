@@ -2,10 +2,9 @@
 
 namespace App\Livewire\Guest;
 
+use App\Models\Line;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
-use App\Models\WorkCenter;
-use App\Models\Line;
 use Carbon\Carbon;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -13,13 +12,21 @@ use Livewire\Component;
 class WorkCenterDashboard extends Component
 {
     public $now;
+
     public $shift;
+
     public $date;
+
     public array $areasData = [];
+
     public array $allLines = [];
+
     public array $selectedLines = [];
+
     public bool $realTime = true;
+
     public ?string $lastRefreshAt = null;
+
     public int $chartKey = 0;
 
     public function mount()
@@ -55,7 +62,7 @@ class WorkCenterDashboard extends Component
                     'id' => $line->id,
                     'name' => $line->name,
                     'area' => $line->area_name,
-                    'full_name' => $line->area_name . ' - ' . $line->name
+                    'full_name' => $line->area_name.' - '.$line->name,
                 ];
             })
             ->toArray();
@@ -78,8 +85,9 @@ class WorkCenterDashboard extends Component
 
     public function fetchProductionRecords()
     {
-        if (!$this->shift) {
+        if (! $this->shift) {
             $this->areasData = [];
+
             return;
         }
 
@@ -110,7 +118,7 @@ class WorkCenterDashboard extends Component
             ->where('production_records.planned_date', $this->date)
             ->where('shifts.abbreviation', $this->shift->abbreviation);
 
-        if (!empty($this->selectedLines)) {
+        if (! empty($this->selectedLines)) {
             $query->whereIn('lines.id', $this->selectedLines);
         }
 
@@ -130,7 +138,7 @@ class WorkCenterDashboard extends Component
         $groupedData = $productionRecords->groupBy([
             'area_name',
             'line_name',
-            'work_name'
+            'work_name',
         ]);
 
         foreach ($groupedData as $areaName => $lines) {
@@ -158,6 +166,7 @@ class WorkCenterDashboard extends Component
 
                     $lineWorkCenters[] = [
                         'id' => (int) $records->first()->work_center_id,
+                        'number' => $records->first()->work_number,
                         'name' => $workName,
                         'planned' => $workCenterQuantityPlanned,
                         'produced' => $workCenterQuantityProduced,
@@ -167,20 +176,20 @@ class WorkCenterDashboard extends Component
                     ];
                 }
 
-                if (!empty($lineWorkCenters)) {
+                if (! empty($lineWorkCenters)) {
                     $areaLines[] = [
                         'id' => $lineId,
                         'name' => $lineName,
                         'color' => $lineColor,
-                        'workCenters' => $lineWorkCenters
+                        'workCenters' => $lineWorkCenters,
                     ];
                 }
             }
 
-            if (!empty($areaLines)) {
+            if (! empty($areaLines)) {
                 $this->areasData[] = [
                     'name' => $areaName,
-                    'lines' => $areaLines
+                    'lines' => $areaLines,
                 ];
             }
         }

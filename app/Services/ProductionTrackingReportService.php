@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Dtos\ProductionTracking;
-use App\Dtos\Reports\HourlyShift;
 use App\Enums\Shift;
+use Carbon\Carbon;
 use DateTime;
 
 class ProductionTrackingReportService
@@ -14,41 +14,97 @@ class ProductionTrackingReportService
     /**
      * Undocumented function
      *
-     * @param  ProductionTracking[]  $productionTrackingDataSet
+     * @param  array[]  $productionTrackingDataSet
      */
     public function hourlyShiftReport(array $productionTrackingDataSet, array $hourlyRange, ?Shift $shift = null): array
     {
-        $data = new HourlyShift(productionTrackingDataSet: $productionTrackingDataSet, shift: $shift);
-        dd($data->toReport());
+        $w = collect($productionTrackingDataSet)->groupBy('workCenterCode')
+            ->map(function ($records, $workCenterCode) {
 
-        $shiftRange = Shift::shiftRange($shift);
-        $totalHours = count($hourlyRange);
+                // 1. Mapeamos y limpiamos los datos iniciales primero
+                $mappedRecords = $records->map(function ($record) {
+                    return [
+                        'productCode' => trim($record['productCode'] ?? ''),
+                        'classCode' => trim($record['classCode'] ?? ''),
+                        'shopOrderNumber' => trim($record['shopOrderNumber'] ?? ''),
+                        'snp' => (float) ($record['standardPackQuantity'] ?? 0),
+                        'workCenterCode' => trim($record['workCenterCode'] ?? ''),
+                        'workCenterName' => trim($record['workCenterDescription'] ?? ''),
+                        'lineName' => trim($record['lineName'] ?? ''),
+                        'laborHours' => (float) ($record['laborHours'] ?? 0),
+                        'sequencesPerUnit' => ((float) ($record['standardPackQuantity'] ?? 0) > 0)
+                            ? (float) ($record['laborHours'] ?? 0) / (float) ($record['standardPackQuantity'] ?? 0)
+                            : 0,
+                        'productionOrder' => (int) ($record['productionOrder'] ?? 0),
+                        'plannedSequences' => (float) ($record['AS4PlannedSequences'] ?? 0),
+                        'plannedPieces' => (int) ($record['AS4QuantityRequired'] ?? 0),
+                        'completedPieces' => (float) ($record['IoTQuantityFinished'] ?? 0),
+                        'completedSequences' => (int) ($record['IoTCompletedSequences'] ?? 0),
+                        'completedPercentage' => ($record['AS4PlannedSequences'] > 0)
+                            ? round(($record['IoTCompletedSequences'] / $record['AS4PlannedSequences']) * 100, 2)
+                            : 0,
+                    ];
+                })
+                    ->sortBy('productionOrder')
+                    ->values();
 
-        $report = [];
-        foreach ($productionTrackingDataSet as $record) {
-            $report[] = [
-                'product' => $record->productCode,
-                'workCenterDescription' => $record->workCenterDescription,
-                'SNP' => $record->standardPackQuantity,
-                'plannedQty' => $record->AS4QuantityRequired,
-                'completedQty' => $record->IoTQuantityFinished,
-                'plannedSequences' => $record->AS4PlannedSequences,
-                'completedSequences' => $record->IoTCompletedSequences,
-                'quantityRequired' => $record->AS4QuantityRequired,
-                'sequencesPerHour' => $record->sequencesPerHour,
-                'shopOrderNumber' => trim($record->shopOrderNumber),
-                'hourlyData' => $this->distribute(
-                    $record,
-                    $hourlyRange
-                ),
-            ];
-        }
+                $currentTime = Carbon::today()->setHour(8)->setMinute(0)->setSecond(0);
+                $startTimeLimit = $currentTime->copy();
+                $endTimeLimit = Carbon::today()->setHour(20)->setMinute(0)->setSecond(0);
 
-        $response = [
-            'totalSequences' => array_sum(array_column($report, 'plannedSequences')),
-        ];
+                $timelineRecords = [];
+                $totalMinutesLine = 0;
 
-        return $report;
+                // 3. Calculamos la línea de tiempo aplicando el redondeo hacia arriba por renglón
+                foreach ($mappedRecords as $record) {
+                    $totalPieces = $record['plannedSequences'] * $record['snp'];
+                    $piecesPerHour = $record['laborHours'];
+
+                    // Calculamos los minutos exactos
+                    $exactMinutes = ($totalPieces > 0 && $piecesPerHour > 0)
+                        ? ($totalPieces / $piecesPerHour) * 60
+                        : 0;
+
+                    // REDONDEO HACIA ARRIBA: ceil(52.5) se convierte en 53
+                    $durationInMinutes = (int) ceil($exactMinutes);
+
+                    $startOrderTime = $currentTime->copy();
+
+                    if ($durationInMinutes > 0) {
+                        $currentTime->addMinutes($durationInMinutes);
+                    }
+
+                    $endOrderTime = $currentTime->copy();
+                    $totalMinutesLine += $durationInMinutes;
+
+                    // Guardamos la información con los minutos ya redondeados
+                    $timelineRecords[] = array_merge($record, [
+                        'totalPieces' => $totalPieces,
+                        'duration_minutes' => $durationInMinutes,
+                        'duration_formatted' => $durationInMinutes > 0
+                            ? sprintf('%dh %02dm', floor($durationInMinutes / 60), $durationInMinutes % 60)
+                            : '0 min',
+                        'start_time' => $startOrderTime->format('Y-m-d H:i:s'),
+                        'end_time' => $endOrderTime->format('Y-m-d H:i:s'),
+                        'status' => $durationInMinutes > 0 ? 'Produced' : 'Skipped',
+                    ]);
+                }
+
+                // 4. Retornamos la estructura con el resumen global afectado por los redondeos
+                return [
+                    'workCenterCode' => $workCenterCode,
+                    // 'summary' => [
+                    //     'global_start_time' => $startTimeLimit->format('Y-m-d H:i:s'),
+                    //     'global_end_time' => $currentTime->format('Y-m-d H:i:s'),
+                    //     'total_duration_hours' => round($totalMinutesLine / 60, 2),
+                    //     'total_duration_minutes' => $totalMinutesLine,
+                    //     'exceeds_limit' => $currentTime->greaterThan($endTimeLimit),
+                    // ],
+                    'records' => $timelineRecords,
+                ];
+            })->values()->toArray();
+
+        return $w;
     }
 
     public function generateHourRange(string $from, string $to): array
@@ -160,7 +216,7 @@ class ProductionTrackingReportService
                 }
             }
         }
-        unset($currentHourData); // Romper referencia
+        unset($currentHourData);
 
         return $distributedReport;
     }

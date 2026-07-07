@@ -24,10 +24,10 @@ class HourlyShiftReportController extends Controller
         $shift = Shift::tryFrom('D');
         $shiftRange = Shift::shiftRange($shift);
 
-        $productionTrackingDataSet = $this->productionTrackingService->getProductionTrackingStatus(
-            productionDate: new DateTimeImmutable('2026-06-25'),
+        $productionTrackingDataSet = $this->productionTrackingService->getProductionStatus(
+            productionDate: new DateTimeImmutable,
             shift: $shift,
-            workcenterCode: '122450'
+            workcenterCode: null
         );
 
         $shiftRange[0] = empty($shift) ? date('Y-m-d').' 08:00:00' : $shiftRange[0];
@@ -44,23 +44,65 @@ class HourlyShiftReportController extends Controller
             hourlyRange: $hourlyRange
         );
 
-        $totalPlanned = collect($report)->sum('plannedSequences');
-        $totalCompleted = collect($report)->sum('completedSequences');
+        return response()->json([
+            'report' => $report,
+            'hourlyRange' => $hourlyRange,
+            'shift' => $shift,
+        ]);
 
-        $totalHours = count($hourlyRange);
+        $data = [];
 
-        $currentHour = date('H');
+        foreach ($report as $reportRow) {
+            // Nos aseguramos de que existan registros en esta fila antes de iterar
+            if (! isset($reportRow['records']) || ! is_array($reportRow['records'])) {
+                continue;
+            }
 
-        $currentHourIndex = collect($hourlyRange)->search(function ($hour) use ($currentHour) {
-            return (int) substr($hour, 0, 2) == (int) $currentHour;
-        });
+            foreach ($reportRow['records'] as $item) {
+                $planned = (int) ($item['plannedPieces'] ?? 0);
+                $completed = (float) ($item['completedPieces'] ?? 0);
 
-        $currentHourIndex = $currentHourIndex === false ? $totalHours : $currentHourIndex + 1;
+                $percentage = $planned > 0
+                    ? ($completed / $planned) * 100
+                    : 0;
 
-        $expectedByNow = ($totalPlanned / $totalHours) * $currentHourIndex;
+                $overflowPercentage = max(0, $percentage - 100);
 
-        $variance = $totalCompleted - $expectedByNow;
+                // Además, corregimos el 'progress' para que envíe el porcentaje real (ej: 1.30)
+                // y tu JS de dhtmlxGantt pueda detectar el desborde (progress > 1)
+                $realProgress = $percentage / 100;
 
-        return view('production-tracking.hourly-shift-report', compact('report', 'hourlyRange', 'totalPlanned', 'totalCompleted', 'expectedByNow', 'variance'));
+                $data[] = [
+                    'id' => $item['productionOrder'],
+                    'text' => $item['productCode'],
+
+                    'start_date' => $item['start_time'],
+                    'end_date' => $item['end_time'],
+
+                    // Nota: Quitamos el min(..., 1) para que mande valores mayores a 1 si hay desborde
+                    'progress' => $realProgress,
+
+                    'open' => true,
+                    'type' => 'task',
+
+                    'snp' => $item['snp'],
+                    'plannedPieces' => $planned,
+                    'completedPieces' => $completed,
+
+                    'percentage' => round($percentage, 2),
+                    'overflowPercentage' => round($overflowPercentage, 2),
+
+                    'status' => $percentage > 100
+                        ? 'overflow'
+                        : ($percentage >= 95 ? 'normal' : 'warning'),
+                ];
+            }
+        }
+
+        $data = [
+            'data' => $data,
+        ];
+
+        return view('production-tracking.hourly-shift-report', compact('data', 'hourlyRange', 'shift'));
     }
 }

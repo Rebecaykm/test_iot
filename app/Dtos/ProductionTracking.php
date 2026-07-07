@@ -8,17 +8,21 @@ use Illuminate\Contracts\Support\Arrayable;
 readonly class ProductionTracking implements Arrayable
 {
     public function __construct(
+        public string $areaName,
+        public string $lineName,
         public DateTimeImmutable $productionDate,
         public ?string $shopOrderNumber,
         public string $productCode,
         public string $productDescription,
+        public ?string $customer,
+        public ?string $projects,
         public string $classCode,
         public string $classDescription,
         public string $workCenterCode,
         public string $workCenterDescription,
         public string $shift,
         public int $standardPackQuantity,
-        public float $laborHours,
+        public ?float $laborHours,
         public float $sequencesPerHour,
         public int $AS4QuantityRequired,
         public int $AS4QuantityFinished,
@@ -28,16 +32,21 @@ readonly class ProductionTracking implements Arrayable
         public float $IoTPlannedSequences,
         public float $AS4CompletedSequences,
         public float $IoTCompletedSequences,
-        public string $recordConciliation
+        public string $recordConciliation,
+        public int $productionOrder,
     ) {}
 
     public static function fromArray(array $data): self
     {
         return new self(
+            areaName: $data['areaName'],
+            lineName: $data['lineName'],
             productionDate: date_create_immutable($data['productionDate']),
             shopOrderNumber: $data['shopOrderNumber'] ?? null,
             productCode: $data['productCode'],
             productDescription: $data['productDescription'],
+            customer: $data['customer'] ?? null,
+            projects: $data['projects'] ?? null,
             classCode: $data['classCode'],
             classDescription: $data['classDescription'],
             workCenterCode: $data['workCenterCode'],
@@ -54,7 +63,8 @@ readonly class ProductionTracking implements Arrayable
             IoTPlannedSequences: (float) $data['IoTPlannedSequences'],
             AS4CompletedSequences: (float) $data['AS4CompletedSequences'],
             IoTCompletedSequences: (float) $data['IoTCompletedSequences'],
-            recordConciliation: $data['recordConciliation']
+            recordConciliation: $data['recordConciliation'],
+            productionOrder: (int) $data['productionOrder'],
         );
     }
 
