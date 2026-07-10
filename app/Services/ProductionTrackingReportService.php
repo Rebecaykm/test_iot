@@ -220,4 +220,17 @@ class ProductionTrackingReportService
 
         return $distributedReport;
     }
+
+    public function getCurrentShift(): ?Shift
+    {
+        $currentHour = (int) now()->format('H');
+
+        if ($currentHour >= 8 && $currentHour < 20) {
+            return Shift::Day;
+        } elseif ($currentHour >= 20 || $currentHour < 8) {
+            return Shift::Night;
+        }
+
+        return null;
+    }
 }

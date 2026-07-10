@@ -55,7 +55,40 @@ class ProductionTrackingService
             throw new \RuntimeException('Failed to execute query: '.implode(', ', $statement->errorInfo()));
         }
 
-        return $statement->fetchAll(PDO::FETCH_ASSOC);
+        $dataSet = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        return $dataSet;
+
+        // return array_map(function (array $row) {
+        //     $shopOrderNumber = trim($row['shopOrderNumber'] ?? null);
+
+        //     $labels = [];
+
+        //     for ($i = 0; $i < ceil($row['AS4PlannedSequences']); $i++) {
+        //         $labels[] = $shopOrderNumber.'-'.($i + 1);
+        //     }
+
+        //     return [
+        //         'orderNumber' => (int) $row['productionOrder'] ?? null,
+        //         'areaName' => $row['areaName'] ?? null,
+        //         'lineName' => $row['lineName'] ?? null,
+        //         'workCenterCode' => $row['workCenterCode'] ?? null,
+        //         'workCenterDescription' => $row['workCenterDescription'] ?? null,
+        //         'productCode' => $row['productCode'] ?? null,
+        //         'productDescription' => $row['productDescription'] ?? null,
+        //         'classCode' => $row['classCode'] ?? null,
+        //         'classDescription' => $row['classDescription'] ?? null,
+        //         'standardPackQuantity' => (int) $row['standardPackQuantity'] ?? null,
+        //         'piecesPerHour' => (int) $row['laborHours'] ?? null,
+        //         'shopOrderNumber' => $shopOrderNumber,
+        //         'plannedLabels' => (float) $row['AS4PlannedSequences'] ?? 0,
+        //         'completedLabels' => (float) $row['IoTCompletedSequences'] ?? 0,
+        //         'percentageCompleted' => ($row['AS4PlannedSequences'] ?? 0) > 0
+        //             ? round((($row['IoTCompletedSequences'] ?? 0) * 100) / $row['AS4PlannedSequences'], 2)
+        //             : 0,
+        //         'labels' => $labels,
+        //     ];
+        // }, $dataSet);
     }
 
     public function getWorkcenters(): array

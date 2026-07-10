@@ -21,11 +21,22 @@ class HourlyShiftReportController extends Controller
      */
     public function __invoke(Request $request)
     {
-        $shift = Shift::tryFrom('D');
+        $shift = $this->productionTrackingReportService->getCurrentShift();
+
+        $dateInput = $request->input('date');
+        try {
+            $productionDate = $dateInput
+                ? new DateTimeImmutable($dateInput)
+                : new DateTimeImmutable('today');
+        } catch (\Throwable) {
+            $productionDate = new DateTimeImmutable('today');
+        }
+        $date = $productionDate->format('Y-m-d');
+
         $shiftRange = Shift::shiftRange($shift);
 
         $productionTrackingDataSet = $this->productionTrackingService->getProductionStatus(
-            productionDate: new DateTimeImmutable,
+            productionDate: $productionDate,
             shift: $shift,
             workcenterCode: null
         );
@@ -44,12 +55,6 @@ class HourlyShiftReportController extends Controller
             hourlyRange: $hourlyRange
         );
 
-        return response()->json([
-            'report' => $report,
-            'hourlyRange' => $hourlyRange,
-            'shift' => $shift,
-        ]);
-
         $data = [];
 
         foreach ($report as $reportRow) {
@@ -59,8 +64,8 @@ class HourlyShiftReportController extends Controller
             }
 
             foreach ($reportRow['records'] as $item) {
-                $planned = (int) ($item['plannedPieces'] ?? 0);
-                $completed = (float) ($item['completedPieces'] ?? 0);
+                $planned = (float) ($item['plannedSequences'] ?? 0);
+                $completed = (float) ($item['completedSequences'] ?? 0);
 
                 $percentage = $planned > 0
                     ? ($completed / $planned) * 100
@@ -88,9 +93,12 @@ class HourlyShiftReportController extends Controller
                     'snp' => $item['snp'],
                     'plannedPieces' => $planned,
                     'completedPieces' => $completed,
+                    'workcenterDescription' => $item['workCenterName'],
 
                     'percentage' => round($percentage, 2),
                     'overflowPercentage' => round($overflowPercentage, 2),
+                    'shopOrderNumber' => $item['shopOrderNumber'],
+                    'productionOrder' => $item['productionOrder'],
 
                     'status' => $percentage > 100
                         ? 'overflow'
@@ -103,6 +111,6 @@ class HourlyShiftReportController extends Controller
             'data' => $data,
         ];
 
-        return view('production-tracking.hourly-shift-report', compact('data', 'hourlyRange', 'shift'));
+        return view('production-tracking.hourly-shift-report', compact('data', 'hourlyRange', 'shift', 'date'));
     }
 }

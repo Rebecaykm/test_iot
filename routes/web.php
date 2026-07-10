@@ -129,4 +129,5 @@ Route::get('guest/work-center-dashboard', function () {
 });
 
 // Production Tracking Status
-Route::get('production-tracking/hourly-shift-report', [HourlyShiftReportController::class, '__invoke'])->name('production-tracking.hourly-shift-report');
+Route::get('production-tracking/hourly-shift-report', [HourlyShiftReportController::class, '__invoke'])
+    ->name('production-tracking.hourly-shift-report');
