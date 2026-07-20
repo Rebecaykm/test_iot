@@ -25,6 +25,11 @@ class SyncProductionRecordsProto implements ShouldQueue
         //
     }
 
+    protected function log()
+    {
+        return Log::channel('infor_proto');
+    }
+
     /**
      * Execute the job.
      */
@@ -35,7 +40,7 @@ class SyncProductionRecordsProto implements ShouldQueue
         $lock = Cache::lock('sync-production-records-proto', $this->timeout + 30);
 
         if (!$lock->get()) {
-            Log::warning('SyncProductionRecordsProto: ya hay una sincronización en curso, se omite esta ejecución');
+            $this->log()->warning('SyncProductionRecordsProto: ya hay una sincronización en curso, se omite esta ejecución');
             return;
         }
 
@@ -86,7 +91,7 @@ class SyncProductionRecordsProto implements ShouldQueue
 
             $this->logResults($successCount, $errorCount, $errors);
         } catch (Exception $e) {
-            Log::error('FALLO CRÍTICO en SyncProductionRecordsProto: ' . $e->getMessage());
+            $this->log()->error('FALLO CRÍTICO en SyncProductionRecordsProto: ' . $e->getMessage());
             throw $e;
         } finally {
             $lock->release();
@@ -147,7 +152,7 @@ class SyncProductionRecordsProto implements ShouldQueue
         $plannedDateFormatted = $record->planned_date ? Carbon::parse($record->planned_date)->format('Ymd') : '';
 
         if ($this->existsInInfor($record, $plannedDateFormatted)) {
-            Log::warning('SyncProductionRecordsProto: el registro ya existía en YF013, se omite el insert duplicado', [
+            $this->log()->warning('SyncProductionRecordsProto: el registro ya existía en YF013, se omite el insert duplicado', [
                 'Production Record' => $record->id,
                 'Shop order number' => $record->shop_order_number,
                 'Work Center' => $record->work_number,
@@ -184,7 +189,7 @@ class SyncProductionRecordsProto implements ShouldQueue
                 'YFCRUS' => 'IOT',
             ]);
 
-        Log::info('SyncProductionRecordsProto', [
+        $this->log()->info('SyncProductionRecordsProto', [
             'Shop order number' => $record->shop_order_number,
             'Work Center' => $record->work_number,
             'Part Number' => $record->part_number,
@@ -228,10 +233,10 @@ class SyncProductionRecordsProto implements ShouldQueue
     {
         $rows = YF013Proto::query()->get();
 
-        Log::info("SyncProductionRecordsProto: contenido de LX834FU02.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
+        $this->log()->info("SyncProductionRecordsProto: contenido de LX834FU02.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
 
         foreach ($rows as $index => $row) {
-            Log::info(sprintf(
+            $this->log()->info(sprintf(
                 'YF013 Proto [%d] | WorkCenter: %s (%s) | Orden: %s | Parte: %s | Fecha: %s | Turno: %s | Inicio: %s | Fin: %s | Plan: %s | Prod: %s | Scrap: %s | Creado: %s %s por %s',
                 $index + 1,
                 trim($row->YFWRKC ?? ''),
@@ -282,7 +287,7 @@ class SyncProductionRecordsProto implements ShouldQueue
     protected function logResults($successCount, $errorCount, $errors)
     {
         if ($errorCount > 0) {
-            Log::warning("SyncProductionRecordsProto terminó con $errorCount errores. Detalle: " . implode(', ', $errors));
+            $this->log()->warning("SyncProductionRecordsProto terminó con $errorCount errores. Detalle: " . implode(', ', $errors));
         }
     }
 
@@ -291,6 +296,6 @@ class SyncProductionRecordsProto implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
-        Log::error('El Job SyncProductionRecordsProto ha fallado definitivamente: ' . $exception->getMessage());
+        $this->log()->error('El Job SyncProductionRecordsProto ha fallado definitivamente: ' . $exception->getMessage());
     }
 }
