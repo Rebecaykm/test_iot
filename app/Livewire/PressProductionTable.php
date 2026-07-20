@@ -70,16 +70,17 @@ class PressProductionTable extends Component
             ->where('work_centers.name', 'LIKE', $this->workCenter)
             ->get();
 
-        $piecesPerShotMap = PartNumber::whereIn('id', $planRecords->pluck('part_number_id')->unique())
-            ->with(['customAttributes' => fn($q) => $q->where('key', 'pieces_per_shot')])
-            ->get()
-            ->mapWithKeys(fn($part) => [
-                $part->id => max(1, (int) ($part->customAttributes->first()?->value ?? 1)),
-            ]);
+        // Divisor por troquel: [part_number_id => suma de pieces_per_shot del troquel],
+        // calculado SOLO con los parts del turno (no todo el work center), para no
+        // inflar el divisor con revisiones viejas que comparten 'mid'. Convierte
+        // piezas -> golpes. Ver PartNumber::buildShotDivisorsForPartIds.
+        $divisors = PartNumber::buildShotDivisorsForPartIds(
+            $planRecords->pluck('part_number_id')->all()
+        );
 
         $this->planTurno = (int) round(
-            $planRecords->sum(function ($record) use ($piecesPerShotMap) {
-                $divisor = $piecesPerShotMap[$record->part_number_id] ?? 1;
+            $planRecords->sum(function ($record) use ($divisors) {
+                $divisor = $divisors[$record->part_number_id] ?? 1;
                 return $record->planned_quantity / $divisor;
             })
         );
@@ -93,11 +94,18 @@ class PressProductionTable extends Component
             ($this->planTurno / $totalShiftMinutes) * $elapsedMinutes
         );
 
-        $this->totalProducido = History::getTotalProducedQuantity(
+        // Total producido en golpes: piezas por part / divisor de su troquel.
+        $producedByPart = History::getProducedQuantityByPart(
             $this->workCenter,
             $shiftStartDt,
             $now
         );
+
+        $totalShots = 0.0;
+        foreach ($producedByPart as $partId => $pieces) {
+            $totalShots += $pieces / ($divisors[$partId] ?? 1);
+        }
+        $this->totalProducido = (int) round($totalShots);
 
         $this->diferencia = $this->totalProducido - $this->planActual;
 

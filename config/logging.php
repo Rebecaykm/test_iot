@@ -73,6 +73,20 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'infor_live' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/live.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'replace_placeholders' => true,
+        ],
+
+        'infor_proto' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/proto.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

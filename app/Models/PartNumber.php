@@ -27,6 +27,40 @@ class PartNumber extends Model
     ];
 
     /**
+     * Crea o actualiza el registro del número de parte a partir de los datos
+     * de Infor y su renglón de routing (FRT), del cual toma el work center
+     * y el production rate.
+     */
+    public static function storeFromInfor(string $number, ?string $name, ?ItemClass $itemClass, bool $isObsolete, ?object $routingMaster = null): self
+    {
+        $attributes = [
+            'number' => $number,
+            'name' => $name,
+            'item_class_id' => $itemClass?->id,
+            'is_obsolete' => $isObsolete,
+        ];
+
+        if ($routingMaster !== null) {
+            $workCenter = WorkCenter::query()->where([['number', $routingMaster->workNumber], ['name', $routingMaster->workName]])->first();
+
+            if ($workCenter !== null) {
+                $attributes['work_center_id'] = $workCenter->id;
+                $attributes['production_rate'] = $routingMaster->productionRate;
+            }
+        }
+
+        $partNumber = self::query()->where([['number', $number], ['name', $name]])->first();
+
+        if ($partNumber !== null) {
+            $partNumber->update($attributes);
+
+            return $partNumber;
+        }
+
+        return self::create($attributes);
+    }
+
+    /**
      * Scope para ordenar por orden de producción
      */
     public function scopeOrderByProduction($query)
@@ -202,5 +236,73 @@ class PartNumber extends Model
             ->get()
             ->pluck('value', 'key')
             ->toArray();
+    }
+
+    /**
+     * Devuelve un mapa [part_number_id => divisor] para convertir piezas a golpes,
+     * calculado SOLO sobre los part numbers indicados (los que están en juego en
+     * el turno/producción), no sobre todo el work center.
+     *
+     * Esto es clave: un troquel (atributo 'mid') puede estar registrado en part
+     * numbers que ya no se corren (revisiones viejas, ej. BDWK34811A vs BDWK34811B).
+     * Si esos contaran, el divisor se inflaría y los golpes saldrían más bajos.
+     * Por eso el divisor solo suma el pieces_per_shot de los parts presentes aquí.
+     *
+     *     golpes = piezas_del_part / divisor_del_part
+     *
+     * Ej.: troquel BDWK34831/841 con BDWK34831 y BDWK34841 (ambos en el turno),
+     * cada uno produjo 1423 piezas (pps=1) => divisor 2 => 1423/2 + 1423/2 = 1423.
+     */
+    public static function buildShotDivisorsForPartIds(array $partIds): array
+    {
+        $partIds = array_values(array_unique(array_filter($partIds)));
+
+        if (empty($partIds)) {
+            return [];
+        }
+
+        $parts = static::query()
+            ->whereIn('id', $partIds)
+            ->with(['customAttributes' => fn ($q) => $q->whereIn('key', ['mid', 'pieces_per_shot'])])
+            ->get();
+
+        return static::buildShotDivisors($parts);
+    }
+
+    /**
+     * Construye el mapa [part_number_id => divisor] a partir de una colección de
+     * PartNumber (distintos) que ya tienen cargados sus customAttributes ('mid' y
+     * 'pieces_per_shot'). Ver buildShotDivisorsForPartIds() para el detalle.
+     */
+    public static function buildShotDivisors($parts): array
+    {
+        $piecesPerShot = [];
+        $dieKey        = [];
+
+        foreach ($parts as $part) {
+            $attrs = $part->customAttributes->keyBy('key');
+
+            $pps = max(1, (int) ($attrs['pieces_per_shot']->value ?? 1));
+            $mid = trim((string) ($attrs['mid']->value ?? ''));
+
+            $piecesPerShot[$part->id] = $pps;
+            // Sin troquel => grupo propio para no mezclarlo con otros parts.
+            $dieKey[$part->id] = $mid !== '' ? $mid : "part:{$part->id}";
+        }
+
+        // Suma de pieces_per_shot por troquel.
+        $dieTotals = [];
+        foreach ($piecesPerShot as $partId => $pps) {
+            $key             = $dieKey[$partId];
+            $dieTotals[$key] = ($dieTotals[$key] ?? 0) + $pps;
+        }
+
+        // Cada part hereda como divisor el total de su troquel.
+        $divisors = [];
+        foreach ($dieKey as $partId => $key) {
+            $divisors[$partId] = max(1, $dieTotals[$key]);
+        }
+
+        return $divisors;
     }
 }

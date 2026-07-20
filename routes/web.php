@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\InforSyncSettingController;
 use App\Http\Controllers\LineController;
 use App\Http\Controllers\LineStoppageController;
 use App\Http\Controllers\LineStoppageRecordController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProductionRecordController;
 use App\Http\Controllers\ProductionSequenceController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ScrapController;
 use App\Http\Controllers\ScrapRecordController;
@@ -43,6 +45,8 @@ Route::middleware([
     Route::resource('roles', RoleController::class);
     Route::resource('areas', AreaController::class);
     Route::resource('lines', LineController::class);
+    Route::post('part-numbers/import-production-orders', [PartNumberController::class, 'importProductionOrders'])
+        ->name('part-numbers.import-production-orders');
     Route::resource('part-numbers', PartNumberController::class);
     Route::resource('work-centers', WorkCenterController::class);
     Route::resource('tags', TagController::class);
@@ -63,6 +67,14 @@ Route::middleware([
     Route::resource('production-sequences', ProductionSequenceController::class);
     Route::get('production-records-summary', [ProductionRecordController::class, 'summary'])->name('production-records.summary');
     Route::get('production-records-summary/export', [ProductionRecordController::class, 'exportSummary'])->name('production-records.summary.export');
+
+    // Sincronización a Infor (Live / Proto)
+    Route::get('infor-sync', [InforSyncSettingController::class, 'index'])->name('infor-sync.index');
+    Route::put('infor-sync', [InforSyncSettingController::class, 'update'])->name('infor-sync.update');
+
+    // Reportes Generales
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/mdi/export', [ReportController::class, 'exportMdi'])->name('reports.mdi.export');
 
     Route::get('/production/export-pdf-form', [ProductionRecordController::class, 'showExportForm'])->name('production.export-pdf-form');
     Route::post('/production/export-pdf-filtered', [ProductionRecordController::class, 'exportProductionReportFiltered'])->name('production.export-pdf-filtered');
@@ -111,6 +123,19 @@ Route::get('press-production/{workCenter}', function ($workCenter) {
         'workCenter' => $workCenter
     ]);
 })->name('press-production');
+
+Route::get('shift-production-timeline/{workCenter}', function ($workCenter) {
+    return view('shift-production-timeline', [
+        'workCenter' => $workCenter
+    ]);
+})->name('shift-production-timeline');
+
+// Línea de tiempo de producción por MDI (exclusiva de prensas / estampado)
+Route::get('press-production-timeline/{workCenter}', function ($workCenter) {
+    return view('press-production-timeline', [
+        'workCenter' => $workCenter
+    ]);
+})->name('press-production-timeline');
 
 
 // Guest Routes

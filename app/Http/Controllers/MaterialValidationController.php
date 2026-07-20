@@ -18,6 +18,7 @@ class MaterialValidationController extends Controller
     {
         $search = $request->input('search');
         $date = $request->input('date');
+        $status = $request->input('status');
 
         // Obtener las líneas del usuario autenticado
         $userLines = Auth::user()->lines->pluck('id')->toArray();
@@ -31,17 +32,23 @@ class MaterialValidationController extends Controller
 
         $materialValidations = MaterialValidation::with(['workCenter', 'user', 'user.lines'])
             ->when($search, function ($query, $search) {
-                return $query->where('container_code', 'like', "%{$search}%")
-                    ->orWhere('visual_aid_code', 'like', "%{$search}%")
-                    ->orWhere('final_label_code', 'like', "%{$search}%")
-                    ->orWhere('part_number', 'like', "%{$search}%")
-                    ->orWhereHas('user', function ($userQuery) use ($search) {
-                        $userQuery->where('name', 'like', "%{$search}%")
-                            ->orWhere('nickname', 'like', "%{$search}%");
-                    });
+                // Agrupar las condiciones de búsqueda para no romper el filtro por líneas
+                return $query->where(function ($q) use ($search) {
+                    $q->where('container_code', 'like', "%{$search}%")
+                        ->orWhere('visual_aid_code', 'like', "%{$search}%")
+                        ->orWhere('final_label_code', 'like', "%{$search}%")
+                        ->orWhere('part_number', 'like', "%{$search}%")
+                        ->orWhereHas('user', function ($userQuery) use ($search) {
+                            $userQuery->where('name', 'like', "%{$search}%")
+                                ->orWhere('nickname', 'like', "%{$search}%");
+                        });
+                });
             })
             ->when($date, function ($query, $date) {
                 return $query->whereDate('created_at', $date);
+            })
+            ->when($status, function ($query, $status) {
+                return $query->where('validation_status', $status);
             })
             // Filtrar por las líneas del usuario - corregido
             ->whereHas('user.lines', function ($query) use ($userLines) {
@@ -51,7 +58,8 @@ class MaterialValidationController extends Controller
             ->paginate(10)
             ->appends([
                 'search' => $search,
-                'date' => $date
+                'date' => $date,
+                'status' => $status,
             ]);
 
         return view('material-validations.index', compact('materialValidations'));

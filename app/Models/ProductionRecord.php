@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ProductionRecord extends Model
@@ -163,6 +164,7 @@ class ProductionRecord extends Model
                 'production_records.id AS production_id',
                 'work_centers.number AS work_number',
                 'work_centers.name AS work_name',
+                'part_numbers.id AS part_number_id',
                 'part_numbers.number AS part_number',
                 'part_numbers.name AS part_name',
                 'part_numbers.production_rate as production_rate',
@@ -185,6 +187,104 @@ class ProductionRecord extends Model
             // ->orderBy('shifts.start_time', 'asc')
             // ->orderBy('production_records.planned_date', 'asc')
             // ->orderBy('production_records.production_end', 'desc')
+            ->get();
+    }
+
+    /**
+     * Obtiene los registros de producción de un turno con su ventana de tiempo
+     * (production_start / production_end) para dibujar una línea de tiempo (Gantt).
+     * Solo trae los registros que ya iniciaron producción.
+     */
+    public static function getShiftProductionTimeline(string $workCenter, int $shiftId, $date): Collection
+    {
+        return ProductionRecord::query()
+            ->select([
+                'production_records.id AS production_id',
+                'work_centers.name AS work_name',
+                'part_numbers.number AS part_number',
+                'part_numbers.name AS part_name',
+                'part_numbers.production_order as production_order',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'production_records.production_start AS production_start',
+                'production_records.production_end AS production_end',
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->where('production_records.planned_date', \Carbon\Carbon::parse($date)->toDateString())
+            ->where('shifts.id', $shiftId)
+            ->where('work_centers.name', 'LIKE', $workCenter)
+            ->whereNotNull('production_records.production_start')
+            ->orderBy('production_records.production_start', 'asc')
+            ->get();
+    }
+
+    /**
+     * Plan del turno: TODAS las partes planeadas (hayan iniciado o no), agregadas
+     * por número de parte. Se usa para dibujar la barra de "plan" en la línea de
+     * tiempo, secuenciando por production_order y calculando el tiempo a partir de
+     * production_rate (piezas/hora; en estampado es SPM y se convierte aparte).
+     */
+    public static function getShiftPlannedSchedule(string $workCenter, int $shiftId, $date): Collection
+    {
+        return ProductionRecord::query()
+            ->select([
+                'part_numbers.id AS part_number_id',
+                'part_numbers.number AS part_number',
+                'part_numbers.production_order AS production_order',
+                'part_numbers.production_rate AS production_rate',
+                'part_numbers.efficiency AS efficiency',
+                DB::raw('SUM(production_records.planned_quantity) AS planned_quantity'),
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->where('production_records.planned_date', \Carbon\Carbon::parse($date)->toDateString())
+            ->where('shifts.id', $shiftId)
+            ->where('work_centers.name', 'LIKE', $workCenter)
+            ->groupBy(
+                'part_numbers.id',
+                'part_numbers.number',
+                'part_numbers.production_order',
+                'part_numbers.production_rate',
+                'part_numbers.efficiency'
+            )
+            // Solo partes que tuvieron cantidad planeada o producida en el turno
+            ->havingRaw('SUM(production_records.planned_quantity) > 0 OR SUM(production_records.produced_quantity) > 0')
+            ->get();
+    }
+
+    /**
+     * Obtiene los registros de producción de un work center en un rango de fechas
+     * (p. ej. una semana de domingo a sábado), con plan y producido por registro.
+     * Se usa para la tabla semanal de cumplimiento de producción.
+     */
+    public static function getWeeklyProductionRecords(string $workCenter, $startDate, $endDate): Collection
+    {
+        return ProductionRecord::query()
+            ->select([
+                'work_centers.name AS work_name',
+                'production_records.shop_order_number AS order_number',
+                'part_numbers.number AS part_number',
+                'part_numbers.production_order AS production_order',
+                'production_records.planned_date AS planned_date',
+                'shifts.abbreviation AS shift',
+                'shifts.name AS shift_name',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->whereBetween('production_records.planned_date', [
+                \Carbon\Carbon::parse($startDate)->toDateString(),
+                \Carbon\Carbon::parse($endDate)->toDateString(),
+            ])
+            ->where('work_centers.name', 'LIKE', $workCenter)
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('shifts.abbreviation', 'asc')
+            ->orderBy('part_numbers.number', 'asc')
             ->get();
     }
 

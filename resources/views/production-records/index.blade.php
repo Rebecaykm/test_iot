@@ -9,11 +9,11 @@
         </div>
 
         <div class="d-flex" style="gap: 0.5rem;">
-            <a href="{{ route('line-stoppage-records.create', ['source' => 'production-records.index']) }}"
+            {{-- <a href="{{ route('line-stoppage-records.create', ['source' => 'production-records.index']) }}"
                 class="btn-action btn-action-warning">
                 <i class="fas fa-pause"></i>
                 <span class="d-none d-md-inline">Paro de Línea</span>
-            </a>
+            </a> --}}
             <a href="{{ route('scrap-records.create', ['source' => 'production-records.index']) }}"
                 class="btn-action btn-action-danger">
                 <i class="fas fa-exclamation-circle"></i>

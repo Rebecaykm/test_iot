@@ -422,12 +422,24 @@ return [
                     'icon' => 'fas fa-fw fa-stop-circle',
                     'can' => 'view line stoppages'
                 ],
+                [
+                    'text' => 'Sincronización Infor',
+                    'route' => 'infor-sync.index',
+                    'icon' => 'fas fa-fw fa-cloud-upload-alt',
+                    'can' => 'sync infor',
+                ],
             ]
         ],
         [
             'text' => 'Gestión de Producción',
             'icon' => 'fas fa-fw fa-chart-line',
             'submenu' => [
+                [
+                    'text' => 'Reportes Generales',
+                    'route' => 'reports.index',
+                    'icon' => 'fas fa-fw fa-folder-open',
+                    // 'can' => 'view production records'
+                ],
                 [
                     'text' => 'Registro de Producción',
                     'route'  => 'production-records.index',

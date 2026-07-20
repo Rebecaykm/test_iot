@@ -48,9 +48,15 @@ class PressProductionGraph extends Component
         // Combinar labels en orden cronológico
         $this->labels = array_merge(array_keys($previousBlocks), array_keys($currentBlocks));
 
+        // Divisor por troquel POR TURNO: cada turno tiene su propio conjunto de
+        // parts programados, así que el divisor se calcula solo con esos parts
+        // (no todo el work center). Ver PartNumber::buildShotDivisorsForPartIds.
+        $previousDivisors = $this->divisorsForShift($previous);
+        $currentDivisors  = $this->divisorsForShift($current);
+
         // Calcular plan para cada turno por separado
-        $previousPlanned = $this->calculatePlannedForShift($previous, $previousBlocks);
-        $currentPlanned = $this->calculatePlannedForShift($current, $currentBlocks);
+        $previousPlanned = $this->calculatePlannedForShift($previous, $previousBlocks, $previousDivisors);
+        $currentPlanned = $this->calculatePlannedForShift($current, $currentBlocks, $currentDivisors);
         $this->plannedData = array_merge($previousPlanned, $currentPlanned);
 
         // Calcular producción real para cada turno por separado
@@ -58,14 +64,16 @@ class PressProductionGraph extends Component
             $previous->timeRange->startDateTime,
             $previous->timeRange->endDateTime,
             $previousBlocks,
-            $now
+            $now,
+            $previousDivisors
         );
 
         $currentProduced = $this->calculateActualForShift(
             $current->timeRange->startDateTime,
             $current->timeRange->endDateTime,
             $currentBlocks,
-            $now
+            $now,
+            $currentDivisors
         );
 
         $this->producedData = array_merge($previousProduced, $currentProduced);
@@ -79,6 +87,22 @@ class PressProductionGraph extends Component
             'produced' => $this->producedData,
             'difference' => $this->differenceData,
         ]);
+    }
+
+    /**
+     * Construye el divisor por troquel ([part_number_id => divisor]) usando solo
+     * los part numbers programados en ese turno, para no inflar el divisor con
+     * revisiones viejas que comparten 'mid'.
+     */
+    private function divisorsForShift($shiftInfo): array
+    {
+        $partIds = ProductionRecord::getProductionRecords(
+            $this->workCenter,
+            $shiftInfo->shift->id,
+            $shiftInfo->date
+        )->pluck('part_number_id')->all();
+
+        return PartNumber::buildShotDivisorsForPartIds($partIds);
     }
 
     private function generateTimeBlocks(Carbon $start, Carbon $end): array
@@ -100,7 +124,7 @@ class PressProductionGraph extends Component
     /**
      * Calcula el plan acumulado para un turno específico
      */
-    private function calculatePlannedForShift($shiftInfo, $timeBlocks): array
+    private function calculatePlannedForShift($shiftInfo, $timeBlocks, array $divisors): array
     {
         // Obtener el total planeado para este turno
         $records = ProductionRecord::getProductionRecords(
@@ -109,14 +133,9 @@ class PressProductionGraph extends Component
             $shiftInfo->date
         );
 
-        $totalPlanned = $records->sum(function ($record) {
-            $part = PartNumber::where('number', $record->part_number)->first();
-
-            $piecesPerShot = $part
-                ? (int) $part->getCustomAttributeValue('pieces_per_shot')
-                : 0;
-
-            $divisor = $piecesPerShot > 1 ? $piecesPerShot : 1;
+        // Plan en golpes: piezas planeadas por part / divisor de su troquel.
+        $totalPlanned = $records->sum(function ($record) use ($divisors) {
+            $divisor = $divisors[$record->part_number_id] ?? 1;
 
             return $record->planned_quantity / $divisor;
         });
@@ -143,7 +162,7 @@ class PressProductionGraph extends Component
     /**
      * Calcula la producción real acumulada para un turno específico
      */
-    private function calculateActualForShift(Carbon $start, Carbon $end, $timeBlocks, $now): array
+    private function calculateActualForShift(Carbon $start, Carbon $end, $timeBlocks, $now, array $divisors): array
     {
         // Obtener el historial de producción para este turno (sólo quantity + created_at)
         $histories = History::getProducedTimeline($this->workCenter, $start, $end);
@@ -169,13 +188,13 @@ class PressProductionGraph extends Component
                 continue;
             }
 
-            // Sumar directamente todas las cantidades del bloque
+            // Sumar el bloque en golpes: cada pieza / divisor del troquel de su part.
             $blockSum = isset($grouped[$label])
-                ? $grouped[$label]->sum('quantity')
+                ? $grouped[$label]->sum(fn ($item) => $item->quantity / ($divisors[$item->part_number_id] ?? 1))
                 : 0;
 
             $accumulated += $blockSum;
-            $result[] = $accumulated;
+            $result[] = round($accumulated);
         }
 
         return $result;

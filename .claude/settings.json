@@ -1,6 +1,11 @@
 {
   "permissions": {
     "allow": [
+      "Bash(php -l app/Models/PartNumber.php)",
+      "Bash(php -l app/Models/History.php)",
+      "Bash(php -l app/Models/ProductionRecord.php)",
+      "Bash(php -l app/Livewire/PressProductionTable.php)",
+      "Bash(php -l app/Livewire/PressProductionGraph.php)",
       "Bash(php -r \"echo file_exists\\('database/pulse.sqlite'\\) ? 'exists, size=' . filesize\\('database/pulse.sqlite'\\) . ' bytes' : 'missing';\")",
       "Bash(composer remove *)",
       "PowerShell(php artisan route:list --name=production-sequences 2>&1)",

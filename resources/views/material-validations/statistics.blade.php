@@ -3,91 +3,143 @@
 @section('title', 'Estadísticas de Escaneos')
 
 @section('content_header')
-    <h1>{{ __('Estadísticas de Escaneos') }}</h1>
+    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+        <div>
+            <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Estadísticas de Escaneos</h1>
+        </div>
+
+        <a href="{{ route('material-validations.index') }}" class="btn-action btn-action-primary">
+            <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
+            </svg>
+            <span class="d-none d-md-inline">Ver Historial</span>
+        </a>
+    </div>
 @stop
 
 @section('content')
-    <!-- Filtro de fecha -->
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-4">
+    @php
+        $selectedDate = request('date') ? \Carbon\Carbon::parse(request('date')) : now();
+        $okPct = $dailyStats['ok_percentage'] ?? 0;
+        $effColor = $okPct >= 95 ? 'success' : ($okPct >= 90 ? 'warning' : 'danger');
+    @endphp
+
+    {{-- Filtro de fecha --}}
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
         <div class="card-body py-3">
             <form action="{{ route('material-validations.statistics') }}" method="GET"
-                  class="d-flex align-items-center gap-2 flex-wrap">
-                <label class="form-label fw-bold text-secondary mb-0 mr-2">Fecha:</label>
-                <div class="input-group" style="width: 200px;">
-                    <input type="date" name="date" class="form-control border-end-0"
-                           value="{{ request('date') ?? now()->format('Y-m-d') }}"
-                           max="{{ date('Y-m-d') }}">
-                    @if(request('date'))
-                        <a href="{{ route('material-validations.statistics') }}"
-                           class="input-group-text bg-white border-start-0 text-danger">
-                            <i class="fas fa-times"></i>
+                class="d-flex flex-wrap align-items-end" style="gap: 0.65rem;">
+                <div class="filter-field">
+                    <label class="filter-label-text">Fecha</label>
+                    <div class="filter-group">
+                        <i class="fas fa-calendar-alt filter-icon"></i>
+                        <input type="date" name="date" class="filter-input"
+                            value="{{ request('date') ?? now()->format('Y-m-d') }}"
+                            max="{{ date('Y-m-d') }}">
+                    </div>
+                </div>
+                <div class="d-flex" style="gap: 0.4rem; padding-bottom: 1px;">
+                    <button class="btn-filter-submit" type="submit">
+                        <i class="fas fa-search mr-1"></i>Buscar
+                    </button>
+                    @if (request('date'))
+                        <a href="{{ route('material-validations.statistics') }}" class="btn-filter-clear">
+                            <i class="fas fa-times mr-1"></i>Hoy
                         </a>
                     @endif
                 </div>
-                <button class="btn btn-primary rounded-3 d-flex align-items-center" type="submit">
-                    <i class="fas fa-search mr-2"></i>
-                    <span>Buscar</span>
-                </button>
+                <div class="ml-auto d-none d-md-flex align-items-center text-muted" style="font-size: 0.8rem;">
+                    <i class="far fa-calendar mr-1"></i>{{ $selectedDate->locale('es')->isoFormat('dddd, D [de] MMMM YYYY') }}
+                </div>
             </form>
         </div>
     </div>
 
-    <!-- Resumen del día -->
-    <div class="row mb-4">
-        <div class="col-lg-4 col-md-6 col-sm-12 mb-3">
-            <div class="card border-0 shadow-sm rounded-3 h-100">
-                <div class="card-body d-flex align-items-center p-4">
-                    <div class="icon-box bg-primary bg-opacity-10 text-primary rounded-3 mr-3">
-                        <i class="fas fa-chart-bar fa-2x"></i>
+    {{-- Resumen del día --}}
+    <div class="row mb-2">
+        {{-- Total --}}
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+                <div class="card-body stat-card">
+                    <div class="stat-icon stat-icon-primary">
+                        <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                        </svg>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="text-secondary small fw-500">Total Escaneos</div>
-                        <div class="fs-4 fw-bold text-dark mb-1">{{ $dailyStats['total'] ?? 0 }}</div>
-                        <div class="text-muted small">Del día seleccionado</div>
+                        <div class="stat-label">Total Escaneos</div>
+                        <div class="stat-value">{{ number_format($dailyStats['total'] ?? 0) }}</div>
+                        <div class="stat-sub">Del día seleccionado</div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 col-md-6 col-sm-12 mb-3">
-            <div class="card border-0 shadow-sm rounded-3 h-100">
-                <div class="card-body d-flex align-items-center p-4">
-                    <div class="icon-box bg-success bg-opacity-10 text-success rounded-3 mr-3">
-                        <i class="fas fa-check-circle fa-2x"></i>
+
+        {{-- OK --}}
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+                <div class="card-body stat-card">
+                    <div class="stat-icon stat-icon-success">
+                        <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="text-secondary small fw-500">Escaneos OK</div>
-                        <div class="fs-4 fw-bold text-dark mb-1">{{ $dailyStats['ok'] ?? 0 }}</div>
-                        <div class="text-muted small">{{ $dailyStats['ok_percentage'] ?? 0 }}% del total</div>
+                        <div class="stat-label">Escaneos OK</div>
+                        <div class="stat-value text-success">{{ number_format($dailyStats['ok'] ?? 0) }}</div>
+                        <div class="stat-sub">{{ $dailyStats['ok_percentage'] ?? 0 }}% del total</div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 col-md-6 col-sm-12 mb-3">
-            <div class="card border-0 shadow-sm rounded-3 h-100">
-                <div class="card-body d-flex align-items-center p-4">
-                    <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-3 mr-3">
-                        <i class="fas fa-exclamation-circle fa-2x"></i>
+
+        {{-- NG --}}
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+                <div class="card-body stat-card">
+                    <div class="stat-icon stat-icon-danger">
+                        <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
                     </div>
                     <div class="flex-grow-1">
-                        <div class="text-secondary small fw-500">Escaneos NG</div>
-                        <div class="fs-4 fw-bold text-dark mb-1">{{ $dailyStats['ng'] ?? 0 }}</div>
-                        <div class="text-muted small">{{ $dailyStats['ng_percentage'] ?? 0 }}% del total</div>
+                        <div class="stat-label">Escaneos NG</div>
+                        <div class="stat-value text-danger">{{ number_format($dailyStats['ng'] ?? 0) }}</div>
+                        <div class="stat-sub">{{ $dailyStats['ng_percentage'] ?? 0 }}% del total</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Eficiencia --}}
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+                <div class="card-body stat-card">
+                    <div class="stat-icon stat-icon-{{ $effColor }}">
+                        <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+                        </svg>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="stat-label">Eficiencia</div>
+                        <div class="stat-value text-{{ $effColor }}">{{ $okPct }}%</div>
+                        <div class="stat-sub">Escaneos OK sobre total</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Gráfica por hora -->
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-4">
-        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold text-secondary">
-                Escaneos por Hora - {{ request('date') ? \Carbon\Carbon::parse(request('date'))->format('d M Y') : now()->format('d M Y') }}
+    {{-- Gráfica por hora --}}
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid #e9ecef;">
+            <h5 class="section-title mb-0">
+                <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                </svg>
+                Escaneos por Hora
             </h5>
-            <div class="text-muted small">
-                <i class="fas fa-chart-line mr-1"></i>
-                Distribución horaria
-            </div>
+            <span class="text-muted d-none d-sm-block" style="font-size: 0.78rem;">Distribución horaria</span>
         </div>
         <div class="card-body">
             <div class="chart-container">
@@ -96,11 +148,13 @@
         </div>
     </div>
 
-    <!-- Estadísticas por turno -->
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-4">
-        <div class="card-header bg-white border-0 py-3">
-            <h5 class="mb-0 fw-bold text-secondary">
-                <i class="fas fa-clock mr-2"></i>
+    {{-- Estadísticas por turno --}}
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+        <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
+            <h5 class="section-title mb-0">
+                <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
                 Estadísticas por Turno
             </h5>
         </div>
@@ -111,96 +165,66 @@
                         @php
                             $shiftInfo = $shiftInfos[$index] ?? null;
                             $shiftStat = $shiftStats[$shift->abbreviation] ?? [
-                                'total' => 0,
-                                'ok' => 0,
-                                'ng' => 0,
-                                'ok_percentage' => 0,
-                                'ng_percentage' => 0,
+                                'total' => 0, 'ok' => 0, 'ng' => 0,
+                                'ok_percentage' => 0, 'ng_percentage' => 0,
                             ];
-
                             $shiftTitle = $shiftInfo->label ?? ($shift->name ?? $shift->abbreviation);
-                            $badgeClass = 'secondary';
-                            if (isset($isToday) && $isToday) {
-                                $badgeClass = $index === 0 ? 'warning' : 'primary';
-                            } else {
-                                $badgeClass = $shift->abbreviation === 'D' ? 'primary' : 'secondary';
-                            }
+                            $shiftEff = $shiftStat['ok_percentage'];
+                            $shiftEffColor = $shiftEff >= 95 ? 'success' : ($shiftEff >= 90 ? 'warning' : 'danger');
                         @endphp
 
-                        <div class="col-lg-6 col-md-12 mb-3">
-                            <div class="card border-light shadow-sm rounded-3 h-100">
-                                <div class="card-body">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <span class="badge-status bg-{{ $badgeClass }} mr-2">
-                                            {{ $shift->abbreviation }}
+                        <div class="col-lg-6 mb-3">
+                            <div class="shift-card h-100">
+                                <div class="d-flex align-items-center mb-3" style="gap: 0.5rem;">
+                                    <span class="badge-soft badge-primary">{{ $shift->abbreviation }}</span>
+                                    <span class="fw-600 text-dark" style="font-size: 0.9rem;">{{ $shiftTitle }}</span>
+                                    @if (isset($isToday) && $isToday)
+                                        <span class="badge-soft badge-{{ $index === 0 ? 'warning' : 'success' }}">
+                                            {{ $index === 0 ? 'Anterior' : 'Actual' }}
                                         </span>
-                                        <span class="fw-bold text-secondary">{{ $shiftTitle }}</span>
-                                        @if (isset($isToday) && $isToday)
-                                            <span class="badge-status bg-{{ $index === 0 ? 'warning' : 'primary' }} ml-2">
-                                                {{ $index === 0 ? 'Anterior' : 'Actual' }}
-                                            </span>
-                                        @endif
-                                    </div>
-
-                                    @if ($shiftInfo && $shiftInfo->timeRange)
-                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                            <div class="text-muted small">
-                                                <i class="far fa-clock mr-1"></i>
-                                                {{ $shiftInfo->timeRange->startDateTime->format('H:i') }} -
-                                                {{ $shiftInfo->timeRange->endDateTime->format('H:i') }}
-                                                @if ($shiftInfo->timeRange->startDateTime->format('d/m') !== $shiftInfo->timeRange->endDateTime->format('d/m'))
-                                                    <br><small class="text-muted">
-                                                        ({{ $shiftInfo->timeRange->startDateTime->format('d/m') }} -
-                                                        {{ $shiftInfo->timeRange->endDateTime->format('d/m') }})
-                                                    </small>
-                                                @endif
-                                            </div>
-                                            <div class="d-flex gap-1">
-                                                <span class="badge-status bg-success">
-                                                    {{ $shiftStat['ok'] }} OK
-                                                </span>
-                                                <span class="badge-status bg-danger">
-                                                    {{ $shiftStat['ng'] }} NG
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div class="progress mb-3" style="height: 12px;">
-                                            <div class="progress-bar bg-success"
-                                                 style="width: {{ $shiftStat['ok_percentage'] }}%"
-                                                 title="OK: {{ $shiftStat['ok_percentage'] }}%">
-                                            </div>
-                                            <div class="progress-bar bg-danger"
-                                                 style="width: {{ $shiftStat['ng_percentage'] }}%"
-                                                 title="NG: {{ $shiftStat['ng_percentage'] }}%">
-                                            </div>
-                                        </div>
-
-                                        <div class="d-flex justify-content-between pt-3 border-top border-light-subtle">
-                                            <div>
-                                                <div class="text-secondary small">Total:</div>
-                                                <div class="fw-bold fs-5">{{ $shiftStat['total'] }}</div>
-                                            </div>
-                                            <div>
-                                                <div class="text-secondary small">Eficiencia:</div>
-                                                <div class="fw-bold fs-5 text-success">{{ $shiftStat['ok_percentage'] }}%</div>
-                                            </div>
-                                        </div>
-                                    @else
-                                        <div class="alert alert-info mb-0 p-3">
-                                            <i class="fas fa-info-circle mr-2"></i>
-                                            No hay datos para {{ $shiftTitle }}
-                                        </div>
                                     @endif
                                 </div>
+
+                                @if ($shiftInfo && $shiftInfo->timeRange)
+                                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap" style="gap: 0.4rem;">
+                                        <span class="text-muted" style="font-size: 0.78rem;">
+                                            <i class="far fa-clock mr-1"></i>
+                                            {{ $shiftInfo->timeRange->startDateTime->format('H:i') }} –
+                                            {{ $shiftInfo->timeRange->endDateTime->format('H:i') }}
+                                        </span>
+                                        <div class="d-flex" style="gap: 0.3rem;">
+                                            <span class="badge-soft badge-success">{{ $shiftStat['ok'] }} OK</span>
+                                            <span class="badge-soft badge-danger">{{ $shiftStat['ng'] }} NG</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="progress-track mb-3">
+                                        <div class="progress-seg bg-soft-success" style="width: {{ $shiftStat['ok_percentage'] }}%"></div>
+                                        <div class="progress-seg bg-soft-danger" style="width: {{ $shiftStat['ng_percentage'] }}%"></div>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between pt-3" style="border-top: 1px solid #f1f5f9;">
+                                        <div>
+                                            <div class="stat-label">Total</div>
+                                            <div class="fw-600 text-dark" style="font-size: 1.15rem;">{{ $shiftStat['total'] }}</div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="stat-label">Eficiencia</div>
+                                            <div class="fw-600 text-{{ $shiftEffColor }}" style="font-size: 1.15rem;">{{ $shiftStat['ok_percentage'] }}%</div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div class="empty-note">
+                                        <i class="fas fa-info-circle mr-1"></i>No hay datos para {{ $shiftTitle }}
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @endforeach
                 @else
                     <div class="col-12">
-                        <div class="alert alert-warning p-3">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>
-                            No hay turnos configurados
+                        <div class="empty-note">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>No hay turnos configurados
                         </div>
                     </div>
                 @endif
@@ -208,60 +232,50 @@
         </div>
     </div>
 
-    <!-- Tipos de NG -->
+    {{-- Tipos de NG --}}
     @if (isset($ngTypes) && count($ngTypes) > 0)
-        <div class="card border-0 shadow-sm rounded-3 overflow-hidden mb-4">
-            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold text-secondary">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                    Tipos NG
+        <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid #e9ecef;">
+                <h5 class="section-title mb-0">
+                    <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                    </svg>
+                    Tipos de NG
                 </h5>
-                <div class="badge-status bg-danger">
-                    Total NG: {{ $dailyStats['ng'] ?? 0 }}
-                </div>
+                <span class="badge-soft badge-danger">Total NG: {{ $dailyStats['ng'] ?? 0 }}</span>
             </div>
             <div class="card-body">
-                <div class="row align-items-stretch">
-                    <div class="col-md-6 mb-3 mb-md-0">
-                        <div class="chart-container h-100" style="min-height: 300px;">
+                <div class="row align-items-center">
+                    <div class="col-md-5 mb-4 mb-md-0">
+                        <div class="chart-container" style="height: 280px;">
                             <canvas id="ngTypesChart"></canvas>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="table-responsive h-100">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th class="fw-bold text-secondary text-uppercase border-light-subtle">
-                                            <i class="fas fa-tag mr-1"></i>
-                                            Tipo de NG
-                                        </th>
-                                        <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">
-                                            <i class="fas fa-hashtag mr-1"></i>
-                                            Cantidad
-                                        </th>
-                                        <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">
-                                            <i class="fas fa-chart-pie mr-1"></i>
-                                            Porcentaje
-                                        </th>
+                    <div class="col-md-7">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr class="table-head-row">
+                                        <th class="th-cell">Tipo de NG</th>
+                                        <th class="th-cell text-center">Cantidad</th>
+                                        <th class="th-cell">Porcentaje</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($ngTypes as $ngType)
-                                        <tr class="border-light-subtle">
-                                            <td class="py-3">
-                                                <span class="badge-status bg-danger mr-2">NG</span>
-                                                <span class="fw-500">{{ $ngType['comment'] }}</span>
+                                        <tr class="td-row">
+                                            <td class="td-cell">
+                                                <span class="fw-500 text-dark" style="font-size: 0.85rem;">{{ $ngType['comment'] }}</span>
                                             </td>
-                                            <td class="text-center fw-bold">{{ $ngType['count'] }}</td>
-                                            <td class="text-center">
-                                                <div class="d-flex align-items-center justify-content-center">
-                                                    <div class="progress mr-2" style="height: 8px; width: 80px;">
-                                                        <div class="progress-bar bg-danger"
-                                                             style="width: {{ $ngType['percentage'] }}%">
-                                                        </div>
+                                            <td class="td-cell text-center">
+                                                <span class="badge-soft badge-danger">{{ $ngType['count'] }}</span>
+                                            </td>
+                                            <td class="td-cell">
+                                                <div class="d-flex align-items-center" style="gap: 0.5rem;">
+                                                    <div class="progress-track" style="flex: 1; min-width: 60px;">
+                                                        <div class="progress-seg bg-soft-danger" style="width: {{ $ngType['percentage'] }}%"></div>
                                                     </div>
-                                                    <span class="fw-bold">{{ $ngType['percentage'] }}%</span>
+                                                    <span class="fw-600 text-danger" style="font-size: 0.78rem; min-width: 42px;">{{ $ngType['percentage'] }}%</span>
                                                 </div>
                                             </td>
                                         </tr>
@@ -275,73 +289,72 @@
         </div>
     @endif
 
-    <!-- Estadísticas por usuario -->
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
-        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold text-secondary">
-                <i class="fas fa-users mr-2"></i>
+    {{-- Estadísticas por usuario --}}
+    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid #e9ecef;">
+            <h5 class="section-title mb-0">
+                <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                </svg>
                 Estadísticas por Usuario
             </h5>
-            <div class="text-muted small">
-                {{ count($userStats) }} operadores
-            </div>
+            <span class="text-muted" style="font-size: 0.78rem;">{{ count($userStats) }} operadores</span>
         </div>
         <div class="card-body p-0">
             @if (count($userStats) > 0)
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light sticky-top">
-                            <tr>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle">Operador</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Total</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">OK</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">NG</th>
-                                <th class="fw-bold text-secondary text-uppercase border-light-subtle text-center">Eficiencia</th>
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr class="table-head-row">
+                                <th class="th-cell">Operador</th>
+                                <th class="th-cell text-center">Total</th>
+                                <th class="th-cell text-center">OK</th>
+                                <th class="th-cell text-center">NG</th>
+                                <th class="th-cell text-center" style="min-width: 160px;">Eficiencia</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($userStats as $stat)
                                 @if (isset($stat['user']))
-                                    <tr class="border-light-subtle">
-                                        <td class="py-3">
+                                    @php
+                                        $uEff = $stat['ok_percentage'];
+                                        $uEffColor = $uEff >= 95 ? 'success' : ($uEff >= 90 ? 'warning' : 'danger');
+                                    @endphp
+                                    <tr class="td-row">
+                                        <td class="td-cell">
                                             <div class="d-flex align-items-center">
                                                 @if ($stat['user']->profile_photo_url)
                                                     <img src="{{ $stat['user']->profile_photo_url }}"
-                                                         alt="{{ $stat['user']->name }}"
-                                                         class="rounded-circle img-size-40 mr-3 border border-light">
+                                                        alt="{{ $stat['user']->name }}"
+                                                        class="rounded-circle mr-2"
+                                                        style="width: 34px; height: 34px; object-fit: cover; border: 1px solid #e2e8f0;">
                                                 @else
-                                                    <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center img-size-40 mr-3">
-                                                        <i class="fas fa-user text-primary fa-lg"></i>
+                                                    <div class="rounded-circle d-flex align-items-center justify-content-center mr-2"
+                                                        style="width: 34px; height: 34px; background: #eff6ff; color: #1d4ed8;">
+                                                        <i class="fas fa-user"></i>
                                                     </div>
                                                 @endif
                                                 <div>
-                                                    <div class="fw-bold">{{ $stat['user']->name }}</div>
+                                                    <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ $stat['user']->name }}</div>
                                                     <small class="text-muted">{{ $stat['user']->nickname ?? 'Sin alias' }}</small>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="text-center fw-bold fs-5">{{ $stat['total'] }}</td>
-                                        <td class="text-center">
-                                            <span class="badge-status bg-success">
-                                                {{ $stat['ok'] }}
-                                            </span>
+                                        <td class="td-cell text-center">
+                                            <span class="fw-600 text-dark" style="font-size: 0.95rem;">{{ $stat['total'] }}</span>
                                         </td>
-                                        <td class="text-center">
-                                            <span class="badge-status bg-danger">
-                                                {{ $stat['ng'] }}
-                                            </span>
+                                        <td class="td-cell text-center">
+                                            <span class="badge-soft badge-success">{{ $stat['ok'] }}</span>
                                         </td>
-                                        <td class="text-center">
-                                            <div class="d-flex flex-column align-items-center">
-                                                <div class="progress mb-2" style="height: 10px; width: 120px;">
-                                                    <div class="progress-bar bg-success"
-                                                         style="width: {{ $stat['ok_percentage'] }}%"
-                                                         title="Eficiencia: {{ $stat['ok_percentage'] }}%">
-                                                    </div>
+                                        <td class="td-cell text-center">
+                                            <span class="badge-soft badge-danger">{{ $stat['ng'] }}</span>
+                                        </td>
+                                        <td class="td-cell text-center">
+                                            <div class="d-flex flex-column align-items-center" style="gap: 3px;">
+                                                <div class="progress-track w-100" style="max-width: 130px;">
+                                                    <div class="progress-seg bg-soft-{{ $uEffColor }}" style="width: {{ $uEff }}%"></div>
                                                 </div>
-                                                <span class="fw-bold {{ $stat['ok_percentage'] >= 95 ? 'text-success' : ($stat['ok_percentage'] >= 90 ? 'text-warning' : 'text-danger') }}">
-                                                    {{ $stat['ok_percentage'] }}%
-                                                </span>
+                                                <small class="fw-600 text-{{ $uEffColor }}" style="font-size: 0.72rem;">{{ $uEff }}%</small>
                                             </div>
                                         </td>
                                     </tr>
@@ -351,11 +364,11 @@
                     </table>
                 </div>
             @else
-                <div class="card-body">
-                    <div class="alert alert-info mb-0 p-4 text-center">
-                        <i class="fas fa-user-slash fa-2x mb-3 text-muted"></i>
-                        <div class="fw-bold">No hay datos de operadores</div>
-                        <small class="text-muted">No se encontraron registros de escaneos por usuario</small>
+                <div class="text-center py-5">
+                    <div class="text-muted">
+                        <i class="fas fa-user-slash fa-3x mb-3 d-block" style="color: #cbd5e1;"></i>
+                        <p class="mb-1 fw-500" style="color: #475569;">No hay datos de operadores</p>
+                        <small>No se encontraron registros de escaneos por usuario</small>
                     </div>
                 </div>
             @endif
@@ -364,209 +377,212 @@
 @stop
 
 @section('css')
-    <!-- Fuente Google Roboto -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Aplicar fuente */
-        .card,
-        .btn,
-        .form-control,
-        .table,
-        .content-header h1 {
-            font-family: 'Roboto', sans-serif !important;
+        body, .card, .btn, .form-control, .table, .content-header h1 {
+            font-family: 'Inter', sans-serif !important;
         }
 
-        /* Cards */
-        .rounded-3 {
-            border-radius: 12px !important;
-        }
+        /* ── Heroicons ── */
+        .hi { width: 20px; height: 20px; }
 
-        .border-light-subtle {
-            border-color: #f0f0f0 !important;
-        }
-
-        /* Icon boxes en resumen */
-        .icon-box {
-            width: 60px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Formularios */
-        .input-group .form-control {
-            border-radius: 8px 0 0 8px !important;
-            border: 1px solid #e0e0e0 !important;
-        }
-
-        .input-group-text {
-            border-radius: 0 8px 8px 0 !important;
-            background-color: white;
-        }
-
-        .form-control:focus {
-            border-color: #86b7fe !important;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
-            outline: none !important;
-        }
-
-        /* Botones */
-        .btn {
-            border-radius: 8px !important;
-            padding: 0.5rem 1.5rem !important;
-            font-weight: 500 !important;
+        /* ── Botones de acción (header) ── */
+        .btn-action {
             display: inline-flex;
             align-items: center;
-            transition: all 0.2s ease;
-        }
-
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Badges simétricos - ESTILOS EXACTOS QUE PROPORCIONASTE */
-        .badge-status {
-            display: inline-block;
-            padding: 0.4em 0.8em;
-            text-align: center;
-            border-radius: 12px;
+            gap: 0.4rem;
+            padding: 0.42rem 0.9rem;
             font-size: 0.8rem;
-            font-weight: 500;
-            border: 1px solid transparent;
+            font-weight: 600;
+            border-radius: 7px;
+            border: 1.5px solid transparent;
+            text-decoration: none;
+            transition: all 0.15s ease;
             white-space: nowrap;
         }
-
-        .badge-status.bg-primary {
-            background-color: rgba(13, 110, 253, 0.1) !important;
-            color: #0d6efd !important;
-            border-color: rgba(13, 110, 253, 0.2) !important;
+        .btn-action .hi { width: 16px; height: 16px; }
+        .btn-action-primary {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #93c5fd;
         }
+        .btn-action-primary:hover { background: #dbeafe; color: #1e40af; text-decoration: none; }
 
-        .badge-status.bg-secondary {
-            background-color: rgba(108, 117, 125, 0.1) !important;
-            color: #6c757d !important;
-            border-color: rgba(108, 117, 125, 0.2) !important;
+        /* ── Filtros ── */
+        .filter-field { display: flex; flex-direction: column; gap: 0.25rem; }
+        .filter-label-text {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            margin-bottom: 0;
         }
-
-        .badge-status.bg-success {
-            background-color: rgba(25, 135, 84, 0.1) !important;
-            color: #198754 !important;
-            border-color: rgba(25, 135, 84, 0.2) !important;
+        .filter-group {
+            display: inline-flex;
+            align-items: center;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 7px;
+            padding: 0 0.6rem;
+            height: 34px;
+            transition: border-color 0.15s;
         }
-
-        .badge-status.bg-danger {
-            background-color: rgba(220, 53, 69, 0.1) !important;
-            color: #dc3545 !important;
-            border-color: rgba(220, 53, 69, 0.2) !important;
+        .filter-group:focus-within {
+            border-color: #93c5fd;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
         }
-
-        .badge-status.bg-warning {
-            background-color: rgba(255, 193, 7, 0.1) !important;
-            color: #856404 !important;
-            border-color: rgba(255, 193, 7, 0.2) !important;
+        .filter-icon { color: #94a3b8; font-size: 0.75rem; margin-right: 0.45rem; }
+        .filter-input {
+            border: none;
+            background: transparent;
+            font-size: 0.82rem;
+            color: #334155;
+            outline: none;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
         }
-
-        .badge-status.bg-info {
-            background-color: rgba(13, 202, 240, 0.1) !important;
-            color: #0dcaf0 !important;
-            border-color: rgba(13, 202, 240, 0.2) !important;
-        }
-
-        /* Tabla */
-        .table-hover tbody tr:hover {
-            background-color: rgba(0, 0, 0, 0.02);
-            box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.1);
-        }
-
-        .table thead th {
-            font-weight: 700 !important;
+        .btn-filter-submit {
+            display: inline-flex;
+            align-items: center;
+            height: 34px;
+            padding: 0 0.85rem;
             font-size: 0.8rem;
-            letter-spacing: 0.5px;
-            padding: 1rem 1.5rem;
+            font-weight: 600;
+            border-radius: 7px;
+            background: #1d4ed8;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-filter-submit:hover { background: #1e40af; }
+        .btn-filter-clear {
+            display: inline-flex;
+            align-items: center;
+            height: 34px;
+            padding: 0 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 7px;
+            background: transparent;
+            color: #64748b;
+            border: 1.5px solid #e2e8f0;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .btn-filter-clear:hover { background: #f1f5f9; color: #475569; text-decoration: none; }
+
+        /* ── Tarjetas de resumen ── */
+        .stat-card { display: flex; align-items: center; gap: 1rem; padding: 1.25rem 1.35rem; }
+        .stat-icon {
+            width: 54px; height: 54px;
+            border-radius: 13px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .stat-icon .hi { width: 27px; height: 27px; }
+        .stat-icon-primary { background: #eff6ff; color: #1d4ed8; }
+        .stat-icon-success { background: #f0fdf4; color: #15803d; }
+        .stat-icon-danger  { background: #fef2f2; color: #b91c1c; }
+        .stat-icon-warning { background: #fefce8; color: #b45309; }
+        .stat-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+        }
+        .stat-value { font-size: 1.65rem; font-weight: 700; color: #1e293b; line-height: 1.15; }
+        .stat-sub { font-size: 0.74rem; color: #94a3b8; }
+
+        /* ── Títulos de sección ── */
+        .section-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #334155;
+        }
+        .section-title .hi { color: #64748b; }
+
+        /* ── Tarjeta de turno ── */
+        .shift-card {
+            background: #fff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 11px;
+            padding: 1rem 1.1rem;
         }
 
-        .table tbody td {
-            font-size: 0.875rem;
-            padding: 1rem 1.5rem;
-            vertical-align: middle;
+        /* ── Tabla ── */
+        .table-head-row { background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+        .th-cell {
+            font-size: 0.7rem !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #64748b !important;
+            border: none !important;
+            padding: 0.65rem 0.85rem !important;
+            white-space: nowrap;
         }
+        .td-row { border-bottom: 1px solid #f1f5f9 !important; transition: background 0.1s ease; }
+        .td-row:hover { background-color: #f8fafc !important; }
+        .td-cell { padding: 0.5rem 0.85rem !important; vertical-align: middle !important; border-top: none !important; }
 
-        .img-size-32 {
-            width: 32px;
-            height: 32px;
-            object-fit: cover;
+        /* ── Badges ── */
+        .badge-soft {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.28em 0.65em;
+            border-radius: 5px;
+            font-size: 0.73rem;
+            font-weight: 600;
+            white-space: nowrap;
         }
+        .badge-soft.badge-primary   { background: #eff6ff; color: #1d4ed8; }
+        .badge-soft.badge-success   { background: #f0fdf4; color: #15803d; }
+        .badge-soft.badge-danger    { background: #fef2f2; color: #b91c1c; }
+        .badge-soft.badge-warning   { background: #fefce8; color: #92400e; }
+        .badge-soft.badge-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
 
-        .img-size-40 {
-            width: 40px;
-            height: 40px;
-            object-fit: cover;
-        }
-
-        /* Progress bars */
-        .progress {
+        /* ── Barras de progreso ── */
+        .progress-track {
+            display: flex;
+            height: 8px;
             border-radius: 10px;
-            background-color: #f8f9fa;
+            background: #e2e8f0;
             overflow: hidden;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
         }
+        .progress-seg { height: 100%; transition: width 0.6s ease; }
+        .bg-soft-success { background: #22c55e; }
+        .bg-soft-danger  { background: #ef4444; }
+        .bg-soft-warning { background: #f59e0b; }
 
-        .progress-bar {
-            border-radius: 10px;
-            transition: width 0.6s ease;
-        }
+        /* ── Gráficas ── */
+        .chart-container { position: relative; height: 360px; width: 100%; }
 
-        /* Gráficas */
-        .chart-container {
-            position: relative;
-            height: 400px;
+        /* ── Notas vacías ── */
+        .empty-note {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 9px;
+            padding: 0.85rem 1rem;
+            color: #64748b;
+            font-size: 0.82rem;
             width: 100%;
         }
 
-        /* Tipografía */
-        .fw-500 {
-            font-weight: 500;
-        }
+        .fw-500 { font-weight: 500; }
+        .fw-600 { font-weight: 600; }
+        .text-success { color: #15803d !important; }
+        .text-danger  { color: #b91c1c !important; }
+        .text-warning { color: #b45309 !important; }
 
-        /* Alertas */
-        .alert {
-            border-radius: 8px;
-            border: none;
-        }
-
-        /* Espaciado */
-        .gap-1 {
-            gap: 0.25rem;
-        }
-        .gap-2 {
-            gap: 0.5rem;
-        }
-
-        /* Shadow para cards */
-        .shadow-sm {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
-        }
-
-        /* Responsive */
         @media (max-width: 768px) {
-            .chart-container {
-                height: 300px;
-            }
-
-            .table thead th,
-            .table tbody td {
-                padding: 0.75rem 1rem;
-            }
-
-            .img-size-40 {
-                width: 32px;
-                height: 32px;
-            }
+            .chart-container { height: 280px; }
         }
     </style>
 @stop
@@ -575,16 +591,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Configuración de colores (coinciden con los badges)
             const colors = {
-                ok: {
-                    bg: 'rgba(25, 135, 84, 0.15)',
-                    border: 'rgba(25, 135, 84, 0.8)'
-                },
-                ng: {
-                    bg: 'rgba(220, 53, 69, 0.15)',
-                    border: 'rgba(220, 53, 69, 0.8)'
-                }
+                ok: { bg: 'rgba(34, 197, 94, 0.18)', border: 'rgba(21, 128, 61, 0.85)' },
+                ng: { bg: 'rgba(239, 68, 68, 0.18)', border: 'rgba(185, 28, 28, 0.85)' }
             };
 
             // Gráfica por hora
@@ -611,11 +620,12 @@
                     type: 'bar',
                     data: {
                         labels: hourLabels,
-                        datasets: [{
+                        datasets: [
+                            {
                                 label: 'OK',
                                 backgroundColor: colors.ok.bg,
                                 borderColor: colors.ok.border,
-                                borderWidth: 2,
+                                borderWidth: 1.5,
                                 data: okData,
                                 borderRadius: 6,
                             },
@@ -623,7 +633,7 @@
                                 label: 'NG',
                                 backgroundColor: colors.ng.bg,
                                 borderColor: colors.ng.border,
-                                borderWidth: 2,
+                                borderWidth: 1.5,
                                 data: ngData,
                                 borderRadius: 6,
                             }
@@ -634,69 +644,31 @@
                         maintainAspectRatio: false,
                         scales: {
                             x: {
-                                grid: {
-                                    display: false
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Hora del día',
-                                    font: {
-                                        size: 13,
-                                        weight: '600'
-                                    },
-                                    color: '#6c757d'
-                                },
-                                ticks: {
-                                    maxRotation: 45
-                                }
+                                grid: { display: false },
+                                ticks: { maxRotation: 45, font: { size: 11 }, color: '#94a3b8' }
                             },
                             y: {
-                                grid: {
-                                    color: 'rgba(0, 0, 0, 0.05)'
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Cantidad de escaneos',
-                                    font: {
-                                        size: 13,
-                                        weight: '600'
-                                    },
-                                    color: '#6c757d'
-                                },
+                                grid: { color: 'rgba(0, 0, 0, 0.04)' },
                                 beginAtZero: true,
-                                ticks: {
-                                    precision: 0,
-                                    stepSize: 1
-                                }
+                                ticks: { precision: 0, stepSize: 1, color: '#94a3b8' }
                             }
                         },
                         plugins: {
                             legend: {
                                 position: 'top',
-                                labels: {
-                                    padding: 20,
-                                    font: {
-                                        size: 12,
-                                        weight: '500'
-                                    },
-                                    usePointStyle: true,
-                                }
+                                labels: { padding: 18, font: { size: 12, weight: '600' }, usePointStyle: true, color: '#475569' }
                             },
                             tooltip: {
-                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                titleColor: '#212529',
-                                bodyColor: '#6c757d',
-                                borderColor: '#dee2e6',
+                                backgroundColor: 'rgba(255, 255, 255, 0.97)',
+                                titleColor: '#1e293b',
+                                bodyColor: '#64748b',
+                                borderColor: '#e2e8f0',
                                 borderWidth: 1,
                                 cornerRadius: 8,
-                                padding: 12,
-                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                                padding: 12
                             }
                         },
-                        interaction: {
-                            intersect: false,
-                            mode: 'index',
-                        }
+                        interaction: { intersect: false, mode: 'index' }
                     }
                 });
             }
@@ -708,23 +680,21 @@
                     const ngLabels = [];
                     const ngCounts = [];
 
-                    // Colores que coinciden con los badges
                     const ngColorsBg = [
-                        'rgba(220, 53, 69, 0.15)',
-                        'rgba(255, 109, 31, 0.15)',
-                        'rgba(255, 193, 7, 0.15)',
-                        'rgba(111, 66, 193, 0.15)',
-                        'rgba(23, 162, 184, 0.15)',
-                        'rgba(108, 117, 125, 0.15)',
+                        'rgba(239, 68, 68, 0.18)',
+                        'rgba(249, 115, 22, 0.18)',
+                        'rgba(245, 158, 11, 0.18)',
+                        'rgba(139, 92, 246, 0.18)',
+                        'rgba(20, 184, 166, 0.18)',
+                        'rgba(100, 116, 139, 0.18)',
                     ];
-
                     const ngColorsBorder = [
-                        'rgba(220, 53, 69, 0.8)',
-                        'rgba(255, 109, 31, 0.8)',
-                        'rgba(255, 193, 7, 0.8)',
-                        'rgba(111, 66, 193, 0.8)',
-                        'rgba(23, 162, 184, 0.8)',
-                        'rgba(108, 117, 125, 0.8)',
+                        'rgba(185, 28, 28, 0.85)',
+                        'rgba(194, 65, 12, 0.85)',
+                        'rgba(180, 83, 9, 0.85)',
+                        'rgba(109, 40, 217, 0.85)',
+                        'rgba(15, 118, 110, 0.85)',
+                        'rgba(71, 85, 105, 0.85)',
                     ];
 
                     @foreach ($ngTypes as $index => $ngType)
@@ -741,25 +711,17 @@
                                 backgroundColor: ngColorsBg.slice(0, ngLabels.length),
                                 borderColor: ngColorsBorder.slice(0, ngLabels.length),
                                 borderWidth: 2,
-                                hoverOffset: 15
+                                hoverOffset: 12
                             }]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            cutout: '65%',
+                            cutout: '64%',
                             plugins: {
                                 legend: {
                                     position: 'bottom',
-                                    labels: {
-                                        padding: 15,
-                                        font: {
-                                            size: 11,
-                                            weight: '500'
-                                        },
-                                        usePointStyle: true,
-                                        pointStyle: 'circle'
-                                    }
+                                    labels: { padding: 14, font: { size: 11, weight: '500' }, usePointStyle: true, pointStyle: 'circle', color: '#475569' }
                                 },
                                 tooltip: {
                                     callbacks: {
@@ -767,7 +729,7 @@
                                             const label = context.label || '';
                                             const value = context.raw || 0;
                                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                            const percentage = Math.round((value / total) * 100);
+                                            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
                                             return `${label}: ${value} (${percentage}%)`;
                                         }
                                     }
@@ -777,13 +739,6 @@
                     });
                 }
             @endif
-
-            // Configurar fecha máxima
-            const dateInput = document.querySelector('input[name="date"]');
-            if (dateInput) {
-                const today = new Date().toISOString().split('T')[0];
-                dateInput.setAttribute('max', today);
-            }
         });
     </script>
 @endsection

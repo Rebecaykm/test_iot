@@ -2,17 +2,17 @@
 
 namespace App\Jobs;
 
+use App\Models\InforSyncSetting;
 use App\Models\ProductionRecord;
-use App\Models\WorkCenter;
-use App\Models\YF013;
+use App\Models\YF013Live;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 
-class SyncProductionRecords implements ShouldQueue
+class SyncProductionRecordsLive implements ShouldQueue
 {
     use Queueable;
 
@@ -25,26 +25,47 @@ class SyncProductionRecords implements ShouldQueue
         //
     }
 
+    protected function log()
+    {
+        return Log::channel('infor_live');
+    }
+
     /**
      * Execute the job.
      */
     public function handle(): void
     {
-        Log::info('Iniciando sincronización masiva con Infor');
+        // Evita que dos ejecuciones (programada + manual, o solapadas) procesen
+        // el mismo lote de registros antes de que cualquiera marque synced_to_infor.
+        $lock = Cache::lock('sync-production-records-live', $this->timeout + 30);
+
+        if (!$lock->get()) {
+            $this->log()->warning('SyncProductionRecordsLive: ya hay una sincronización en curso, se omite esta ejecución');
+            return;
+        }
 
         try {
-            $productionRecords = $this->getEligibleProductionRecords();
+            $setting = InforSyncSetting::forEnvironment(InforSyncSetting::ENVIRONMENT_LIVE);
+
+            if (!$setting || !$setting->enabled) {
+                return;
+            }
+
+            $workCenterNumbers = $setting->workCenterNumbers();
+
+            if (empty($workCenterNumbers)) {
+                return;
+            }
+
+            $productionRecords = $this->getEligibleProductionRecords($workCenterNumbers);
 
             if ($productionRecords->isEmpty()) {
-                Log::info('No hay registros pendientes para sincronizar');
                 return;
             }
 
             $successCount = 0;
             $errorCount = 0;
             $errors = [];
-
-            Log::info("Procesando {$productionRecords->count()} registros");
 
             foreach ($productionRecords as $record) {
                 try {
@@ -62,26 +83,22 @@ class SyncProductionRecords implements ShouldQueue
                 }
             }
 
-            // Solo ejecutamos el procedimiento si hubo inserciones exitosas
             if ($successCount > 0) {
-                $this->executeInforProcedure();
+                $this->logInforTableSnapshot();
+                // $this->executeInforProcedure();
             }
 
             $this->logResults($successCount, $errorCount, $errors);
         } catch (Exception $e) {
-            Log::error('FALLO CRÍTICO en SyncProductionRecords: ' . $e->getMessage());
+            $this->log()->error('FALLO CRÍTICO en SyncProductionRecordsLive: ' . $e->getMessage());
             throw $e;
+        } finally {
+            $lock->release();
         }
     }
 
-    protected function getEligibleProductionRecords()
+    protected function getEligibleProductionRecords(array $workCenterNumbers)
     {
-        $workCentersArray = WorkCenter::whereHas('line', function ($q) {
-            $q->whereIn('name', ['Miniceldas']);
-        })
-            ->pluck('number')
-            ->toArray();
-
         return ProductionRecord::query()
             ->select([
                 'production_records.id',
@@ -108,7 +125,7 @@ class SyncProductionRecords implements ShouldQueue
             ->where('production_records.synced_to_infor', false)
             ->where('production_records.produced_quantity', '>', 0)
             ->where('statuses.name', 'Detenido')
-            ->whereIn('work_centers.number', $workCentersArray)
+            ->whereIn('work_centers.number', $workCenterNumbers)
             ->whereBetween('production_records.planned_date', [
                 Carbon::now()->startOfWeek(),
                 Carbon::now()->endOfWeek()
@@ -131,12 +148,29 @@ class SyncProductionRecords implements ShouldQueue
             ? Carbon::parse($record->production_end)
             : null;
 
+        $plannedDateFormatted = $record->planned_date ? Carbon::parse($record->planned_date)->format('Ymd') : '';
+
+        if ($this->existsInInfor($record, $plannedDateFormatted)) {
+            $this->log()->warning('SyncProductionRecordsLive: el registro ya existía en YF013, se omite el insert duplicado', [
+                'Production Record' => $record->id,
+                'Shop order number' => $record->shop_order_number,
+                'Work Center' => $record->work_number,
+            ]);
+
+            ProductionRecord::where('id', $record->id)->update([
+                'synced_to_infor' => true,
+                'synced_at' => $now,
+            ]);
+
+            return ['success' => true];
+        }
+
         // Intentar insertar en la tabla de paso YF013
-        $inserted = YF013::query()
+        $inserted = YF013Live::query()
             ->insert([
                 'YFWRKC' => $record->work_number ?? '',
                 'YFWRKN' => $record->work_name ?? '',
-                'YFRDTE' => $record->planned_date ? Carbon::parse($record->planned_date)->format('Ymd') : '',
+                'YFRDTE' => $plannedDateFormatted,
                 'YFSHFT' => $record->shift_abbreviation ?? '',
                 'YFPPNO' => '',
                 'YFSORD' => $record->shop_order_number ?? '',
@@ -154,7 +188,7 @@ class SyncProductionRecords implements ShouldQueue
                 'YFCRUS' => 'IOT',
             ]);
 
-        Log::info('SyncProductionRecords', [
+        $this->log()->info('SyncProductionRecordsLive', [
             'Shop order number' => $record->shop_order_number,
             'Work Center' => $record->work_number,
             'Part Number' => $record->part_number,
@@ -176,12 +210,57 @@ class SyncProductionRecords implements ShouldQueue
     }
 
     /**
+     * Verifica si el registro ya existe en la tabla puente de Infor YF013
+     *
+     */
+    protected function existsInInfor($record, string $plannedDateFormatted): bool
+    {
+        return YF013Live::query()
+            ->where('YFWRKC', $record->work_number ?? '')
+            ->where('YFSORD', $record->shop_order_number ?? '')
+            ->where('YFRDTE', $plannedDateFormatted)
+            ->where('YFSHFT', $record->shift_abbreviation ?? '')
+            ->where('YFPROD', $record->part_number ?? '')
+            ->count() > 0;
+    }
+
+    /**
+     * Registra en el log todo el contenido de la tabla YF013 antes de ejecutar
+     * el programa de Infor, para poder rastrear registros duplicados
+     */
+    protected function logInforTableSnapshot()
+    {
+        $rows = YF013Live::query()->get();
+
+        $this->log()->info("SyncProductionRecordsLive: contenido de LX834FU01.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
+
+        foreach ($rows as $index => $row) {
+            $this->log()->info(sprintf(
+                'YF013 Live [%d] | WorkCenter: %s (%s) | Orden: %s | Parte: %s | Fecha: %s | Turno: %s | Inicio: %s | Fin: %s | Plan: %s | Prod: %s | Scrap: %s | Creado: %s %s por %s',
+                $index + 1,
+                trim($row->YFWRKC ?? ''),
+                trim($row->YFWRKN ?? ''),
+                trim($row->YFSORD ?? ''),
+                trim($row->YFPROD ?? ''),
+                trim($row->YFRDTE ?? ''),
+                trim($row->YFSHFT ?? ''),
+                trim($row->YFSTIM ?? ''),
+                trim($row->YFETIM ?? ''),
+                $row->YFQPLA ?? '',
+                $row->YFQPRO ?? '',
+                $row->YFQSCR ?? '',
+                trim($row->YFCRDT ?? ''),
+                trim($row->YFCRTM ?? ''),
+                trim($row->YFCRUS ?? '')
+            ));
+        }
+    }
+
+    /**
      * Ejecuta el programa almacenado en Infor
      */
     protected function executeInforProcedure()
     {
-        Log::info('Ejecutando procedimiento LX834OU01.YSF013C');
-
         $dsn = "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR";
 
         $conn = odbc_connect($dsn, "", "");
@@ -190,7 +269,7 @@ class SyncProductionRecords implements ShouldQueue
             throw new Exception("Fallo de conexión ODBC: " . odbc_errormsg());
         }
 
-        $result = odbc_exec($conn, "CALL LX834OU01.YSF013C");
+        $result = @odbc_exec($conn, "CALL LX834OU.YSF013C");
 
         if (!$result) {
             $error = odbc_errormsg($conn);
@@ -206,9 +285,8 @@ class SyncProductionRecords implements ShouldQueue
      */
     protected function logResults($successCount, $errorCount, $errors)
     {
-        Log::info("Sincronización terminada. Éxitos: $successCount, Errores: $errorCount");
         if ($errorCount > 0) {
-            Log::warning("Detalle de errores: " . implode(', ', $errors));
+            $this->log()->warning("SyncProductionRecordsLive terminó con $errorCount errores. Detalle: " . implode(', ', $errors));
         }
     }
 
@@ -217,6 +295,6 @@ class SyncProductionRecords implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
-        Log::error('El Job SyncProductionRecords ha fallado definitivamente: ' . $exception->getMessage());
+        $this->log()->error('El Job SyncProductionRecordsLive ha fallado definitivamente: ' . $exception->getMessage());
     }
 }
