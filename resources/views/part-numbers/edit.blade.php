@@ -52,50 +52,28 @@
 
                 {{-- Información de solo lectura --}}
                 <div class="row mb-3">
-                    <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="col-6 col-md-3 mb-3 mb-md-0">
                         <label class="field-label">Estación</label>
                         <div class="field-readonly">
                             {{ $partNumber->workCenter->name ?? 'No asignada' }}
                         </div>
                     </div>
 
-                    <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="col-6 col-md-3 mb-3 mb-md-0">
                         <label class="field-label">Número</label>
                         <div class="field-readonly" style="font-family: 'SFMono-Regular', Consolas, monospace;">
                             {{ $partNumber->number }}
                         </div>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-6 col-md-3">
                         <label class="field-label">Nombre</label>
                         <div class="field-readonly">
                             {{ $partNumber->name }}
                         </div>
                     </div>
-                </div>
 
-                <div class="row mb-4">
-                    <div class="col-md-4 mb-3 mb-md-0">
-                        <label class="field-label">Clase</label>
-                        <div class="field-readonly">
-                            <span class="badge-soft badge-secondary">{{ $partNumber->itemClass->abbreviation ?? '-' }}</span>
-                        </div>
-                    </div>
-
-                    <div class="col-md-4 mb-3 mb-md-0">
-                        <label class="field-label">Tasa de Producción</label>
-                        <div class="field-readonly">
-                            <span class="badge-soft badge-primary">
-                                @if ($partNumber->production_rate != 0)
-                                    {{ number_format(60 / $partNumber->production_rate, 2) }}
-                                @else
-                                    0.0
-                                @endif
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="col-md-4">
+                    <div class="col-6 col-md-3">
                         <label class="field-label">Estado</label>
                         <div class="field-readonly">
                             @if ($partNumber->is_obsolete)
@@ -111,9 +89,46 @@
                     </div>
                 </div>
 
+                <div class="row mb-4">
+                    <div class="col-6 col-md-3 mb-3 mb-md-0">
+                        <label class="field-label">Clase</label>
+                        <div class="field-readonly">
+                            <span
+                                class="badge-soft badge-secondary">{{ $partNumber->itemClass->abbreviation ?? '-' }}</span>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="field-label">Standard Pack</label>
+                        <div class="field-readonly">
+                            {{ $partNumber->standardPack->name ?? '-' }}
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="field-label">Cantidad Standard Pack</label>
+                        <div class="field-readonly">
+                            {{ $partNumber->standard_pack_quantity ?? '-' }}
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3 mb-3 mb-md-0">
+                        <label class="field-label">Tasa de Producción</label>
+                        <div class="field-readonly">
+                            <span class="badge-soft badge-primary">
+                                @if ($partNumber->production_rate != 0)
+                                    {{ number_format(60 / $partNumber->production_rate, 2) }}
+                                @else
+                                    0.0
+                                @endif
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Campos editables --}}
                 <div class="row mb-3">
-                    <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="col-6 col-md-3 mb-3 mb-md-0">
                         <label for="production_order" class="field-label">Orden de Producción</label>
                         <input type="number" name="production_order" id="production_order" min="0" step="1"
                             class="field-input @error('production_order') is-invalid @enderror"
@@ -125,7 +140,7 @@
                         <small class="field-hint">Orden en que se debe producir este número de parte en la estación</small>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-6 col-md-3">
                         <label for="efficiency" class="field-label">Eficiencia (%)</label>
                         <input type="number" name="efficiency" id="efficiency" step="0.01" min="0" max="100"
                             class="field-input @error('efficiency') is-invalid @enderror"
@@ -171,8 +186,9 @@
                         </thead>
                         <tbody>
                             @php
-                                $allPartNumbers = $partNumbersInSameWorkCenter->concat(collect([$partNumber]))
-                                    ->sortBy(fn ($item) => $item->production_order ?? 9999);
+                                $allPartNumbers = $partNumbersInSameWorkCenter
+                                    ->concat(collect([$partNumber]))
+                                    ->sortBy(fn($item) => $item->production_order ?? 9999);
                             @endphp
                             @foreach ($allPartNumbers as $pn)
                                 <tr class="td-row {{ $pn->id === $partNumber->id ? 'row-current' : '' }}">
@@ -189,8 +205,10 @@
                                     <td class="td-cell">
                                         <div class="d-flex align-items-center" style="gap: 0.5rem;">
                                             <div>
-                                                <div class="fw-600 text-dark" style="font-size: 0.85rem;">{{ $pn->number }}</div>
-                                                <div class="text-muted" style="font-size: 0.75rem;">{{ $pn->name }}</div>
+                                                <div class="fw-600 text-dark" style="font-size: 0.85rem;">
+                                                    {{ $pn->number }}</div>
+                                                <div class="text-muted" style="font-size: 0.75rem;">{{ $pn->name }}
+                                                </div>
                                             </div>
                                             @if ($pn->id === $partNumber->id)
                                                 <span class="badge-soft badge-warning">
@@ -250,7 +268,8 @@
                         @forelse ($visualAids as $visualAid)
                             <tr class="td-row">
                                 <td class="td-cell">
-                                    <img src="{{ asset('storage/' . $visualAid->path) }}" alt="{{ $visualAid->alt_text }}"
+                                    <img src="{{ asset('storage/' . $visualAid->path) }}"
+                                        alt="{{ $visualAid->alt_text }}"
                                         style="width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0;">
                                 </td>
                                 <td class="td-cell">
@@ -303,7 +322,12 @@
 @section('css')
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body, .card, .btn, .form-control, .table, .content-header h1 {
+        body,
+        .card,
+        .btn,
+        .form-control,
+        .table,
+        .content-header h1 {
             font-family: 'Inter', sans-serif !important;
         }
 
@@ -329,45 +353,54 @@
             white-space: nowrap;
             cursor: pointer;
         }
+
         .btn-action-sm {
             padding: 0.3rem 0.7rem;
             font-size: 0.75rem;
         }
+
         .btn-action-primary {
             background: #eff6ff;
             color: #1d4ed8;
             border-color: #93c5fd;
         }
+
         .btn-action-primary:hover {
             background: #dbeafe;
             color: #1e40af;
             text-decoration: none;
         }
+
         .btn-action-secondary {
             background: transparent;
             color: #64748b;
             border-color: #e2e8f0;
         }
+
         .btn-action-secondary:hover {
             background: #f1f5f9;
             color: #475569;
             text-decoration: none;
         }
+
         .btn-action-danger {
             background: #fff1f2;
             color: #b91c1c;
             border-color: #fca5a5;
         }
+
         .btn-action-danger:hover {
             background: #fee2e2;
             color: #991b1b;
             text-decoration: none;
         }
+
         .btn-action-solid {
             background: #1d4ed8;
             color: #fff;
             border-color: #1d4ed8;
         }
+
         .btn-action-solid:hover {
             background: #1e40af;
             border-color: #1e40af;
@@ -384,6 +417,7 @@
             color: #64748b;
             margin-bottom: 0.4rem;
         }
+
         .field-readonly {
             display: flex;
             align-items: center;
@@ -395,6 +429,7 @@
             border: 1.5px solid #e2e8f0;
             border-radius: 7px;
         }
+
         .field-input {
             display: block;
             width: 100%;
@@ -409,24 +444,30 @@
             outline: none;
             transition: border-color 0.15s, box-shadow 0.15s;
         }
+
         .field-input:focus {
             border-color: #93c5fd;
             box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
         }
+
         .field-input::placeholder {
             color: #94a3b8;
         }
+
         .field-input.is-invalid {
             border-color: #fca5a5;
         }
+
         .field-input.is-invalid:focus {
             box-shadow: 0 0 0 3px rgba(252, 165, 165, 0.25);
         }
+
         .field-error {
             font-size: 0.78rem;
             color: #b91c1c;
             margin-top: 0.3rem;
         }
+
         .field-hint {
             display: block;
             font-size: 0.75rem;
@@ -439,6 +480,7 @@
             background: #f8fafc;
             border-bottom: 2px solid #e2e8f0;
         }
+
         .th-cell {
             font-size: 0.7rem !important;
             font-weight: 700 !important;
@@ -449,21 +491,26 @@
             padding: 0.65rem 0.85rem !important;
             white-space: nowrap;
         }
+
         .td-row {
             border-bottom: 1px solid #f1f5f9 !important;
             transition: background 0.1s ease;
         }
+
         .td-row:hover {
             background-color: #f8fafc !important;
         }
+
         .td-cell {
             padding: 0.5rem 0.85rem !important;
             vertical-align: middle !important;
             border-top: none !important;
         }
+
         .row-current {
             background-color: #fefce8 !important;
         }
+
         .row-current:hover {
             background-color: #fef9c3 !important;
         }
@@ -478,14 +525,40 @@
             font-weight: 600;
             white-space: nowrap;
         }
-        .badge-soft.badge-primary   { background: #eff6ff; color: #1d4ed8; }
-        .badge-soft.badge-success   { background: #f0fdf4; color: #15803d; }
-        .badge-soft.badge-danger    { background: #fef2f2; color: #b91c1c; }
-        .badge-soft.badge-warning   { background: #fefce8; color: #92400e; }
-        .badge-soft.badge-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
 
-        .fw-500 { font-weight: 500; }
-        .fw-600 { font-weight: 600; }
+        .badge-soft.badge-primary {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .badge-soft.badge-success {
+            background: #f0fdf4;
+            color: #15803d;
+        }
+
+        .badge-soft.badge-danger {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .badge-soft.badge-warning {
+            background: #fefce8;
+            color: #92400e;
+        }
+
+        .badge-soft.badge-secondary {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .fw-500 {
+            font-weight: 500;
+        }
+
+        .fw-600 {
+            font-weight: 600;
+        }
     </style>
 @stop
 
@@ -494,7 +567,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Confirmación antes de eliminar imágenes
             document.querySelectorAll('.delete-form').forEach(form => {
-                form.addEventListener('submit', function (e) {
+                form.addEventListener('submit', function(e) {
                     e.preventDefault();
 
                     if (typeof Swal !== 'undefined') {
@@ -512,7 +585,9 @@
                                 this.submit();
                             }
                         });
-                    } else if (confirm('¿Estás seguro de que deseas eliminar esta imagen? Esta acción no se puede deshacer.')) {
+                    } else if (confirm(
+                            '¿Estás seguro de que deseas eliminar esta imagen? Esta acción no se puede deshacer.'
+                            )) {
                         this.submit();
                     }
                 });
