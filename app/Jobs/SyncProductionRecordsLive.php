@@ -166,6 +166,8 @@ class SyncProductionRecordsLive implements ShouldQueue
             return ['success' => true];
         }
 
+        [$plannedToSend, $producedToSend] = $this->resolveInforQuantities($record);
+
         // Intentar insertar en la tabla de paso YF013
         $inserted = YF013Live::query()
             ->insert([
@@ -180,8 +182,8 @@ class SyncProductionRecordsLive implements ShouldQueue
                 'YFETIM' => $productionEnd ? $productionEnd->format('Hi') : '',
                 'YFSDT' => $productionStart ? $productionStart->format('YmdHi') : '',
                 'YFEDT' => $productionEnd ? $productionEnd->format('YmdHi') : '',
-                'YFQPLA' => $record->planned_quantity ?: $record->produced_quantity,
-                'YFQPRO' => $record->produced_quantity - ($record->scrap_quantity ?? 0),
+                'YFQPLA' => $plannedToSend,
+                'YFQPRO' => $producedToSend,
                 'YFQSCR' => $record->scrap_quantity ?? 0,
                 'YFSCRE' => ($record->scrap_quantity ?? 0) == 0 ? '' : 'RJ',
                 'YFCRDT' => $now->format('Ymd'),
@@ -208,6 +210,30 @@ class SyncProductionRecordsLive implements ShouldQueue
         }
 
         return ['success' => false, 'message' => 'Fallo al insertar en YF013'];
+    }
+
+    /**
+     * Calcula las cantidades a enviar a YF013, compensando la sonda que
+     * RecoverProductionOrderNumbersLive manda para generar el número de orden.
+     *
+     * La sonda inserta YFQPLA=1 y YFQPRO=1 en Infor. Si el registro nunca tuvo
+     * un plan real (planned_quantity=0 localmente), significa que su orden se
+     * creó vía la sonda: se hardcodea YFQPLA=1 (no hay plan real que mandar) y
+     * se resta 1 a YFQPRO para que, al sumarse en Infor con lo que dejó la
+     * sonda, el total final coincida con produced_quantity. Si sí tenía un
+     * plan real (planned_quantity > 0), el registro nunca pasó por la sonda
+     * (ya traía shop_order_number desde el plan de Infor) y se manda igual
+     * que siempre, sin ajuste.
+     */
+    protected function resolveInforQuantities($record): array
+    {
+        $producedNet = $record->produced_quantity - ($record->scrap_quantity ?? 0);
+
+        if ((int) $record->planned_quantity === 0) {
+            return [1, max(0, $producedNet - 1)];
+        }
+
+        return [$record->planned_quantity, $producedNet];
     }
 
     /**

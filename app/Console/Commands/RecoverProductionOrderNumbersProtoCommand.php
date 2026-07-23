@@ -26,8 +26,6 @@ class RecoverProductionOrderNumbersProtoCommand extends Command
      */
     public function handle()
     {
-        $this->info('Dispatching RecoverProductionOrderNumbersProto job...');
         RecoverProductionOrderNumbersProto::dispatch();
-        $this->info('Job dispatched RecoverProductionOrderNumbersProto successfully.');
     }
 }
