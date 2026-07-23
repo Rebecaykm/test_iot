@@ -85,6 +85,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
             }
 
             if ($probesSent > 0) {
+                $this->logInforTableSnapshot();
                 $this->executeInforProcedure();
                 sleep(self::FSO_LOOKUP_DELAY_SECONDS);
             }
@@ -108,10 +109,13 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
                     ]);
 
                     $this->log()->info('RecoverProductionOrderNumbersProto: número de orden recuperado', [
-                        'Production Record' => $record->id,
-                        'Work Center' => $record->work_number,
-                        'Part Number' => $record->part_number,
-                        'Shop order number' => $orderNumber,
+                        'Estación' => $record->work_name,
+                        'Número de parte' => $record->part_number,
+                        'Número de orden' => $orderNumber,
+                        'Fecha planeada' => $plannedDateFormatted,
+                        'Turno planeado' => $record->shift_abbreviation,
+                        'Cantidad planeada' => $record->planned_quantity,
+                        'Cantidad producida' => $record->produced_quantity,
                     ]);
 
                     $recoveredCount++;
@@ -139,6 +143,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
         return ProductionRecord::query()
             ->select([
                 'production_records.id',
+                'production_records.planned_quantity',
                 'production_records.produced_quantity',
                 'production_records.planned_date',
                 'production_records.production_start',
@@ -226,14 +231,6 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
             'YFCRTM' => $now->format('His'),
             'YFCRUS' => 'IOT',
         ]);
-
-        $this->log()->info('RecoverProductionOrderNumbersProto: sonda enviada a YF013', [
-            'Production Record' => $record->id,
-            'Work Center' => $record->work_number,
-            'Part Number' => $record->part_number,
-            'Planned Date' => $plannedDateFormatted,
-            'Shift' => $record->shift_abbreviation,
-        ]);
     }
 
     /**
@@ -253,6 +250,38 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
         }
 
         return trim($fso->SORD);
+    }
+
+    /**
+     * Registra en el log todo el contenido de la tabla YF013 antes de ejecutar
+     * el programa de Infor, para poder rastrear registros duplicados
+     */
+    protected function logInforTableSnapshot()
+    {
+        $rows = YF013Proto::query()->get();
+
+        $this->log()->info("RecoverProductionOrderNumbersProto: contenido de LX834FU02.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
+
+        foreach ($rows as $index => $row) {
+            $this->log()->info(sprintf(
+                'YF013 Proto [%d] | WorkCenter: %s (%s) | Orden: %s | Parte: %s | Fecha: %s | Turno: %s | Inicio: %s | Fin: %s | Plan: %s | Prod: %s | Scrap: %s | Creado: %s %s por %s',
+                $index + 1,
+                trim($row->YFWRKC ?? ''),
+                trim($row->YFWRKN ?? ''),
+                trim($row->YFSORD ?? ''),
+                trim($row->YFPROD ?? ''),
+                trim($row->YFRDTE ?? ''),
+                trim($row->YFSHFT ?? ''),
+                trim($row->YFSTIM ?? ''),
+                trim($row->YFETIM ?? ''),
+                $row->YFQPLA ?? '',
+                $row->YFQPRO ?? '',
+                $row->YFQSCR ?? '',
+                trim($row->YFCRDT ?? ''),
+                trim($row->YFCRTM ?? ''),
+                trim($row->YFCRUS ?? '')
+            ));
+        }
     }
 
     /**

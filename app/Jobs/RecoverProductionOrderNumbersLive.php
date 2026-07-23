@@ -94,6 +94,7 @@ class RecoverProductionOrderNumbersLive implements ShouldQueue
             }
 
             if ($probesSent > 0) {
+                $this->logInforTableSnapshot();
                 $this->executeInforProcedure();
                 sleep(self::FSO_LOOKUP_DELAY_SECONDS);
             }
@@ -117,10 +118,13 @@ class RecoverProductionOrderNumbersLive implements ShouldQueue
                     ]);
 
                     $this->log()->info('RecoverProductionOrderNumbersLive: número de orden recuperado', [
-                        'Production Record' => $record->id,
-                        'Work Center' => $record->work_number,
-                        'Part Number' => $record->part_number,
-                        'Shop order number' => $orderNumber,
+                        'Estación' => $record->work_name,
+                        'Número de parte' => $record->part_number,
+                        'Número de orden' => $orderNumber,
+                        'Fecha planeada' => $plannedDateFormatted,
+                        'Turno planeado' => $record->shift_abbreviation,
+                        'Cantidad planeada' => $record->planned_quantity,
+                        'Cantidad producida' => $record->produced_quantity,
                     ]);
 
                     $recoveredCount++;
@@ -148,6 +152,7 @@ class RecoverProductionOrderNumbersLive implements ShouldQueue
         return ProductionRecord::query()
             ->select([
                 'production_records.id',
+                'production_records.planned_quantity',
                 'production_records.produced_quantity',
                 'production_records.planned_date',
                 'production_records.production_start',
@@ -169,7 +174,7 @@ class RecoverProductionOrderNumbersLive implements ShouldQueue
             // la cantidad ya registrada en FSO. Requieren revisión/backfill manual aparte.
             ->where('production_records.synced_to_infor', false)
             ->where('production_records.produced_quantity', '>', 0)
-            ->where('statuses.name', 'Detenido')
+            // ->where('statuses.name', 'Detenido')
             ->whereIn('work_centers.number', $workCenterNumbers)
             ->whereBetween('production_records.planned_date', [
                 Carbon::now()->startOfWeek(),
@@ -235,14 +240,6 @@ class RecoverProductionOrderNumbersLive implements ShouldQueue
             'YFCRTM' => $now->format('His'),
             'YFCRUS' => 'IOT',
         ]);
-
-        $this->log()->info('RecoverProductionOrderNumbersLive: sonda enviada a YF013', [
-            'Production Record' => $record->id,
-            'Work Center' => $record->work_number,
-            'Part Number' => $record->part_number,
-            'Planned Date' => $plannedDateFormatted,
-            'Shift' => $record->shift_abbreviation,
-        ]);
     }
 
     /**
@@ -262,6 +259,38 @@ class RecoverProductionOrderNumbersLive implements ShouldQueue
         }
 
         return trim($fso->SORD);
+    }
+
+    /**
+     * Registra en el log todo el contenido de la tabla YF013 antes de ejecutar
+     * el programa de Infor, para poder rastrear registros duplicados
+     */
+    protected function logInforTableSnapshot()
+    {
+        $rows = YF013Live::query()->get();
+
+        $this->log()->info("RecoverProductionOrderNumbersLive: contenido de LX834FU01.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
+
+        foreach ($rows as $index => $row) {
+            $this->log()->info(sprintf(
+                'YF013 Live [%d] | WorkCenter: %s (%s) | Orden: %s | Parte: %s | Fecha: %s | Turno: %s | Inicio: %s | Fin: %s | Plan: %s | Prod: %s | Scrap: %s | Creado: %s %s por %s',
+                $index + 1,
+                trim($row->YFWRKC ?? ''),
+                trim($row->YFWRKN ?? ''),
+                trim($row->YFSORD ?? ''),
+                trim($row->YFPROD ?? ''),
+                trim($row->YFRDTE ?? ''),
+                trim($row->YFSHFT ?? ''),
+                trim($row->YFSTIM ?? ''),
+                trim($row->YFETIM ?? ''),
+                $row->YFQPLA ?? '',
+                $row->YFQPRO ?? '',
+                $row->YFQSCR ?? '',
+                trim($row->YFCRDT ?? ''),
+                trim($row->YFCRTM ?? ''),
+                trim($row->YFCRUS ?? '')
+            ));
+        }
     }
 
     /**
