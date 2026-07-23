@@ -16,6 +16,9 @@ Schedule::command('iot:die-identifier')->cron('0 0 * * *')->withoutOverlapping()
 Schedule::command('iot:part-shots')->cron('5 0 * * *')->withoutOverlapping();
 Schedule::command('iot:production-plan')->cron('0 * * * *')->withoutOverlapping();
 
+Schedule::command('iot:recover-production-order-numbers-live')->hourly()->withoutOverlapping();
+Schedule::command('iot:recover-production-order-numbers-proto')->hourly()->withoutOverlapping();
+
 Schedule::command('iot:sync-production-records-live')->cron('36 17 * * *')->withoutOverlapping();
 Schedule::command('iot:sync-production-records-live')->cron('06 20 * * *')->withoutOverlapping();
 Schedule::command('iot:sync-production-records-live')->cron('56 04 * * *')->withoutOverlapping();
