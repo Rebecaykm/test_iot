@@ -169,10 +169,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
             ->where('production_records.produced_quantity', '>', 0)
             // ->where('statuses.name', 'Detenido')
             ->whereIn('work_centers.number', $workCenterNumbers)
-            ->whereBetween('production_records.planned_date', [
-                Carbon::now()->startOfWeek(),
-                Carbon::now()->endOfWeek()
-            ])
+            ->whereDate('production_records.planned_date', Carbon::today())
             ->get();
     }
 

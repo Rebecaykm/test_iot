@@ -76,7 +76,6 @@ class RecoverProductionOrderNumbersLive implements ShouldQueue
             $errorCount = 0;
             $errors = [];
 
-            // Fase 1: manda sondas pendientes a YF013 (el procedimiento corre una sola vez, después)
             $probesSent = 0;
 
             foreach ($productionRecords as $record) {
@@ -101,7 +100,6 @@ class RecoverProductionOrderNumbersLive implements ShouldQueue
                 sleep(self::FSO_LOOKUP_DELAY_SECONDS);
             }
 
-            // Fase 2: consulta FSO y recupera el número de orden
             $recoveredCount = 0;
 
             foreach ($productionRecords as $record) {
@@ -171,10 +169,7 @@ class RecoverProductionOrderNumbersLive implements ShouldQueue
             ->where('production_records.produced_quantity', '>', 0)
             // ->where('statuses.name', 'Detenido')
             ->whereIn('work_centers.number', $workCenterNumbers)
-            ->whereBetween('production_records.planned_date', [
-                Carbon::now()->startOfWeek(),
-                Carbon::now()->endOfWeek()
-            ])
+            ->whereDate('production_records.planned_date', Carbon::today())
             ->get();
     }
 
