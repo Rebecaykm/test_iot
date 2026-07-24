@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\CallsInforProcedure;
 use App\Models\InforSyncSetting;
 use App\Models\ProductionRecord;
 use App\Models\YF013Live;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 
 class SyncProductionRecordsLive implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, CallsInforProcedure;
 
     public $tries = 3;
     public $backoff = 60;
@@ -35,8 +36,7 @@ class SyncProductionRecordsLive implements ShouldQueue
      */
     public function handle(): void
     {
-        // Evita que dos ejecuciones (programada + manual, o solapadas) procesen
-        // el mismo lote de registros antes de que cualquiera marque synced_to_infor.
+        // Evita ejecuciones simultáneas
         $lock = Cache::lock('sync-production-records-live', $this->timeout + 30);
 
         if (!$lock->get()) {
@@ -91,7 +91,7 @@ class SyncProductionRecordsLive implements ShouldQueue
 
             if ($successCount > 0) {
                 $this->logInforTableSnapshot();
-                // $this->executeInforProcedure();
+                // $this->callInforProcedure('LX834OU.YSF013C');
             }
 
             $this->logResults($successCount, $errorCount, $errors);
@@ -172,7 +172,7 @@ class SyncProductionRecordsLive implements ShouldQueue
             return ['success' => true];
         }
 
-        [$plannedToSend, $producedToSend] = $this->resolveInforQuantities($record);
+        [$plannedToSend, $producedToSend] = $record->inforQuantities();
 
         // Intentar insertar en la tabla de paso YF013
         $inserted = YF013Live::query()
@@ -219,32 +219,7 @@ class SyncProductionRecordsLive implements ShouldQueue
     }
 
     /**
-     * Calcula las cantidades a enviar a YF013, compensando la sonda que
-     * RecoverProductionOrderNumbersLive manda para generar el número de orden.
-     *
-     * La sonda inserta YFQPLA=1 y YFQPRO=1 en Infor. Si el registro nunca tuvo
-     * un plan real (planned_quantity=0 localmente), significa que su orden se
-     * creó vía la sonda: se hardcodea YFQPLA=1 (no hay plan real que mandar) y
-     * se resta 1 a YFQPRO para que, al sumarse en Infor con lo que dejó la
-     * sonda, el total final coincida con produced_quantity. Si sí tenía un
-     * plan real (planned_quantity > 0), el registro nunca pasó por la sonda
-     * (ya traía shop_order_number desde el plan de Infor) y se manda igual
-     * que siempre, sin ajuste.
-     */
-    protected function resolveInforQuantities($record): array
-    {
-        $producedNet = $record->produced_quantity - ($record->scrap_quantity ?? 0);
-
-        if ((int) $record->planned_quantity === 0) {
-            return [1, max(0, $producedNet - 1)];
-        }
-
-        return [$record->planned_quantity, $producedNet];
-    }
-
-    /**
-     * Verifica si el registro ya existe en la tabla puente de Infor YF013
-     *
+     * true si el registro ya existe en YF013 (evita insert duplicado)
      */
     protected function existsInInfor($record, string $plannedDateFormatted): bool
     {
@@ -258,59 +233,17 @@ class SyncProductionRecordsLive implements ShouldQueue
     }
 
     /**
-     * Registra en el log todo el contenido de la tabla YF013 antes de ejecutar
-     * el programa de Infor, para poder rastrear registros duplicados
+     * Vuelca YF013 al log antes de correr el procedimiento
      */
     protected function logInforTableSnapshot()
     {
-        $rows = YF013Live::query()->get();
+        $lines = YF013Live::snapshotLines();
 
-        $this->log()->info("[YF013 - SNAPSHOT] SyncProductionRecordsLive: contenido de LX834FU01.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
+        $this->log()->info('[YF013 - SNAPSHOT] SyncProductionRecordsLive: contenido de LX834FU01.YF013 (' . count($lines) . ' registros)');
 
-        foreach ($rows as $index => $row) {
-            $this->log()->info(sprintf(
-                'YF013 Live [%d] | WorkCenter: %s (%s) | Orden: %s | Parte: %s | Fecha: %s | Turno: %s | Inicio: %s | Fin: %s | Plan: %s | Prod: %s | Scrap: %s | Creado: %s %s por %s',
-                $index + 1,
-                trim($row->YFWRKC ?? ''),
-                trim($row->YFWRKN ?? ''),
-                trim($row->YFSORD ?? ''),
-                trim($row->YFPROD ?? ''),
-                trim($row->YFRDTE ?? ''),
-                trim($row->YFSHFT ?? ''),
-                trim($row->YFSTIM ?? ''),
-                trim($row->YFETIM ?? ''),
-                $row->YFQPLA ?? '',
-                $row->YFQPRO ?? '',
-                $row->YFQSCR ?? '',
-                trim($row->YFCRDT ?? ''),
-                trim($row->YFCRTM ?? ''),
-                trim($row->YFCRUS ?? '')
-            ));
+        foreach ($lines as $line) {
+            $this->log()->info($line);
         }
-    }
-
-    /**
-     * Ejecuta el programa almacenado en Infor
-     */
-    protected function executeInforProcedure()
-    {
-        $dsn = "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR";
-
-        $conn = odbc_connect($dsn, "", "");
-
-        if (!$conn) {
-            throw new Exception("Fallo de conexión ODBC: " . odbc_errormsg());
-        }
-
-        $result = @odbc_exec($conn, "CALL LX834OU.YSF013C");
-
-        if (!$result) {
-            $error = odbc_errormsg($conn);
-            odbc_close($conn);
-            throw new Exception("Error en el procedimiento Infor: " . $error);
-        }
-
-        odbc_close($conn);
     }
 
     /**
@@ -326,7 +259,7 @@ class SyncProductionRecordsLive implements ShouldQueue
     }
 
     /**
-     * Método opcional para manejar fallos del job
+     * Fallo definitivo del job
      */
     public function failed(Exception $exception)
     {

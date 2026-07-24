@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasYf013Snapshot;
 use Illuminate\Database\Eloquent\Model;
 
 class YF013Proto extends Model
 {
+    use HasYf013Snapshot;
+
     protected $connection = 'infor-proto';
     protected $table = 'LX834FU02.YF013';
 

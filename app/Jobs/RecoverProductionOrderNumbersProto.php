@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\CallsInforProcedure;
 use App\Models\FSOProto;
 use App\Models\InforSyncSetting;
 use App\Models\ProductionRecord;
@@ -16,12 +17,13 @@ use Illuminate\Support\Facades\Log;
 
 class RecoverProductionOrderNumbersProto implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, CallsInforProcedure;
 
     public $tries = 3;
     public $backoff = 60;
     public $timeout = 600;
 
+    /** Espera a que Infor procese YF013 antes de consultar FSO */
     protected const FSO_LOOKUP_DELAY_SECONDS = 120;
 
     public function __construct()
@@ -94,13 +96,10 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
 
             if ($probesSent > 0) {
                 $this->logInforTableSnapshot();
-                $this->executeInforProcedure();
+                $this->callInforProcedure('LX834OU02.YSF013C');
                 sleep(self::FSO_LOOKUP_DELAY_SECONDS);
             }
 
-            // Fase 2: ya con el procedimiento corrido (o si ya venían sondas
-            // pendientes de una corrida anterior), consultamos FSO por cada
-            // registro para recuperar el número de orden.
             $recoveredCount = 0;
 
             foreach ($productionRecords as $record) {
@@ -143,8 +142,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
     }
 
     /**
-     * Registros de producción sin número de orden que ya iniciaron/terminaron
-     * producción y siguen a la espera de que Infor genere su shop order.
+     * Registros elegibles para recuperar su número de orden
      */
     protected function getEligibleProductionRecords(array $workCenterNumbers)
     {
@@ -166,11 +164,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->whereNull('production_records.shop_order_number')
-            // Solo registros que nunca se han sincronizado. Los que ya se enviaron
-            // a Infor con cantidad real (synced_to_infor=true) antes de este cambio
-            // y se quedaron sin shop_order_number quedan fuera de este Job a propósito:
-            // no se les puede mandar otra sonda con qty=1 sin arriesgar duplicar/alterar
-            // la cantidad ya registrada en FSO. Requieren revisión/backfill manual aparte.
+            // Excluye legacy ya sincronizados sin orden (requieren backfill manual, no sonda)
             ->where('production_records.synced_to_infor', false)
             ->where('production_records.produced_quantity', '>', 0)
             // ->where('statuses.name', 'Detenido')
@@ -188,8 +182,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
     }
 
     /**
-     * Verifica si ya se envió una sonda (YFSORD vacío) para este registro,
-     * para no volver a mandarla y duplicar la cantidad en Infor.
+     * true si ya hay una sonda pendiente (YFSORD vacío) para este registro
      */
     protected function probeExistsInInfor($record, string $plannedDateFormatted): bool
     {
@@ -203,9 +196,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
     }
 
     /**
-     * Inserta una sonda con cantidad mínima (1) en YF013 solo para que Infor
-     * genere el número de orden. Las cantidades reales las envía
-     * SyncProductionRecordsProto una vez que el registro ya tenga shop_order_number.
+     * Inserta sonda (qty=1) en YF013 para generar el número de orden
      */
     protected function sendProbe($record, string $plannedDateFormatted): void
     {
@@ -242,7 +233,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
     }
 
     /**
-     * Consulta FSO en busca del número de orden (SORD) asignado a la sonda.
+     * Busca en FSO el número de orden (SORD) de la sonda
      */
     protected function fetchOrderNumberFromFso($record, string $plannedDateFormatted): ?string
     {
@@ -271,59 +262,17 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
     }
 
     /**
-     * Registra en el log todo el contenido de la tabla YF013 antes de ejecutar
-     * el programa de Infor, para poder rastrear registros duplicados
+     * Vuelca YF013 al log antes de correr el procedimiento
      */
     protected function logInforTableSnapshot()
     {
-        $rows = YF013Proto::query()->get();
+        $lines = YF013Proto::snapshotLines();
 
-        $this->log()->info("[YF013 - SNAPSHOT] RecoverProductionOrderNumbersProto: contenido de LX834FU02.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
+        $this->log()->info('[YF013 - SNAPSHOT] RecoverProductionOrderNumbersProto: contenido de LX834FU02.YF013 (' . count($lines) . ' registros)');
 
-        foreach ($rows as $index => $row) {
-            $this->log()->info(sprintf(
-                'YF013 Proto [%d] | WorkCenter: %s (%s) | Orden: %s | Parte: %s | Fecha: %s | Turno: %s | Inicio: %s | Fin: %s | Plan: %s | Prod: %s | Scrap: %s | Creado: %s %s por %s',
-                $index + 1,
-                trim($row->YFWRKC ?? ''),
-                trim($row->YFWRKN ?? ''),
-                trim($row->YFSORD ?? ''),
-                trim($row->YFPROD ?? ''),
-                trim($row->YFRDTE ?? ''),
-                trim($row->YFSHFT ?? ''),
-                trim($row->YFSTIM ?? ''),
-                trim($row->YFETIM ?? ''),
-                $row->YFQPLA ?? '',
-                $row->YFQPRO ?? '',
-                $row->YFQSCR ?? '',
-                trim($row->YFCRDT ?? ''),
-                trim($row->YFCRTM ?? ''),
-                trim($row->YFCRUS ?? '')
-            ));
+        foreach ($lines as $line) {
+            $this->log()->info($line);
         }
-    }
-
-    /**
-     * Ejecuta el programa almacenado en Infor para procesar la tabla puente YF013
-     */
-    protected function executeInforProcedure()
-    {
-        $dsn = "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR";
-
-        $conn = odbc_connect($dsn, "", "");
-
-        if (!$conn) {
-            throw new Exception("Fallo de conexión ODBC: " . odbc_errormsg());
-        }
-
-        $result = @odbc_exec($conn, "CALL LX834OU02.YSF013C");
-
-        if (!$result) {
-            $error = odbc_errormsg($conn);
-            odbc_close($conn);
-            throw new Exception("Error en el procedimiento Infor: " . $error);
-        }
-
-        odbc_close($conn);
     }
 
     /**
@@ -339,7 +288,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
     }
 
     /**
-     * Método opcional para manejar fallos del job
+     * Fallo definitivo del job
      */
     public function failed(Exception $exception)
     {

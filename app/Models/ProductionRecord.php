@@ -37,6 +37,21 @@ class ProductionRecord extends Model
     ];
 
     /**
+     * [YFQPLA, YFQPRO] a enviar a YF013, compensando la sonda (qty=1) del
+     * Job de recuperación de orden.
+     */
+    public function inforQuantities(): array
+    {
+        $producedNet = $this->produced_quantity - ($this->scrap_quantity ?? 0);
+
+        if ((int) $this->planned_quantity === 0) {
+            return [1, max(0, $producedNet - 1)];
+        }
+
+        return [$this->planned_quantity, $producedNet];
+    }
+
+    /**
      * Relación con Shift
      */
     public function shift(): BelongsTo

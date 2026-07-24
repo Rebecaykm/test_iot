@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasYf013Snapshot;
 use Illuminate\Database\Eloquent\Model;
 
 class YF013Live extends Model
 {
+    use HasYf013Snapshot;
+
     protected $connection = 'infor-live';
     protected $table = 'LX834FU01.YF013';
 
