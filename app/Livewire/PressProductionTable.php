@@ -6,6 +6,7 @@ use App\Models\History;
 use App\Models\PartNumber;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
+use App\Models\WorkCenter;
 use Carbon\Carbon;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -13,6 +14,7 @@ use Livewire\Component;
 class PressProductionTable extends Component
 {
     public $workCenter;
+    public ?int $workCenterId = null;
     public array $data = [];
 
     public int $planTurno      = 0;
@@ -31,8 +33,9 @@ class PressProductionTable extends Component
 
     public function mount($workCenter, $realTime = false): void
     {
-        $this->workCenter = $workCenter;
-        $this->realTime   = $realTime;
+        $this->workCenter   = $workCenter;
+        $this->workCenterId = WorkCenter::where('name', $workCenter)->value('id');
+        $this->realTime     = $realTime;
         $this->refreshTable();
     }
 
