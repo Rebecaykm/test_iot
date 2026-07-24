@@ -104,39 +104,68 @@ class ProductionRecordView extends Component
             ->map(function ($dateGroup) {
                 return $dateGroup->groupBy('shift_name')
                     ->map(function ($shiftGroup) {
-                        return $shiftGroup->groupBy(function ($record) {
-                            return $record->part_number . '|' . $record->planned_quantity;
-                        })->map(function ($partGroup, $groupKey) {
-                            [$partNumber, $plannedQuantity] = explode('|', $groupKey);
-                            $totalProduced = $partGroup->sum('produced_quantity');
-                            $firstRecord = $partGroup->first();
+                        // Cada registro de producción es independiente: no se fusionan
+                        // registros del mismo número de parte, para no perder su estatus individual.
+                        return $shiftGroup->map(function ($record) {
+                            $plannedQuantity = (int)$record->planned_quantity;
+                            $producedQuantity = (int)$record->produced_quantity;
+                            $statusStyle = $this->getStatusStyle($record->status_name);
 
                             return [
-                                'part_number' => $partNumber,
-                                'planned_quantity' => (int)$plannedQuantity,
-                                'produced_quantity' => $totalProduced,
-                                'difference' => $totalProduced - (int)$plannedQuantity,
-                                'status' => $firstRecord->status_name,
-                                'status_class' => $this->getStatusClass($firstRecord->status_name),
-                                'group_count' => $partGroup->count(), // Opcional: para saber cuántos registros se agruparon
+                                'order_number' => $record->order_number ?: '-',
+                                'part_number' => $record->part_number,
+                                'planned_quantity' => $plannedQuantity,
+                                'produced_quantity' => $producedQuantity,
+                                'difference' => $producedQuantity - $plannedQuantity,
+                                'status' => $record->status_name,
+                                'status_row_class' => $statusStyle['row'],
+                                'status_dot_class' => $statusStyle['dot'],
                             ];
                         })->values();
                     });
             });
     }
 
-    protected function getStatusClass($status)
+    /**
+     * Estilos por estatus: color de fondo para pintar todo el renglón
+     * y color sólido para el punto/círculo de la leyenda.
+     */
+    public static function statusStyleMap(): array
+    {
+        return [
+            'pendiente' => [
+                'label' => 'Pendiente',
+                'row' => 'bg-orange-50 dark:bg-orange-900/30 hover:bg-orange-100 dark:hover:bg-orange-900/50',
+                'dot' => 'bg-orange-500',
+            ],
+            'en progreso' => [
+                'label' => 'En Progreso',
+                'row' => 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50',
+                'dot' => 'bg-blue-500',
+            ],
+            'completado' => [
+                'label' => 'Completado',
+                'row' => 'bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50',
+                'dot' => 'bg-green-500',
+            ],
+            'detenido' => [
+                'label' => 'Detenido',
+                'row' => 'bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50',
+                'dot' => 'bg-red-500',
+            ],
+        ];
+    }
+
+    protected function getStatusStyle($status): array
     {
         // Normalizar el texto: quitar espacios, acentos y convertir a minúsculas
         $normalizedStatus = trim(strtolower(str_replace(['á', 'é', 'í', 'ó', 'ú', 'ñ'], ['a', 'e', 'i', 'o', 'u', 'n'], $status)));
 
-        return match ($normalizedStatus) {
-            'pendiente' => 'text-orange-700 bg-orange-100 dark:text-orange-300 dark:bg-orange-900/50',
-            'en progreso' => 'text-blue-800 bg-blue-50 dark:text-blue-300 dark:bg-blue-900/50',
-            'completado' => 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/50',
-            'detenido' => 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/50',
-            default => 'text-gray-700 bg-gray-200 dark:text-gray-300 dark:bg-gray-600'
-        };
+        return static::statusStyleMap()[$normalizedStatus] ?? [
+            'label' => $status,
+            'row' => 'bg-gray-50 dark:bg-gray-700/40 hover:bg-gray-100 dark:hover:bg-gray-700/60',
+            'dot' => 'bg-gray-400',
+        ];
     }
 
     public function render()

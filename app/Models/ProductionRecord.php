@@ -187,6 +187,7 @@ class ProductionRecord extends Model
                 'production_records.planned_date AS planned_date',
                 'production_records.planned_quantity AS planned_quantity',
                 'production_records.produced_quantity AS produced_quantity',
+                'production_records.shop_order_number AS order_number',
                 'shifts.abbreviation AS shift_name',
                 'statuses.name AS status_name',
                 'production_records.production_start AS production_start'

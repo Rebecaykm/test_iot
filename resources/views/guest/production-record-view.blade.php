@@ -6,20 +6,41 @@
                 @include('clock')
 
                 <!-- Menú de opciones y título -->
-                <div class="flex justify-between items-center my-4">
-                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white">
+                <div class="flex justify-between items-center my-4 gap-4">
+                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white whitespace-nowrap">
                         Detalles de Producción
                     </h1>
 
-                    <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" @click.away="open = false"
-                            class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                            </svg>
-                        </button>
+                    <div class="flex items-center gap-4">
+                        <!-- Leyenda de estatus -->
+                        <div class="flex items-center gap-3">
+                            <span class="flex items-center gap-1.5">
+                                <span class="h-2.5 w-2.5 rounded-full bg-orange-500"></span>
+                                <span class="hidden sm:inline text-xs font-medium text-gray-600 dark:text-gray-400">Pend.</span>
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span>
+                                <span class="hidden sm:inline text-xs font-medium text-gray-600 dark:text-gray-400">Prog.</span>
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="h-2.5 w-2.5 rounded-full bg-red-500"></span>
+                                <span class="hidden sm:inline text-xs font-medium text-gray-600 dark:text-gray-400">Det.</span>
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="h-2.5 w-2.5 rounded-full bg-green-500"></span>
+                                <span class="hidden sm:inline text-xs font-medium text-gray-600 dark:text-gray-400">Comp.</span>
+                            </span>
+                        </div>
 
-                        <!-- Dropdown menu -->
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" @click.away="open = false"
+                                class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                </svg>
+                            </button>
+
+                            <!-- Dropdown menu -->
                         <div x-show="open"
                             x-transition:enter="transition ease-out duration-100"
                             x-transition:enter-start="transform opacity-0 scale-95"
@@ -96,6 +117,7 @@
                                 @endauth
                             @endif
                         </div>
+                    </div>
                     </div>
                 </div>
 

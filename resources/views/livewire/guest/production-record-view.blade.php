@@ -29,16 +29,22 @@
                                     <table class="min-w-full text-sm">
                                         <thead class="bg-gray-200 dark:bg-gray-700 text-xs uppercase text-gray-700 dark:text-gray-300">
                                         <tr>
+                                            <th class="px-4 py-3 text-left font-semibold">Número de Orden</th>
                                             <th class="px-4 py-3 text-left font-semibold">Número de Parte</th>
                                             <th class="px-4 py-3 text-center font-semibold">Planeado</th>
                                             <th class="px-4 py-3 text-center font-semibold">Producido</th>
                                             <th class="px-4 py-3 text-center font-semibold">Diferencia</th>
-                                            <th class="px-4 py-3 text-center font-semibold">Estado</th>
                                         </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-gray-200 dark:divide-gray-600 bg-white dark:bg-gray-800">
+                                        <tbody class="divide-y divide-gray-200 dark:divide-gray-600">
                                         @foreach($records as $record)
-                                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                            <tr class="{{ $record['status_row_class'] }} transition-colors">
+                                                <td class="px-4 py-3">
+                                                    <span class="inline-flex items-center gap-2">
+                                                        <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $record['status_dot_class'] }}" title="{{ $record['status'] }}"></span>
+                                                        <span class="text-gray-800 dark:text-gray-200 font-medium">{{ $record['order_number'] }}</span>
+                                                    </span>
+                                                </td>
                                                 <td class="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{{ $record['part_number'] }}</td>
                                                 <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ $record['planned_quantity'] }}</td>
                                                 <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ $record['produced_quantity'] }}</td>
@@ -47,11 +53,6 @@
                                                     <span class="px-2 py-1 rounded-full font-semibold text-xs
                                                     {{ $diff < 0 ? 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/50' : ($diff > 0 ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/50' : 'text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-600') }}">
                                                     {{ $diff > 0 ? '+' : '' }}{{ $diff }}
-                                                </span>
-                                                </td>
-                                                <td class="px-4 py-3 text-center">
-                                                <span class="px-2 py-1 rounded-full font-semibold text-xs {{ $record['status_class'] }}">
-                                                    {{ $record['status'] }}
                                                 </span>
                                                 </td>
                                             </tr>
@@ -102,16 +103,22 @@
                                     <table class="min-w-full text-sm">
                                         <thead class="bg-gray-200 dark:bg-gray-700 text-xs uppercase text-gray-700 dark:text-gray-300">
                                         <tr>
+                                            <th class="px-4 py-3 text-left font-semibold">Número de Orden</th>
                                             <th class="px-4 py-3 text-left font-semibold">Número de Parte</th>
                                             <th class="px-4 py-3 text-center font-semibold">Planeado</th>
                                             <th class="px-4 py-3 text-center font-semibold">Producido</th>
                                             <th class="px-4 py-3 text-center font-semibold">Diferencia</th>
-                                            <th class="px-4 py-3 text-center font-semibold">Estado</th>
                                         </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-gray-200 dark:divide-gray-600 bg-white dark:bg-gray-800">
+                                        <tbody class="divide-y divide-gray-200 dark:divide-gray-600">
                                             @foreach($records as $record)
-                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                                <tr class="{{ $record['status_row_class'] }} transition-colors">
+                                                    <td class="px-4 py-3">
+                                                        <span class="inline-flex items-center gap-2">
+                                                            <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $record['status_dot_class'] }}" title="{{ $record['status'] }}"></span>
+                                                            <span class="text-gray-800 dark:text-gray-200 font-medium">{{ $record['order_number'] }}</span>
+                                                        </span>
+                                                    </td>
                                                     <td class="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{{ $record['part_number'] }}</td>
                                                     <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ $record['planned_quantity'] }}</td>
                                                     <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ $record['produced_quantity'] }}</td>
@@ -120,11 +127,6 @@
                                                         <span class="px-2 py-1 rounded-full font-semibold text-xs
                                                         {{ $diff < 0 ? 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/50' : ($diff > 0 ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/50' : 'text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-600') }}">
                                                         {{ $diff > 0 ? '+' : '' }}{{ $diff }}
-                                                    </span>
-                                                    </td>
-                                                    <td class="px-4 py-3 text-center">
-                                                    <span class="px-2 py-1 rounded-full font-semibold text-xs {{ $record['status_class'] }}">
-                                                        {{ $record['status'] }}
                                                     </span>
                                                     </td>
                                                 </tr>
