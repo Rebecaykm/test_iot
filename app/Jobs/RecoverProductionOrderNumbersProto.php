@@ -42,9 +42,15 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
         $lock = Cache::lock('recover-production-order-numbers-proto', $this->timeout + 30);
 
         if (!$lock->get()) {
-            $this->log()->warning('RecoverProductionOrderNumbersProto: ya hay una recuperación en curso, se omite esta ejecución');
+            $this->log()->warning('[OMITIDO] RecoverProductionOrderNumbersProto: ya hay una recuperación en curso, se omite esta ejecución');
             return;
         }
+
+        $this->log()->info('[INICIO] RecoverProductionOrderNumbersProto', [
+            'Job' => 'RecoverProductionOrderNumbersProto',
+            'Ambiente' => 'Proto',
+            'Fecha y hora de ejecución' => Carbon::now()->format('Y-m-d H:i:s'),
+        ]);
 
         try {
             $setting = InforSyncSetting::forEnvironment(InforSyncSetting::ENVIRONMENT_PROTO);
@@ -84,6 +90,8 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
                 }
             }
 
+            $this->log()->info("[YF013 - INSERT] RecoverProductionOrderNumbersProto: $probesSent sonda(s) nueva(s) insertada(s) en YF013");
+
             if ($probesSent > 0) {
                 $this->logInforTableSnapshot();
                 $this->executeInforProcedure();
@@ -108,7 +116,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
                         'shop_order_number' => $orderNumber,
                     ]);
 
-                    $this->log()->info('RecoverProductionOrderNumbersProto: número de orden recuperado', [
+                    $this->log()->info('[ORDEN RECUPERADA] RecoverProductionOrderNumbersProto: número de orden recuperado', [
                         'Estación' => $record->work_name,
                         'Número de parte' => $record->part_number,
                         'Número de orden' => $orderNumber,
@@ -127,7 +135,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
 
             $this->logResults($recoveredCount, $errorCount, $errors);
         } catch (Exception $e) {
-            $this->log()->error('FALLO CRÍTICO en RecoverProductionOrderNumbersProto: ' . $e->getMessage());
+            $this->log()->error('[FALLO] FALLO CRÍTICO en RecoverProductionOrderNumbersProto: ' . $e->getMessage());
             throw $e;
         } finally {
             $lock->release();
@@ -249,7 +257,17 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
             return null;
         }
 
-        return trim($fso->SORD);
+        $orderNumber = trim($fso->SORD);
+
+        $this->log()->info('[FSO - CONSULTA] RecoverProductionOrderNumbersProto: registro encontrado en FSO', [
+            'Parte' => trim($fso->SPROD ?? ''),
+            'Fecha' => trim((string) ($fso->SRDTE ?? '')),
+            'Turno' => trim($fso->SOCNO ?? ''),
+            'Cantidad planeada (SQREQ)' => $fso->SQREQ,
+            'Orden encontrada (SORD)' => $orderNumber,
+        ]);
+
+        return $orderNumber;
     }
 
     /**
@@ -260,7 +278,7 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
     {
         $rows = YF013Proto::query()->get();
 
-        $this->log()->info("RecoverProductionOrderNumbersProto: contenido de LX834FU02.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
+        $this->log()->info("[YF013 - SNAPSHOT] RecoverProductionOrderNumbersProto: contenido de LX834FU02.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
 
         foreach ($rows as $index => $row) {
             $this->log()->info(sprintf(
@@ -313,12 +331,10 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
      */
     protected function logResults($recoveredCount, $errorCount, $errors)
     {
-        if ($recoveredCount > 0) {
-            $this->log()->info("RecoverProductionOrderNumbersProto recuperó $recoveredCount número(s) de orden");
-        }
+        $this->log()->info("[RESULTADO] RecoverProductionOrderNumbersProto: $recoveredCount número(s) de orden recuperado(s), $errorCount error(es)");
 
         if ($errorCount > 0) {
-            $this->log()->warning("RecoverProductionOrderNumbersProto terminó con $errorCount errores. Detalle: " . implode(', ', $errors));
+            $this->log()->warning("[RESULTADO] RecoverProductionOrderNumbersProto terminó con $errorCount errores. Detalle: " . implode(', ', $errors));
         }
     }
 
@@ -327,6 +343,6 @@ class RecoverProductionOrderNumbersProto implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
-        $this->log()->error('El Job RecoverProductionOrderNumbersProto ha fallado definitivamente: ' . $exception->getMessage());
+        $this->log()->error('[FALLO] El Job RecoverProductionOrderNumbersProto ha fallado definitivamente: ' . $exception->getMessage());
     }
 }

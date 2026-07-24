@@ -40,9 +40,15 @@ class SyncProductionRecordsLive implements ShouldQueue
         $lock = Cache::lock('sync-production-records-live', $this->timeout + 30);
 
         if (!$lock->get()) {
-            $this->log()->warning('SyncProductionRecordsLive: ya hay una sincronización en curso, se omite esta ejecución');
+            $this->log()->warning('[OMITIDO] SyncProductionRecordsLive: ya hay una sincronización en curso, se omite esta ejecución');
             return;
         }
+
+        $this->log()->info('[INICIO] SyncProductionRecordsLive', [
+            'Job' => 'SyncProductionRecordsLive',
+            'Ambiente' => 'Live',
+            'Fecha y hora de ejecución' => Carbon::now()->format('Y-m-d H:i:s'),
+        ]);
 
         try {
             $setting = InforSyncSetting::forEnvironment(InforSyncSetting::ENVIRONMENT_LIVE);
@@ -90,7 +96,7 @@ class SyncProductionRecordsLive implements ShouldQueue
 
             $this->logResults($successCount, $errorCount, $errors);
         } catch (Exception $e) {
-            $this->log()->error('FALLO CRÍTICO en SyncProductionRecordsLive: ' . $e->getMessage());
+            $this->log()->error('[FALLO] FALLO CRÍTICO en SyncProductionRecordsLive: ' . $e->getMessage());
             throw $e;
         } finally {
             $lock->release();
@@ -152,7 +158,7 @@ class SyncProductionRecordsLive implements ShouldQueue
         $plannedDateFormatted = $record->planned_date ? Carbon::parse($record->planned_date)->format('Ymd') : '';
 
         if ($this->existsInInfor($record, $plannedDateFormatted)) {
-            $this->log()->warning('SyncProductionRecordsLive: el registro ya existía en YF013, se omite el insert duplicado', [
+            $this->log()->warning('[YF013 - INSERT] SyncProductionRecordsLive: el registro ya existía en YF013, se omite el insert duplicado', [
                 'Production Record' => $record->id,
                 'Shop order number' => $record->shop_order_number,
                 'Work Center' => $record->work_number,
@@ -191,7 +197,7 @@ class SyncProductionRecordsLive implements ShouldQueue
                 'YFCRUS' => 'IOT',
             ]);
 
-        $this->log()->info('SyncProductionRecordsLive', [
+        $this->log()->info('[YF013 - INSERT] SyncProductionRecordsLive: registro insertado en YF013', [
             'Shop order number' => $record->shop_order_number,
             'Work Center' => $record->work_number,
             'Part Number' => $record->part_number,
@@ -259,7 +265,7 @@ class SyncProductionRecordsLive implements ShouldQueue
     {
         $rows = YF013Live::query()->get();
 
-        $this->log()->info("SyncProductionRecordsLive: contenido de LX834FU01.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
+        $this->log()->info("[YF013 - SNAPSHOT] SyncProductionRecordsLive: contenido de LX834FU01.YF013 antes de ejecutar el programa ({$rows->count()} registros)");
 
         foreach ($rows as $index => $row) {
             $this->log()->info(sprintf(
@@ -312,8 +318,10 @@ class SyncProductionRecordsLive implements ShouldQueue
      */
     protected function logResults($successCount, $errorCount, $errors)
     {
+        $this->log()->info("[RESULTADO] SyncProductionRecordsLive: $successCount registro(s) sincronizado(s), $errorCount error(es)");
+
         if ($errorCount > 0) {
-            $this->log()->warning("SyncProductionRecordsLive terminó con $errorCount errores. Detalle: " . implode(', ', $errors));
+            $this->log()->warning("[RESULTADO] SyncProductionRecordsLive terminó con $errorCount errores. Detalle: " . implode(', ', $errors));
         }
     }
 
@@ -322,6 +330,6 @@ class SyncProductionRecordsLive implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
-        $this->log()->error('El Job SyncProductionRecordsLive ha fallado definitivamente: ' . $exception->getMessage());
+        $this->log()->error('[FALLO] El Job SyncProductionRecordsLive ha fallado definitivamente: ' . $exception->getMessage());
     }
 }
