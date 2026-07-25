@@ -7,6 +7,15 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
+        <!-- Tema claro/oscuro: se aplica antes de pintar para evitar parpadeo -->
+        <script>
+            (function () {
+                const stored = localStorage.getItem('theme');
+                const isDark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.classList.toggle('dark', isDark);
+            })();
+        </script>
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
@@ -45,6 +54,8 @@
                 {{ $slot }}
             </main>
         </div>
+
+        <x-theme-toggle />
 
         @stack('modals')
         @stack('scripts')
