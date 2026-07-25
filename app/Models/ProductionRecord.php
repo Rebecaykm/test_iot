@@ -37,18 +37,22 @@ class ProductionRecord extends Model
     ];
 
     /**
-     * [YFQPLA, YFQPRO] a enviar a YF013, compensando la sonda (qty=1) del
-     * Job de recuperación de orden.
+     * [YFQPLA, YFQPRO] a enviar a YF013.
      */
     public function inforQuantities(): array
     {
-        $producedNet = $this->produced_quantity - ($this->scrap_quantity ?? 0);
+        return [
+            $this->planned_quantity ?: $this->produced_quantity,
+            $this->produced_quantity - ($this->scrap_quantity ?? 0),
+        ];
 
-        if ((int) $this->planned_quantity === 0) {
-            return [1, max(0, $producedNet - 1)];
-        }
-
-        return [$this->planned_quantity, $producedNet];
+        // Compensación de la sonda (qty=1) del Job de recuperación de orden.
+        // Reactivar si se vuelve a habilitar la recuperación en routes/console.php:
+        // $producedNet = $this->produced_quantity - ($this->scrap_quantity ?? 0);
+        // if ((int) $this->planned_quantity === 0) {
+        //     return [1, max(0, $producedNet - 1)];
+        // }
+        // return [$this->planned_quantity, $producedNet];
     }
 
     /**
