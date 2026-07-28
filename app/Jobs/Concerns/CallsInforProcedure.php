@@ -3,6 +3,7 @@
 namespace App\Jobs\Concerns;
 
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 trait CallsInforProcedure
 {
@@ -11,6 +12,8 @@ trait CallsInforProcedure
      */
     protected function callInforProcedure(string $procedure): void
     {
+        Log::info("[IOT] : [". $procedure ."] -> " . now());
+
         $dsn = "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;Uid=LXSECOFR;Pwd=LXSECOFR";
 
         $conn = odbc_connect($dsn, "", "");

@@ -14,17 +14,17 @@ Schedule::command('iot:standard-pack')->dailyAt('00:40')->withoutOverlapping();
 Schedule::command('iot:part-number')->cron('0 2 2-30/2 * *')->withoutOverlapping();
 Schedule::command('iot:die-identifier')->cron('0 0 * * *')->withoutOverlapping();
 Schedule::command('iot:part-shots')->cron('5 0 * * *')->withoutOverlapping();
-Schedule::command('iot:production-plan')->cron('0 * * * *')->withoutOverlapping();
+Schedule::command('iot:production-plan')->everyThirtyMinutes()->withoutOverlapping();
 
 // Schedule::command('iot:recover-production-order-numbers-live')->hourly()->withoutOverlapping();
 // Schedule::command('iot:recover-production-order-numbers-proto')->hourly()->withoutOverlapping();
 
-Schedule::command('iot:sync-production-records-live')->cron('36 17 * * *')->withoutOverlapping();
-Schedule::command('iot:sync-production-records-live')->cron('06 20 * * *')->withoutOverlapping();
-Schedule::command('iot:sync-production-records-live')->cron('56 04 * * *')->withoutOverlapping();
-Schedule::command('iot:sync-production-records-live')->cron('56 07 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records-live')->cron('38 17 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records-live')->cron('08 20 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records-live')->cron('58 04 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records-live')->cron('58 07 * * *')->withoutOverlapping();
 
-Schedule::command('iot:sync-production-records-proto')->cron('36 17 * * *')->withoutOverlapping();
-Schedule::command('iot:sync-production-records-proto')->cron('06 20 * * *')->withoutOverlapping();
-Schedule::command('iot:sync-production-records-proto')->cron('56 04 * * *')->withoutOverlapping();
-Schedule::command('iot:sync-production-records-proto')->cron('56 07 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records-proto')->cron('38 17 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records-proto')->cron('08 20 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records-proto')->cron('58 04 * * *')->withoutOverlapping();
+Schedule::command('iot:sync-production-records-proto')->cron('58 07 * * *')->withoutOverlapping();
