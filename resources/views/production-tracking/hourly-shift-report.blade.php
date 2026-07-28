@@ -291,7 +291,7 @@ $fixedWidth = $colProduct + $colLine + $colSnp + $colPlan + $colReal + $colPct +
 
             {{-- Header --}}
             <div class="tl-header-row border-b-2 border-slate-200">
-                <div class="th col-product">#</div>
+                <div class="th col-product">Orden Producción</div>
                 <div class="th col-product">Producto</div>
                 <div class="th col-line">Línea</div>
                 <div class="th col-snp th-center">SNP</div>
@@ -334,8 +334,8 @@ $fixedWidth = $colProduct + $colLine + $colSnp + $colPlan + $colReal + $colPct +
                 @endphp
 
                 <div class="tl-task-row">
-                    <div class="cell col-product font-mono font-semibold text-slate-800 truncate"
-                         title="{{ $task['productionOrder'] }}">{{ $task['productionOrder'] }}</div>
+                    <div class="cell col-product text-center font-mono font-semibold truncate {{ $task['productionOrder'] == '99' ? 'text-red-600' : 'text-slate-800' }}"
+                         title="{{ $task['productionOrder'] }}">{{ sprintf('%02d', $task['productionOrder']) }}</div>
                     <div class="cell col-product font-mono font-semibold text-slate-800 truncate"
                          title="{{ $task['text'] }}">{{ $task['text'] }}</div>
                     <div class="cell col-line text-slate-500 truncate"
@@ -343,7 +343,7 @@ $fixedWidth = $colProduct + $colLine + $colSnp + $colPlan + $colReal + $colPct +
                     <div class="cell col-snp cell-center text-slate-500">{{ $task['snp'] }}</div>
                     <div class="cell col-plan cell-right text-slate-500">{{ $task['plannedPieces'] }}</div>
                     <div class="cell col-real cell-right {{ $status === 'overflow' ? 'text-red-600 font-bold' : 'text-slate-700' }}">
-                        {{ $task['completedPieces'] }}
+                        {{ $task['percentage'] }}
                     </div>
                     <div class="cell col-pct cell-right">
                         <span class="badge {{ $badgeClass }}">{{ $pct }}%</span>

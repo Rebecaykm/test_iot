@@ -21,7 +21,7 @@ class HourlyShiftReportController extends Controller
      */
     public function __invoke(Request $request)
     {
-        $shift = $this->productionTrackingReportService->getCurrentShift();
+        $shift = null;
 
         $dateInput = $request->input('date');
         try {
@@ -38,7 +38,7 @@ class HourlyShiftReportController extends Controller
         $productionTrackingDataSet = $this->productionTrackingService->getProductionStatus(
             productionDate: $productionDate,
             shift: $shift,
-            workcenterCode: null
+            workcenterCode: '122070'
         );
 
         $shiftRange[0] = empty($shift) ? date('Y-m-d').' 08:00:00' : $shiftRange[0];
@@ -65,7 +65,7 @@ class HourlyShiftReportController extends Controller
 
             foreach ($reportRow['records'] as $item) {
                 $planned = (float) ($item['plannedSequences'] ?? 0);
-                $completed = (float) ($item['completedSequences'] ?? 0);
+                $completed = (float) ($item['IoTCompletedSequences'] ?? 0);
 
                 $percentage = $planned > 0
                     ? ($completed / $planned) * 100
@@ -89,13 +89,14 @@ class HourlyShiftReportController extends Controller
 
                     'open' => true,
                     'type' => 'task',
+                    'shift' => $item['shift'],
 
                     'snp' => $item['snp'],
                     'plannedPieces' => $planned,
                     'completedPieces' => $completed,
                     'workcenterDescription' => $item['workCenterName'],
 
-                    'percentage' => round($percentage, 2),
+                    'percentage' => $item['completed'],
                     'overflowPercentage' => round($overflowPercentage, 2),
                     'shopOrderNumber' => $item['shopOrderNumber'],
                     'productionOrder' => $item['productionOrder'],
@@ -108,8 +109,18 @@ class HourlyShiftReportController extends Controller
         }
 
         $data = [
-            'data' => $data,
+            'data' => collect($data)
+                ->sortBy(function ($item) {
+                    return [
+                        $item['shift'],
+                        $item['productionOrder'],
+                    ];
+                })
+                ->values()
+                ->all(),
         ];
+
+        // dd($data['data']);
 
         return view('production-tracking.hourly-shift-report', compact('data', 'hourlyRange', 'shift', 'date'));
     }

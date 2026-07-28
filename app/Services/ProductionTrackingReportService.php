@@ -43,10 +43,14 @@ class ProductionTrackingReportService
                         'completedPercentage' => ($record['AS4PlannedSequences'] > 0)
                             ? round(($record['IoTCompletedSequences'] / $record['AS4PlannedSequences']) * 100, 2)
                             : 0,
+                        'shift' => $record['shift'],
+                        'completed' => (float) ($record['IoTCompletedSequences'] ?? 0),
                     ];
                 })
-                    ->sortBy('productionOrder')
-                    ->values();
+                    ->sortBy([
+                        ['shift', 'asc'],
+                        ['productionOrder', 'asc'],
+                    ])->values();
 
                 $currentTime = Carbon::today()->setHour(8)->setMinute(0)->setSecond(0);
                 $startTimeLimit = $currentTime->copy();
