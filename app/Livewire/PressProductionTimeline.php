@@ -18,7 +18,9 @@ use Livewire\Component;
  *   golpes = piezas / divisor del troquel (suma de pieces_per_shot de los parts en juego).
  *
  *  - Barra PLAN (azul): golpes planeados del MDI secuenciados por production_order.
- *    El largo sale de la production_rate (SPM) => golpes/hora = SPM * 60.
+ *    production_rate guarda piezas/hora de cada part; se convierte a SPM del
+ *    troquel con SPM = production_rate / (60 * pieces_per_shot), y de ahí
+ *    golpes/hora = SPM * 60.
  *  - Barra REAL: golpes registrados en histories dentro de la ventana del turno.
  *    Color según el cumplimiento vs el plan total del MDI:
  *    >= 90% verde, entre 10% y 90% ámbar, < 10% rojo.
@@ -210,6 +212,14 @@ class PressProductionTimeline extends Component
         // Divisor piezas -> golpes por part (suma de pieces_per_shot del troquel en juego)
         $divisors = PartNumber::buildShotDivisors($parts);
 
+        // pieces_per_shot PROPIO de cada part (no el divisor sumado del troquel),
+        // para pasar su production_rate (piezas/hora) a SPM del troquel.
+        $piecesPerShotByPart = [];
+        foreach ($parts as $p) {
+            $attrs = $p->customAttributes->keyBy('key');
+            $piecesPerShotByPart[$p->id] = max(1, (int) ($attrs['pieces_per_shot']->value ?? 1));
+        }
+
         // ----- Agregado del PLAN por MDI -----
         $dies = [];
         foreach ($planParts as $part) {
@@ -227,9 +237,11 @@ class PressProductionTimeline extends Component
 
             $dies[$key]['plannedPieces'] += (int) $part->planned_quantity;
             // SPM del MDI: promedio de los rates > 0 de sus parts (deberían ser iguales
-            // por compartir troquel; el promedio absorbe capturas con diferencias)
+            // por compartir troquel; el promedio absorbe capturas con diferencias).
+            // production_rate viene en piezas/hora del part => SPM = rate / (60 * pps).
             if ((float) $part->production_rate > 0) {
-                $dies[$key]['rates'][] = (float) $part->production_rate;
+                $pps = $piecesPerShotByPart[$part->part_number_id] ?? 1;
+                $dies[$key]['rates'][] = (float) $part->production_rate / (60 * $pps);
             }
             if (!is_null($part->production_order)) {
                 $dies[$key]['order'] = min($dies[$key]['order'], (int) $part->production_order);
@@ -281,8 +293,8 @@ class PressProductionTimeline extends Component
         $visibleCap = min($nowOffset, $this->durationHours);
 
         // Duración del plan de cada MDI: golpes / (SPM * 60). El SPM es el promedio de
-        // los production_rate > 0 de sus parts. Sin SPM (0) no se inventa duración ni
-        // cantidad: el MDI queda sin barra de plan.
+        // los production_rate > 0 de sus parts, ya convertidos de piezas/hora a SPM.
+        // Sin SPM (0) no se inventa duración ni cantidad: el MDI queda sin barra de plan.
         $plannedShotsByDie = [];
         $durationsByDie = [];
         foreach ($dies as $key => $die) {

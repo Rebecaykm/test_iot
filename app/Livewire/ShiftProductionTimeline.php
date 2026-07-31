@@ -37,7 +37,7 @@ class ShiftProductionTimeline extends Component
     /** Texto "HH:mm - HH:mm" (ventana planeada completa) por barra de plan (tooltip) */
     public array $planTimeLabels = [];
 
-    /** True si el work center pertenece al área de estampado (production_rate = SPM) */
+    /** True si el work center pertenece al área de estampado (agrupa/ordena por troquel MID) */
     public bool $isStamping = false;
 
     /** Ancho total del eje X en horas (turno anterior + actual) */
@@ -66,7 +66,7 @@ class ShiftProductionTimeline extends Component
         $this->chartId = 'timeline_' . Str::random(10);
         $this->workCenter = $workCenter;
 
-        // ¿El área es estampado? Entonces production_rate viene en SPM (golpes/min)
+        // ¿El área es estampado? (afecta cómo se agrupan/ordenan las barras por MID)
         $wc = WorkCenter::with('line.area')->where('name', $workCenter)->first();
         $this->isStamping = $wc && $wc->line && $wc->line->area
             && strtolower($wc->line->area->name) === 'estampado';
@@ -163,19 +163,16 @@ class ShiftProductionTimeline extends Component
      */
     private function buildBars($records, $planParts, Carbon $baseStart, Carbon $timelineEnd, Carbon $now): void
     {
-        // Atributos de estampado por parte: MID (troquel) y pieces_per_shot.
-        // El MID se usa para ordenar y para agrupar en paralelo cuando no hay
-        // production_order; pieces_per_shot, para el tiempo de cada barra.
+        // MID (troquel) por parte de estampado: se usa para ordenar y para agrupar
+        // en paralelo cuando no hay production_order.
         $midByPart = [];
-        $piecesPerShot = [];
         if ($this->isStamping) {
             $stampParts = PartNumber::whereIn('id', $planParts->pluck('part_number_id')->all())
-                ->with(['customAttributes' => fn ($q) => $q->whereIn('key', ['mid', 'pieces_per_shot'])])
+                ->with(['customAttributes' => fn ($q) => $q->where('key', 'mid')])
                 ->get();
             foreach ($stampParts as $p) {
                 $attrs = $p->customAttributes->keyBy('key');
                 $midByPart[$p->id] = (string) ($attrs['mid']->value ?? '');
-                $piecesPerShot[$p->id] = max(1, (int) ($attrs['pieces_per_shot']->value ?? 1));
             }
         }
 
@@ -243,7 +240,7 @@ class ShiftProductionTimeline extends Component
         }
 
         // ----- Barras de PLAN (azul): secuenciadas por production_order -----
-        $this->buildPlanBars($planParts, $baseStart, $now, $midByPart, $piecesPerShot);
+        $this->buildPlanBars($planParts, $baseStart, $now, $midByPart);
     }
 
     /**
@@ -256,10 +253,10 @@ class ShiftProductionTimeline extends Component
      *     en el mismo golpe, así que van a la misma hora pero cada una en su fila.
      * Lo demás va en secuencia. La primera arranca al inicio del turno. El largo de
      * cada barra es el tiempo para producir su cantidad planeada según production_rate
-     * (en estampado, SPM convertido a piezas/hora). La barra sólo se pinta hasta
-     * "ahora": no se marca producción planeada en el futuro.
+     * (piezas/hora). La barra sólo se pinta hasta "ahora": no se marca producción
+     * planeada en el futuro.
      */
-    private function buildPlanBars($planParts, Carbon $baseStart, Carbon $now, array $midByPart, array $piecesPerShot): void
+    private function buildPlanBars($planParts, Carbon $baseStart, Carbon $now, array $midByPart): void
     {
         // Clave de agrupación en paralelo de cada parte (ver doc del método).
         $groupKey = function ($part) use ($midByPart) {
@@ -278,15 +275,16 @@ class ShiftProductionTimeline extends Component
         $cap = min($nowOffset, $this->durationHours);
 
         // Tiempo necesario (horas) para producir la cantidad planeada de una parte.
-        // Dos cálculos según el área:
-        //  - Estampado: production_rate es SPM (golpes/min). piezas/hora = SPM * 60 * pps.
-        //  - No estampado: igual que /production-dashboard => piezas/hora = rate * (eficiencia/100).
-        $durationFor = function ($part) use ($piecesPerShot) {
+        // production_rate ya viene en piezas/hora en todas las áreas (antes, en
+        // estampado, era SPM y había que convertir con *60*pieces_per_shot).
+        // En estampado se usa tal cual; fuera de estampado se ajusta por eficiencia,
+        // igual que en /production-dashboard.
+        $durationFor = function ($part) {
             $plannedQty = (int) $part->planned_quantity;
             $rate = (float) $part->production_rate;
 
             if ($this->isStamping) {
-                $ratePerHour = $rate * 60 * ($piecesPerShot[$part->part_number_id] ?? 1);
+                $ratePerHour = $rate;
             } else {
                 $eff = max((float) ($part->efficiency ?? 100), 1);
                 $ratePerHour = $rate * ($eff / 100);

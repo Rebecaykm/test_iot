@@ -15,6 +15,7 @@ class History extends Model
         'part_number_id',
         'quantity',
         'sequence',
+        'shop_order_number',
         'created_at',
         'updated_at'
     ];

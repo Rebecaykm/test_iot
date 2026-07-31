@@ -11,7 +11,9 @@
       "PowerShell(php artisan route:list --name=production-sequences 2>&1)",
       "PowerShell(php -l app/Http/Controllers/ProductionSequenceController.php)",
       "PowerShell(php artisan config:clear)",
-      "PowerShell(php artisan view:clear)"
+      "PowerShell(php artisan view:clear)",
+      "Bash(php -l app/Livewire/PressProductionTimeline.php)",
+      "Bash(php -l app/Livewire/ShiftProductionTimeline.php)"
     ]
   }
 }
