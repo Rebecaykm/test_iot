@@ -13,8 +13,6 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ProductionSummaryExport implements
@@ -27,25 +25,34 @@ class ProductionSummaryExport implements
 {
     public function __construct(private Collection $records) {}
 
+    private function orDash($value): string
+    {
+        return ($value === null || $value === '') ? '-' : (string) $value;
+    }
+
     public function collection(): Collection
     {
         return $this->records->map(function ($rec) {
             $minutes = ($rec->production_start && $rec->production_end)
                 ? (int) Carbon::parse($rec->production_start)->diffInMinutes(Carbon::parse($rec->production_end))
-                : '';
+                : null;
+
+            $diff = (int) $rec->produced_quantity - (int) $rec->planned_quantity;
 
             return [
                 $rec->work_number,
                 $rec->work_name,
                 $rec->part_number,
                 $rec->part_name,
+                $this->orDash($rec->shop_order_number),
                 Carbon::parse($rec->planned_date)->format('d/m/Y'),
                 $rec->shift_name,
                 (int) $rec->planned_quantity,
                 (int) $rec->produced_quantity,
-                $rec->production_start ? Carbon::parse($rec->production_start)->format('H:i') : '',
-                $rec->production_end   ? Carbon::parse($rec->production_end)->format('H:i')   : '',
-                $minutes,
+                $diff,
+                $rec->production_start ? Carbon::parse($rec->production_start)->format('H:i') : '-',
+                $rec->production_end   ? Carbon::parse($rec->production_end)->format('H:i')   : '-',
+                $this->orDash($minutes),
             ];
         });
     }
@@ -57,10 +64,12 @@ class ProductionSummaryExport implements
             'Estación',
             'N° de Parte',
             'Nombre de Parte',
+            'N° de Orden',
             'Fecha',
             'Turno',
-            'Planeada',
-            'Producida',
+            'Cant. Plan',
+            'Cant. Real',
+            'Diferencia',
             'Inicio',
             'Término',
             'Tiempo (min)',
@@ -74,13 +83,15 @@ class ProductionSummaryExport implements
             'B' => 22,
             'C' => 14,
             'D' => 24,
-            'E' => 12,
-            'F' => 10,
-            'G' => 12,
+            'E' => 16,
+            'F' => 12,
+            'G' => 10,
             'H' => 12,
-            'I' => 10,
-            'J' => 10,
-            'K' => 14,
+            'I' => 12,
+            'J' => 12,
+            'K' => 10,
+            'L' => 10,
+            'M' => 14,
         ];
     }
 
@@ -93,8 +104,7 @@ class ProductionSummaryExport implements
     {
         return [
             1 => [
-                'font'      => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF'], 'size' => 10],
-                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1E3A5F']],
+                'font'      => ['bold' => true],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             ],
         ];
@@ -109,7 +119,7 @@ class ProductionSummaryExport implements
                 $totalRows = $lastRow + 1;
 
                 // Altura del encabezado
-                $sheet->getRowDimension(1)->setRowHeight(22);
+                $sheet->getRowDimension(1)->setRowHeight(20);
 
                 // Estilos por fila de datos
                 foreach ($this->records as $i => $rec) {
@@ -118,32 +128,20 @@ class ProductionSummaryExport implements
                     $plan = (int) $rec->planned_quantity;
                     $pct  = $plan > 0 ? ($prod / $plan) * 100 : 0;
 
-                    $sheet->getRowDimension($row)->setRowHeight(18);
-
-                    // Fondo alterno suave
-                    $bgColor = ($i % 2 === 0) ? 'FFFFFFFF' : 'FFF8FAFC';
-                    $sheet->getStyle("A{$row}:K{$row}")->applyFromArray([
-                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $bgColor]],
-                        'font' => ['size' => 9],
-                    ]);
+                    // Negrita para el número de orden
+                    $sheet->getStyle("E{$row}")->getFont()->setBold(true);
 
                     // Alineación centrada para columnas numéricas y de hora
-                    $sheet->getStyle("E{$row}:K{$row}")->getAlignment()
+                    $sheet->getStyle("F{$row}:M{$row}")->getAlignment()
                         ->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                    // Badge turno (col F) — azul suave
-                    $sheet->getStyle("F{$row}")->applyFromArray([
-                        'font' => ['bold' => true, 'color' => ['argb' => 'FF1D4ED8'], 'size' => 9],
-                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFEFF6FF']],
-                    ]);
-
-                    // Badge planeada (col G) — gris suave
-                    $sheet->getStyle("G{$row}")->applyFromArray([
-                        'font' => ['bold' => true, 'color' => ['argb' => 'FF475569'], 'size' => 9],
+                    // Color de cantidad planeada (col H)
+                    $sheet->getStyle("H{$row}")->applyFromArray([
+                        'font' => ['bold' => true, 'color' => ['argb' => 'FF475569']],
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF8FAFC']],
                     ]);
 
-                    // Badge producida (col H) — color según porcentaje
+                    // Color de cantidad producida (col I) según porcentaje
                     if ($pct >= 100) {
                         $fontColor = 'FF15803D';
                         $fillColor = 'FFF0FDF4';
@@ -155,43 +153,29 @@ class ProductionSummaryExport implements
                         $fillColor = 'FFFEF2F2';
                     }
 
-                    $sheet->getStyle("H{$row}")->applyFromArray([
-                        'font' => ['bold' => true, 'color' => ['argb' => $fontColor], 'size' => 9],
+                    $sheet->getStyle("I{$row}")->applyFromArray([
+                        'font' => ['bold' => true, 'color' => ['argb' => $fontColor]],
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $fillColor]],
                     ]);
-
-                    // Borde inferior suave
-                    $sheet->getStyle("A{$row}:K{$row}")->getBorders()->getBottom()
-                        ->setBorderStyle(Border::BORDER_THIN)
-                        ->getColor()->setARGB('FFF1F5F9');
                 }
 
                 // Fila de totales
-                $sheet->getRowDimension($totalRows)->setRowHeight(20);
                 $totalPlanned  = $this->records->sum('planned_quantity');
                 $totalProduced = $this->records->sum('produced_quantity');
 
                 $sheet->setCellValue("A{$totalRows}", 'TOTALES');
-                $sheet->mergeCells("A{$totalRows}:F{$totalRows}");
-                $sheet->setCellValue("G{$totalRows}", (int) $totalPlanned);
-                $sheet->setCellValue("H{$totalRows}", (int) $totalProduced);
+                $sheet->mergeCells("A{$totalRows}:G{$totalRows}");
+                $sheet->setCellValue("H{$totalRows}", (int) $totalPlanned);
+                $sheet->setCellValue("I{$totalRows}", (int) $totalProduced);
+                $sheet->setCellValue("J{$totalRows}", (int) $totalProduced - (int) $totalPlanned);
 
-                $sheet->getStyle("A{$totalRows}:K{$totalRows}")->applyFromArray([
-                    'font'      => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FF1E293B']],
-                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFF1F5F9']],
+                $sheet->getStyle("A{$totalRows}:M{$totalRows}")->applyFromArray([
+                    'font'      => ['bold' => true],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders'   => [
-                        'top' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => 'FFE2E8F0']],
-                    ],
                 ]);
 
                 $sheet->getStyle("A{$totalRows}")->getAlignment()
                     ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-
-                // Borde inferior del encabezado
-                $sheet->getStyle('A1:K1')->getBorders()->getBottom()
-                    ->setBorderStyle(Border::BORDER_MEDIUM)
-                    ->getColor()->setARGB('FF93C5FD');
 
                 // Freezar primera fila
                 $sheet->freezePane('A2');

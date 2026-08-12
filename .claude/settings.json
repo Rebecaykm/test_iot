@@ -13,7 +13,15 @@
       "PowerShell(php artisan config:clear)",
       "PowerShell(php artisan view:clear)",
       "Bash(php -l app/Livewire/PressProductionTimeline.php)",
-      "Bash(php -l app/Livewire/ShiftProductionTimeline.php)"
+      "Bash(php -l app/Livewire/ShiftProductionTimeline.php)",
+      "Bash(command -v node)",
+      "Bash(awk '/@script/{flag=1; next} /@endscript/{flag=0} flag' resources/views/livewire/press-production-timeline.blade.php)",
+      "Bash(sed '1d;$d')",
+      "Bash(sed -E \"s/@json\\\\\\([^\\)]*\\\\\\)/{}/g; s/\\\\{\\\\{[^}]*\\\\}\\\\}/0/g\" /tmp/chart_script.js)",
+      "Bash(node --check /tmp/chart_script_clean.js)",
+      "Bash(node -e ' *)",
+      "Bash(php -l \"app/Exports/ProductionSummaryExport.php\")",
+      "Bash(php -l \"app/Http/Controllers/ProductionRecordController.php\")"
     ]
   }
 }

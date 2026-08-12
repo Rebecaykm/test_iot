@@ -136,7 +136,10 @@ class ProductionRecordController extends Controller
                 $query->where('shifts.abbreviation', $selectedShift);
             }
 
-            $productionRecords = $query->orderBy('production_records.planned_date', 'desc')
+            $productionRecords = $query->orderBy('work_centers.number', 'asc')
+                ->orderBy('work_centers.name', 'asc')
+                ->orderBy('part_numbers.number', 'asc')
+                ->orderBy('production_records.planned_date', 'asc')
                 ->orderBy('shifts.start_time', 'asc')
                 ->get();
 
@@ -186,6 +189,7 @@ class ProductionRecordController extends Controller
                 'work_centers.name AS work_name',
                 'part_numbers.number AS part_number',
                 'part_numbers.name AS part_name',
+                'production_records.shop_order_number',
                 'production_records.planned_date',
                 'shifts.abbreviation AS shift_name',
                 'production_records.planned_quantity',
@@ -212,7 +216,10 @@ class ProductionRecordController extends Controller
             $query->where('shifts.abbreviation', $selectedShift);
         }
 
-        $records = $query->orderBy('production_records.planned_date', 'desc')
+        $records = $query->orderBy('work_centers.number', 'asc')
+            ->orderBy('work_centers.name', 'asc')
+            ->orderBy('part_numbers.number', 'asc')
+            ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.start_time', 'asc')
             ->get();
 

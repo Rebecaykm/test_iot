@@ -244,28 +244,29 @@
 
             // Colores por cumplimiento vs plan total del MDI
             // (>= 90% verde, 10-90% ámbar, < 10% rojo, sin plan neutro)
+            // rowFill: tinte para pintar solo la etiqueta del MDI (eje Y) a modo de recuadro
             const statusColors = () => isDark()
                 ? {
-                    good: { fill: 'rgba(52,211,153,0.20)', border: '#34d399', text: '#34d399' },
-                    mid:  { fill: 'rgba(251,191,36,0.20)', border: '#fbbf24', text: '#fbbf24' },
-                    bad:  { fill: 'rgba(248,113,113,0.20)', border: '#f87171', text: '#f87171' },
-                    none: { fill: 'rgba(156,163,175,0.20)', border: '#9ca3af', text: '#e5e7eb' },
+                    good: { fill: 'rgba(52,211,153,0.20)', border: '#34d399', text: '#34d399', rowFill: 'rgba(52,211,153,0.18)' },
+                    mid:  { fill: 'rgba(251,191,36,0.20)', border: '#fbbf24', text: '#fbbf24', rowFill: 'rgba(251,191,36,0.18)' },
+                    bad:  { fill: 'rgba(248,113,113,0.20)', border: '#f87171', text: '#f87171', rowFill: 'rgba(248,113,113,0.18)' },
+                    none: { fill: 'rgba(156,163,175,0.20)', border: '#9ca3af', text: '#e5e7eb', rowFill: 'rgba(156,163,175,0.14)' },
                 }
                 : {
-                    good: { fill: 'rgba(16,185,129,0.15)', border: '#059669', text: '#059669' },
-                    mid:  { fill: 'rgba(245,158,11,0.15)', border: '#d97706', text: '#d97706' },
-                    bad:  { fill: 'rgba(239,68,68,0.15)', border: '#dc2626', text: '#dc2626' },
-                    none: { fill: 'rgba(107,114,128,0.15)', border: '#6b7280', text: '#374151' },
+                    good: { fill: 'rgba(16,185,129,0.15)', border: '#059669', text: '#059669', rowFill: 'rgba(16,185,129,0.14)' },
+                    mid:  { fill: 'rgba(245,158,11,0.15)', border: '#d97706', text: '#d97706', rowFill: 'rgba(245,158,11,0.14)' },
+                    bad:  { fill: 'rgba(239,68,68,0.15)', border: '#dc2626', text: '#dc2626', rowFill: 'rgba(239,68,68,0.14)' },
+                    none: { fill: 'rgba(107,114,128,0.15)', border: '#6b7280', text: '#374151', rowFill: 'rgba(107,114,128,0.10)' },
                 };
 
             const statusOf = (s) => statusColors()[s] || statusColors().none;
 
-            // Convierte un offset (horas desde el inicio de la línea) a "dd-mm HH:mm"
-            const clockLabel = (hoursOffset) => {
+            // Solo la hora (sin fecha), para las etiquetas del eje X
+            const axisTimeLabel = (hoursOffset) => {
                 if (!state.shiftStartIso) return hoursOffset;
                 const base = new Date(state.shiftStartIso);
                 const d = new Date(base.getTime() + hoursOffset * 3600000);
-                return `${pad(d.getDate())}-${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
             };
 
             return {
@@ -315,116 +316,91 @@
                         planBorder:    dark ? '#60a5fa' : '#2563eb',
                     };
 
-                    // Color de la cruz (+) que sigue el cursor: negra en claro, blanca en oscuro
-                    const crosshairColor = dark ? '#ffffff' : '#000000';
-                    const crosshairTextColor = dark ? '#1f2937' : '#f9fafb';
-                    // Línea "Ahora": violeta, distinta del azul (plan) y verde/rojo (real)
-                    const nowLineColor = dark ? '#a78bfa' : '#8b5cf6';
+                    // Línea "Ahora": azul rey, distinta del azul del plan y del verde/rojo del real
+                    const nowLineColor = '#4169e1';
 
-                    // Dibuja una etiqueta de fecha/hora junto al puntero (x, y)
-                    const drawTimeTag = (ctx, x, y, area, text, color, textColor) => {
-                        ctx.font = 'bold 11px sans-serif';
-                        const padding = 6;
-                        const boxW = ctx.measureText(text).width + padding * 2;
-                        const boxH = 18;
-                        let boxX = x + 12;
-                        if (boxX + boxW > area.right) boxX = x - 12 - boxW;
-                        boxX = Math.max(area.left, Math.min(boxX, area.right - boxW));
-                        let boxY = y - boxH / 2;
-                        boxY = Math.max(area.top, Math.min(boxY, area.bottom - boxH));
-                        ctx.fillStyle = color;
-                        ctx.fillRect(boxX, boxY, boxW, boxH);
-                        ctx.fillStyle = textColor;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(text, boxX + boxW / 2, boxY + boxH / 2);
-                    };
-
-                    // Plugin: línea "Ahora" fija + cruz (+) que sigue el mouse
-                    const crosshairPlugin = {
-                        id: 'crosshair',
-                        afterEvent(chart, args) {
-                            const e = args.event;
-                            const area = chart.chartArea;
-                            const inside = e.x >= area.left && e.x <= area.right
-                                && e.y >= area.top && e.y <= area.bottom;
-                            if (e.type === 'mousemove' && inside) {
-                                chart._crosshairX = e.x;
-                                chart._crosshairY = e.y;
-                            } else {
-                                chart._crosshairX = null;
-                                chart._crosshairY = null;
-                            }
-                            args.changed = true;
-                        },
+                    // Plugin: línea vertical punteada marcando la hora actual
+                    const nowLinePlugin = {
+                        id: 'nowLine',
                         afterDraw(chart) {
                             const { ctx, chartArea: area, scales } = chart;
+                            if (!state.shiftStartIso) return;
 
-                            // Línea "Ahora" (hora actual)
-                            if (state.shiftStartIso) {
-                                const nowOffset = (Date.now() - new Date(state.shiftStartIso).getTime()) / 3600000;
-                                if (nowOffset >= 0 && nowOffset <= scales.x.max) {
-                                    const nx = scales.x.getPixelForValue(nowOffset);
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.setLineDash([5, 5]);
-                                    ctx.lineWidth = 1.5;
-                                    ctx.strokeStyle = nowLineColor;
-                                    ctx.moveTo(nx, area.top);
-                                    ctx.lineTo(nx, area.bottom);
-                                    ctx.stroke();
-                                    ctx.setLineDash([]);
-                                    ctx.restore();
-                                }
-                            }
+                            const nowOffset = (Date.now() - new Date(state.shiftStartIso).getTime()) / 3600000;
+                            if (nowOffset < 0 || nowOffset > scales.x.max) return;
 
-                            // Cruz (+) que sigue el mouse + fecha/hora junto al puntero
-                            const x = chart._crosshairX;
-                            if (x == null) return;
-                            const y = chart._crosshairY ?? area.top;
+                            const nx = scales.x.getPixelForValue(nowOffset);
                             ctx.save();
                             ctx.beginPath();
-                            ctx.setLineDash([6, 6]);
+                            ctx.setLineDash([5, 5]);
                             ctx.lineWidth = 1.5;
-                            ctx.strokeStyle = crosshairColor;
-                            ctx.moveTo(x, area.top);
-                            ctx.lineTo(x, area.bottom);
-                            ctx.moveTo(area.left, y);
-                            ctx.lineTo(area.right, y);
+                            ctx.strokeStyle = nowLineColor;
+                            ctx.moveTo(nx, area.top);
+                            ctx.lineTo(nx, area.bottom);
                             ctx.stroke();
                             ctx.setLineDash([]);
-                            drawTimeTag(ctx, x, y, area, clockLabel(scales.x.getValueForPixel(x)), crosshairColor, crosshairTextColor);
+                            ctx.restore();
+                        }
+                    };
+
+                    // Plugin: pinta el fondo de la etiqueta del MDI (eje Y), como si tuviera
+                    // un recuadro de su color de estado. No toca el área de las barras.
+                    const rowLabelBoxPlugin = {
+                        id: 'rowLabelBox',
+                        beforeDraw(chart) {
+                            const { ctx, scales: { y } } = chart;
+                            const count = chart.data.labels.length;
+                            if (!count) return;
+
+                            const slotHeight = (y.bottom - y.top) / count;
+                            ctx.save();
+                            for (let i = 0; i < count; i++) {
+                                const centerY = y.getPixelForValue(i);
+                                const top = centerY - slotHeight / 2;
+                                const status = statusOf(state.rowStatuses[i]);
+
+                                ctx.fillStyle = status.rowFill;
+                                ctx.fillRect(y.left, top, y.right - y.left, slotHeight);
+                            }
                             ctx.restore();
                         }
                     };
 
                     // Plugin: número centrado en cada barra (plan: lo que debería llevar;
-                    // real: golpes del segmento). Solo se dibuja si cabe dentro de la barra.
+                    // real: golpes del segmento). Siempre se dibuja completo, aunque no
+                    // quepa dentro de la barra, con un halo para que resalte sobre cualquier fondo.
                     const centerLabelsPlugin = {
                         id: 'centerLabels',
                         afterDatasetsDraw(chart) {
                             const { ctx } = chart;
                             ctx.save();
-                            ctx.font = 'bold 12px sans-serif';
+                            ctx.font = 'bold 13px sans-serif';
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
+                            ctx.lineJoin = 'round';
 
                             chart.data.datasets.forEach((ds, di) => {
                                 const meta = chart.getDatasetMeta(di);
                                 if (meta.hidden) return;
 
                                 meta.data.forEach((el, i) => {
-                                    const barWidth = Math.abs(el.x - el.base);
                                     const value = di === 0 ? state.planProgress[i] : state.quantities[i];
                                     if (value == null) return;
 
                                     const text = Number(value).toLocaleString('es-MX');
-                                    if (ctx.measureText(text).width + 10 > barWidth) return;
-
-                                    ctx.fillStyle = di === 0
+                                    const cx = (el.x + el.base) / 2;
+                                    const color = di === 0
                                         ? colors.planBorder
                                         : statusOf(state.barStatuses[i]).text;
-                                    ctx.fillText(text, (el.x + el.base) / 2, el.y);
+
+                                    // Halo de contraste detrás del número para que se lea completo
+                                    // aunque se salga de la barra o quede sobre el recuadro de fondo.
+                                    ctx.lineWidth = 3.5;
+                                    ctx.strokeStyle = isDark() ? 'rgba(17,24,39,0.9)' : 'rgba(255,255,255,0.95)';
+                                    ctx.strokeText(text, cx, el.y);
+
+                                    ctx.fillStyle = color;
+                                    ctx.fillText(text, cx, el.y);
                                 });
                             });
 
@@ -434,7 +410,7 @@
 
                     chart = new Chart(ctx, {
                         type: 'bar',
-                        plugins: [centerLabelsPlugin, crosshairPlugin],
+                        plugins: [rowLabelBoxPlugin, centerLabelsPlugin, nowLinePlugin],
                         data: {
                             labels: @json($labels),
                             datasets: [{
@@ -468,20 +444,21 @@
                             interaction: { mode: 'nearest', intersect: true },
                             scales: {
                                 x: {
+                                    position: 'top',
                                     min: 0,
                                     max: {{ $durationHours }},
                                     ticks: {
                                         stepSize: 1,
                                         color: colors.textMuted,
-                                        font: { size: 10 },
-                                        maxRotation: 90,
-                                        minRotation: 90,
+                                        font: { size: 11 },
+                                        maxRotation: 0,
+                                        minRotation: 0,
                                         autoSkip: false,
-                                        callback: (value) => clockLabel(value),
+                                        callback: (value) => axisTimeLabel(value),
                                     },
-                                    grid: { color: colors.grid },
+                                    grid: { color: colors.grid, borderDash: [4, 4] },
                                     border: { display: false },
-                                    title: { display: true, text: 'Fecha y hora', color: colors.textMuted }
+                                    title: { display: true, text: 'Hora', color: colors.textMuted }
                                 },
                                 y: {
                                     type: 'category',
@@ -493,8 +470,8 @@
                                             return '● ' + this.getLabelForValue(value);
                                         },
                                     },
-                                    // Cuadrícula horizontal: separa la fila de cada MDI
-                                    grid: { display: true, color: colors.grid, offset: true },
+                                    // Cuadrícula horizontal más marcada: separa mejor la fila de cada MDI
+                                    grid: { display: true, color: dark ? 'rgba(148,163,184,0.35)' : 'rgba(55,65,81,0.22)', lineWidth: 1.5, offset: true },
                                     border: { display: false }
                                 }
                             },
