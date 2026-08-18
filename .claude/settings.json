@@ -21,7 +21,9 @@
       "Bash(node --check /tmp/chart_script_clean.js)",
       "Bash(node -e ' *)",
       "Bash(php -l \"app/Exports/ProductionSummaryExport.php\")",
-      "Bash(php -l \"app/Http/Controllers/ProductionRecordController.php\")"
+      "Bash(php -l \"app/Http/Controllers/ProductionRecordController.php\")",
+      "Bash(awk ' *)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

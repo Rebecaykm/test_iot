@@ -48,12 +48,10 @@ class UserController extends Controller
     public function create()
     {
         $roles = Role::query()->where('name', '!=', 'Administrador')->orderBy('name', 'asc')->get();
-        $workCenters = WorkCenter::orderBy('name', 'asc')->get();
         $lines = Line::orderBy('name', 'asc')->get();
 
         return view('users.create', [
             'roles' => $roles,
-            'workCenters' => $workCenters,
             'lines' => $lines
         ]);
     }
@@ -71,8 +69,6 @@ class UserController extends Controller
             'role' => 'required|exists:roles,name',
             'lines' => 'nullable|array',
             'lines.*' => 'exists:lines,id',
-            'work_centers' => 'nullable|array',
-            'work_centers.*' => 'exists:work_centers,id'
         ]);
 
         $user = User::create([
@@ -84,14 +80,11 @@ class UserController extends Controller
 
         $user->assignRole($request->role);
 
-        if ($request->has('lines')) {
-            $user->lines()->sync($request->lines);
-        }
+        $lineIds = $request->lines ?? [];
+        $user->lines()->sync($lineIds);
 
-        // Asociar estaciones si se enviaron
-        if ($request->has('work_centers')) {
-            $user->workCenters()->sync($request->work_centers);
-        }
+        // Las estaciones se derivan automáticamente de las líneas seleccionadas.
+        $user->workCenters()->sync(WorkCenter::whereIn('line_id', $lineIds)->pluck('id'));
 
         return redirect()->route('users.index')->with('success', 'Usuario creado correctamente.');
     }
@@ -102,13 +95,11 @@ class UserController extends Controller
     public function edit(User $user)
     {
         $roles = Role::query()->where('name', '!=', 'Administrador')->orderBy('name', 'asc')->get();
-        $workCenters = WorkCenter::orderBy('name', 'asc')->get();
         $lines = Line::orderBy('name', 'asc')->get();
 
         return view('users.edit', [
             'user' => $user,
             'roles' => $roles,
-            'workCenters' => $workCenters,
             'lines' => $lines
         ]);
     }
@@ -126,8 +117,6 @@ class UserController extends Controller
             'lines' => 'nullable|array',
             'lines.*' => 'exists:lines,id',
             'password' => 'nullable|string|min:8|confirmed',
-            'work_centers' => 'nullable|array',
-            'work_centers.*' => 'exists:work_centers,id'
         ]);
 
         $data = [
@@ -143,11 +132,11 @@ class UserController extends Controller
         $user->update($data);
         $user->syncRoles($request->role);
 
-        // Sincronizar líneas
-        $user->lines()->sync($request->lines ?? []);
+        $lineIds = $request->lines ?? [];
+        $user->lines()->sync($lineIds);
 
-        // Sincronizar estaciones
-        $user->workCenters()->sync($request->work_centers ?? []);
+        // Las estaciones se derivan automáticamente de las líneas seleccionadas.
+        $user->workCenters()->sync(WorkCenter::whereIn('line_id', $lineIds)->pluck('id'));
 
         return redirect()->route('users.index')->with('success', 'Usuario actualizado correctamente.');
     }

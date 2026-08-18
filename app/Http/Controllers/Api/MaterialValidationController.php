@@ -239,7 +239,7 @@ class MaterialValidationController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['isValid' => false, 'validationComment' => 'Orden Incorrecto'], 422);
+            return response()->json(['isValid' => false, 'validationComment' => 'Etiqueta final requerida'], 422);
         }
 
         $finalLabelCode = $request->final_label_code;
@@ -322,7 +322,7 @@ class MaterialValidationController extends Controller
                 if ($combinedData->isEmpty()) {
                     return response()->json([
                         'isValid' => false,
-                        'validationComment' => 'Secuencia Incorrecta',
+                        'validationComment' => 'No se encontraron órdenes para este número de parte',
                     ]);
                 }
 
@@ -384,7 +384,7 @@ class MaterialValidationController extends Controller
                 if (!$currentOrder) {
                     return response()->json([
                         'isValid' => false,
-                        'validationComment' => 'Secuencia Incorrecta',
+                        'validationComment' => 'Orden no encontrada',
                     ]);
                 }
 
@@ -430,7 +430,7 @@ class MaterialValidationController extends Controller
 
                         return response()->json([
                             'isValid' => false,
-                            'validationComment' => 'Secuencia Incorrecta',
+                            'validationComment' => 'Orden anterior incompleta',
                             'expectedOrder' => $oldestMissingOrder['order_id'],
                             'displayMessage' => 'Falta escanear la secuencia: ' . $missingSequence . ' de la orden: ' . $oldestMissingOrder['order_id'],
                         ]);
@@ -468,7 +468,7 @@ class MaterialValidationController extends Controller
 
                                 return response()->json([
                                     'isValid' => false,
-                                    'validationComment' => 'Secuencia Incorrecta',
+                                    'validationComment' => 'Secuencia anterior sin escanear',
                                     'expectedOrder' => $order,
                                     'displayMessage' => 'Falta escanear la secuencia: ' . $barcode['sequence'] . ' de la orden: ' . $order,
                                 ]);
@@ -499,7 +499,7 @@ class MaterialValidationController extends Controller
 
                 return response()->json([
                     'isValid' => false,
-                    'validationComment' => 'Secuencia Incorrecta',
+                    'validationComment' => 'Error al validar la secuencia',
                 ], 500);
             }
         } else {
@@ -515,8 +515,7 @@ class MaterialValidationController extends Controller
      */
     private function convertSequenceToThreeDigits($sequence): string
     {
-        $completeSequence = str_pad($sequence, 6, "0", STR_PAD_LEFT);
-        $firstThree = substr((string) $completeSequence, 0, 3);
-        return str_pad($firstThree, 3, '0', STR_PAD_LEFT);
+        $completeSequence = str_pad((string) $sequence, 6, '0', STR_PAD_LEFT);
+        return substr($completeSequence, -3);
     }
 }
