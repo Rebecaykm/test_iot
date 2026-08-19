@@ -244,80 +244,28 @@ class MaterialValidationController extends Controller
 
         $finalLabelCode = $request->final_label_code;
 
-        // Identificar el tipo de etiqueta y separar sus campos según su formato
-        $data = $this->parseLabel($finalLabelCode);
-        dd($data);
-        if ($data instanceof JsonResponse) {
-            return $data;
-        }
-
-        $label = $data['label'];
-        $labelType = $label['labelType'];
-        $order = $label['order'];
-        $sequenceFromLabel = $label['sequenceFromLabel'];
-        $partNumber = $label['partNumber'];
-        $quantity = $label['quantity'];
-
-        // if (strlen($finalLabelCode) <= 30) {
-        //     return response()->json([
-        //         'isValid' => false,
-        //         'validationComment' => 'Orden Incorrecto',
-        //     ]);
-        // }
-
-        // $exists = MaterialValidation::where('final_label_code', $finalLabelCode)->where('validation_status', 'OK')->exists();
-        // if ($exists) {
-        //     return response()->json([
-        //         'isValid' => false,
-        //         'validationComment' => 'Registrado Anteriormente',
-        //     ]);
-        // }
-
         $allowedLines = ['Miniceldas', 'Index', 'InPanel J', 'Body Cross', 'Poka-Yoke'];
+
         if (count($userLines) === 1 && in_array($userLines[0], $allowedLines)) {
             try {
-                $today = Carbon::now();
+                // Identificar el tipo de etiqueta
+                $data = $this->parseLabel($finalLabelCode);
 
-                $startDate = $today->isMonday()
-                    ? $today->copy()->previous(Carbon::FRIDAY)
-                    : $today->copy()->subDays(2);
+                if ($data instanceof JsonResponse) {
+                    return $data;
+                }
 
-                $formattedStartDate = $startDate->format('Y-m-d\T00:00:00');
+                $label = $data['label'];
 
-                $currentYear = Carbon::now()->format('y');
+                // Extraer información de la etiqueta
+                $labelType = $label['labelType'];
+                $order = $label['order'];
+                $sequenceFromLabel = $label['sequenceFromLabel'];
+                $partNumber = $label['partNumber'];
+                $quantity = $label['quantity'];
 
-                // Log::info('Consultando datos combinados ORDERS y BARCODES', [
-                //     'start_date' => $formattedStartDate,
-                //     'end_date' => $formattedEndDate,
-                //     'part_number' => $partNumber,
-                //     'current_year' => $currentYear
-                // ]);
-
-                $combinedData = DB::connection('dbEmba')
-                    ->table('ORDERS')
-                    ->join('BARCODES', 'ORDERS.ORDER_ID', '=', 'BARCODES.ORDER_ID')
-                    ->select(
-                        'ORDERS.ORDER_ID',
-                        'ORDERS.DELIVERY_DATE',
-                        'ORDERS.PART_ID',
-                        'BARCODES.BARCODE_ID',
-                        'BARCODES.BARCODE_E',
-                        'BARCODES.BARCODE_M',
-                        'BARCODES.SEQUENCE',
-                        'BARCODES.SNP',
-                        'BARCODES.STATUS',
-                        'BARCODES.QTY',
-                        'BARCODES.SCANNED_M'
-                    )
-                    ->whereRaw("RTRIM(LTRIM(ORDERS.PART_ID)) LIKE ?", [trim($partNumber)])
-                    ->where('ORDERS.DELIVERY_DATE', '>=', $formattedStartDate)
-                    ->where('BARCODES.BARCODE_M', 'like', $currentYear . '%')
-                    ->where('ORDERS.ROUTE', 'NOT LIKE', 'W1')
-                    ->orderBy('ORDERS.DELIVERY_DATE', 'asc')
-                    ->orderBy('BARCODES.SEQUENCE', 'asc')
-                    ->get();
-
-                // Log::info('Registros combinados encontrados', ['count' => $combinedData->count()]);
+                // Datos de embarque obtenidos de la base de datos
+                $combinedData = $data['shipmentData'];
 
                 if ($combinedData->isEmpty()) {
                     return response()->json([
@@ -503,6 +451,7 @@ class MaterialValidationController extends Controller
                 ], 500);
             }
         } else {
+            dd("Alto ahí loca");
             return response()->json([
                 'isValid' => true,
                 'validationComment' => null,
@@ -520,8 +469,60 @@ class MaterialValidationController extends Controller
     }
 
     /**
-     * Identificar el tipo de etiqueta a partir de su contenido
+     * Ventana de fechas usada para consultar embarques: desde el viernes
+     * anterior (si hoy es lunes) o desde hace 2 días, hasta hoy.
      */
+    private function getShipmentDateRange(): array
+    {
+        $today = Carbon::now();
+
+        $startDate = $today->isMonday()
+            ? $today->copy()->previous(Carbon::FRIDAY)
+            : $today->copy()->subDays(2);
+
+        return [
+            $startDate->format('Y-m-d\T00:00:00'),
+            $today->format('y'),
+        ];
+    }
+
+    /**
+     * Consulta combinada ORDERS + BARCODES para un número de parte,
+     * dentro de la ventana de fechas de embarque vigente.
+     */
+    private function fetchShipmentData(string $partNumber, bool $excludeRouteW1 = false)
+    {
+        [$formattedStartDate, $currentYear] = $this->getShipmentDateRange();
+
+        $query = DB::connection('dbEmba')
+            ->table('ORDERS AS O')
+            ->join('BARCODES AS B', 'O.ORDER_ID', '=', 'B.ORDER_ID')
+            ->select(
+                'O.ORDER_ID',
+                'O.DELIVERY_DATE',
+                'O.PART_ID',
+                'B.BARCODE_ID',
+                'B.BARCODE_E',
+                'B.BARCODE_M',
+                'B.SCANNED_M',
+                'B.SEQUENCE',
+                'B.SNP',
+                'B.STATUS',
+                'B.QTY'
+            )
+            ->whereRaw('RTRIM(LTRIM(O.PART_ID)) LIKE ?', [trim($partNumber)])
+            ->where('O.DELIVERY_DATE', '>=', $formattedStartDate)
+            ->where('B.BARCODE_M', 'LIKE', $currentYear . '%')
+            ->orderBy('O.DELIVERY_DATE', 'asc')
+            ->orderBy('B.SEQUENCE', 'asc');
+
+        if ($excludeRouteW1) {
+            $query->where('O.ROUTE', 'NOT LIKE', 'W1');
+        }
+
+        return $query->get();
+    }
+
     /**
      * Identificar el tipo de etiqueta y separar sus campos según su formato.
      * Devuelve un JsonResponse si la etiqueta no es válida o no tiene
@@ -538,46 +539,10 @@ class MaterialValidationController extends Controller
                 'partNumber' => trim(substr($finalLabelCode, 42, 12)),
                 'quantity' => substr($finalLabelCode, 74, 5),
             ];
-
-            $today = Carbon::now();
-
-            $startDate = $today->isMonday()
-                ? $today->copy()->previous(Carbon::FRIDAY)
-                : $today->copy()->subDays(2);
-
-            $formattedStartDate = $startDate->format('Y-m-d\T00:00:00');
-
-            $currentYear = Carbon::now()->format('y');
-
-            $shipmentData = DB::connection('dbEmba')
-                ->table('ORDERS AS O')
-                ->join('BARCODES AS B', 'O.ORDER_ID', '=', 'B.ORDER_ID')
-                ->select(
-                    'O.ORDER_ID',
-                    'O.DELIVERY_DATE',
-                    'O.PART_ID',
-                    'B.BARCODE_ID',
-                    'B.BARCODE_E',
-                    'B.BARCODE_M',
-                    'B.SCANNED_M',
-                    'B.SEQUENCE',
-                    'B.SNP',
-                    'B.STATUS',
-                    'B.QTY'
-                )
-                ->whereRaw(
-                    "RTRIM(LTRIM(O.PART_ID)) LIKE ?",
-                    [trim($label['partNumber'])]
-                )
-                ->where('O.DELIVERY_DATE', '>=', $formattedStartDate)
-                ->where('B.BARCODE_M', 'LIKE', $currentYear . '%')
-                ->orderBy('O.DELIVERY_DATE', 'asc')
-                ->orderBy('B.SEQUENCE', 'asc')
-                ->get();
-
+            dd($label, $this->fetchShipmentData($label['partNumber']));
             return [
                 'label' => $label,
-                'shipmentData' => $shipmentData,
+                'shipmentData' => $this->fetchShipmentData($label['partNumber']),
             ];
         }
 
@@ -591,43 +556,10 @@ class MaterialValidationController extends Controller
                 'quantity' => substr($finalLabelCode, 74, 5),
             ];
 
-            $today = Carbon::now();
-
-            $startDate = $today->isMonday()
-                ? $today->copy()->previous(Carbon::FRIDAY)
-                : $today->copy()->subDays(2);
-
-            $formattedStartDate = $startDate->format('Y-m-d\T00:00:00');
-
-            $currentYear = Carbon::now()->format('y');
-
-            $shipmentData = DB::connection('dbEmba')
-                ->table('ORDERS AS O')
-                ->join('BARCODES AS B', 'O.ORDER_ID', '=', 'B.ORDER_ID')
-                ->select(
-                    'O.ORDER_ID',
-                    'O.DELIVERY_DATE',
-                    'O.PART_ID',
-                    'B.BARCODE_ID',
-                    'B.BARCODE_E',
-                    'B.BARCODE_M',
-                    'B.SCANNED_M',
-                    'B.SEQUENCE',
-                    'B.SNP',
-                    'B.STATUS',
-                    'B.QTY'
-                )
-                ->whereRaw(
-                    "RTRIM(LTRIM(O.PART_ID)) LIKE ?",
-                    [trim($label['partNumber'])]
-                )
-                ->where('O.DELIVERY_DATE', '>=', $formattedStartDate)
-                ->where('B.BARCODE_M', 'LIKE', $currentYear . '%')
-                ->orderBy('O.DELIVERY_DATE', 'asc')
-                ->orderBy('B.SEQUENCE', 'asc')
-                ->get();
-
-            return ['label' => $label, 'shipmentData' => $shipmentData];
+            return [
+                'label' => $label,
+                'shipmentData' => $this->fetchShipmentData($label['partNumber']),
+            ];
         }
 
         // Validación para etiquetas que contienen "TOYOTA 920B GT"
@@ -640,43 +572,10 @@ class MaterialValidationController extends Controller
                 'quantity' => substr($finalLabelCode, 74, 5),
             ];
 
-            $today = Carbon::now();
-
-            $startDate = $today->isMonday()
-                ? $today->copy()->previous(Carbon::FRIDAY)
-                : $today->copy()->subDays(2);
-
-            $formattedStartDate = $startDate->format('Y-m-d\T00:00:00');
-
-            $currentYear = Carbon::now()->format('y');
-
-            $shipmentData = DB::connection('dbEmba')
-                ->table('ORDERS AS O')
-                ->join('BARCODES AS B', 'O.ORDER_ID', '=', 'B.ORDER_ID')
-                ->select(
-                    'O.ORDER_ID',
-                    'O.DELIVERY_DATE',
-                    'O.PART_ID',
-                    'B.BARCODE_ID',
-                    'B.BARCODE_E',
-                    'B.BARCODE_M',
-                    'B.SCANNED_M',
-                    'B.SEQUENCE',
-                    'B.SNP',
-                    'B.STATUS',
-                    'B.QTY'
-                )
-                ->whereRaw(
-                    "RTRIM(LTRIM(O.PART_ID)) LIKE ?",
-                    [trim($label['partNumber'])]
-                )
-                ->where('O.DELIVERY_DATE', '>=', $formattedStartDate)
-                ->where('B.BARCODE_M', 'LIKE', $currentYear . '%')
-                ->orderBy('O.DELIVERY_DATE', 'asc')
-                ->orderBy('B.SEQUENCE', 'asc')
-                ->get();
-
-            return ['label' => $label, 'shipmentData' => $shipmentData];
+            return [
+                'label' => $label,
+                'shipmentData' => $this->fetchShipmentData($label['partNumber']),
+            ];
         }
 
         // Validación para etiquetas que contienen "J34A MNAO T1 DIRECTAS"
@@ -689,60 +588,35 @@ class MaterialValidationController extends Controller
                 'quantity' => substr($finalLabelCode, 74, 5),
             ];
 
-            $today = Carbon::now();
-
-            $startDate = $today->isMonday()
-                ? $today->copy()->previous(Carbon::FRIDAY)
-                : $today->copy()->subDays(2);
-
-            $formattedStartDate = $startDate->format('Y-m-d\T00:00:00');
-
-            $currentYear = Carbon::now()->format('y');
-
-            $shipmentData = DB::connection('dbEmba')
-                ->table('ORDERS AS O')
-                ->join('BARCODES AS B', 'O.ORDER_ID', '=', 'B.ORDER_ID')
-                ->select(
-                    'O.ORDER_ID',
-                    'O.DELIVERY_DATE',
-                    'O.PART_ID',
-                    'B.BARCODE_ID',
-                    'B.BARCODE_E',
-                    'B.BARCODE_M',
-                    'B.SCANNED_M',
-                    'B.SEQUENCE',
-                    'B.SNP',
-                    'B.STATUS',
-                    'B.QTY'
-                )
-                ->whereRaw(
-                    "RTRIM(LTRIM(O.PART_ID)) LIKE ?",
-                    [trim($label['partNumber'])]
-                )
-                ->where('O.DELIVERY_DATE', '>=', $formattedStartDate)
-                ->where('B.BARCODE_M', 'LIKE', $currentYear . '%')
-                ->orderBy('O.DELIVERY_DATE', 'asc')
-                ->orderBy('B.SEQUENCE', 'asc')
-                ->get();
-
-            return ['label' => $label, 'shipmentData' => $shipmentData];
+            return [
+                'label' => $label,
+                'shipmentData' => $this->fetchShipmentData($label['partNumber']),
+            ];
         }
 
         if (str_starts_with($finalLabelCode, 'T1')) {
-            // TODO:
-            // dd("34A MNAO T2 INDIRECTAS", $finalLabelCode);
+            // TODO: agregar separación de campos para "J34A MNAO T2 INDIRECTAS"
         }
 
-
-
-        return [
-            'label' => [
+        // Validación para etiquetas que contienen "MMVO"
+        if (strlen($finalLabelCode) >= 35 && strlen($finalLabelCode) <= 40) {
+            $label = [
                 'labelType' => 'MMVO',
                 'order' => substr($finalLabelCode, 0, 7),
                 'sequenceFromLabel' => substr($finalLabelCode, 7, 3),
                 'partNumber' => trim(substr($finalLabelCode, 10, 10)),
                 'quantity' => substr($finalLabelCode, 20, 6),
-            ],
-        ];
+            ];
+
+            return [
+                'label' => $label,
+                'shipmentData' => $this->fetchShipmentData($label['partNumber'], excludeRouteW1: true),
+            ];
+        }
+
+        return response()->json([
+            'isValid' => false,
+            'validationComment' => 'Etiqueta no válida',
+        ]);
     }
 }
