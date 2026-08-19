@@ -292,18 +292,18 @@ class MaterialValidationController extends Controller
 
                     // Convertir la secuencia de la BD a 3 dígitos
                     $threeDigitSequence = $this->convertSequenceToThreeDigits($record->SEQUENCE);
+                    $isScanned = $this->isBarcodeScanned($labelType, $record);
 
                     // Agregar información del barcode
                     $ordersMap[$orderId]['barcodes'][] = [
                         'barcode_id' => $record->BARCODE_ID,
-                        'barcode_m' => $record->BARCODE_M,
                         'sequence' => $threeDigitSequence,
                         'original_sequence' => $record->SEQUENCE,
-                        'scanned_m' => $record->SCANNED_M
+                        'is_scanned' => $isScanned,
                     ];
 
                     // Verificar si todos los códigos de barras están escaneados
-                    if (empty($record->SCANNED_M)) {
+                    if (!$isScanned) {
                         $ordersMap[$orderId]['all_scanned'] = false;
                     }
 
@@ -343,7 +343,26 @@ class MaterialValidationController extends Controller
                 //     'index' => $currentIndex
                 // ]);
 
-                // VALIDACIÓN 1: Buscar órdenes anteriores no escaneadas
+                $currentSequenceNumber = intval($sequenceFromLabel);
+
+                // VALIDACIÓN 1: La secuencia que se está escaneando no debe estar ya registrada
+                $currentBarcode = null;
+                foreach ($currentOrder['barcodes'] as $barcode) {
+                    if (intval($barcode['sequence']) === $currentSequenceNumber) {
+                        $currentBarcode = $barcode;
+                        break;
+                    }
+                }
+
+                if ($currentBarcode && $currentBarcode['is_scanned']) {
+                    return response()->json([
+                        'isValid' => false,
+                        'validationComment' => 'Etiqueta ya registrada',
+                        'displayMessage' => 'La secuencia: ' . $sequenceFromLabel . ' de la orden: ' . $order . ' ya fue escaneada anteriormente',
+                    ]);
+                }
+
+                // VALIDACIÓN 2: Buscar órdenes anteriores no escaneadas
                 if ($currentIndex > 0) {
                     // Recorrer TODAS las órdenes anteriores para encontrar la más antigua sin escanear
                     $oldestMissingOrder = null;
@@ -364,7 +383,7 @@ class MaterialValidationController extends Controller
                         $missingSequence = null;
 
                         foreach ($oldestMissingOrder['barcodes'] as $barcode) {
-                            if (empty($barcode['scanned_m'])) {
+                            if (!$barcode['is_scanned']) {
                                 $missingSequence = $barcode['sequence'];
                                 break; // Tomamos la primera secuencia sin escanear
                             }
@@ -378,7 +397,7 @@ class MaterialValidationController extends Controller
 
                         return response()->json([
                             'isValid' => false,
-                            'validationComment' => 'Orden anterior incompleta',
+                            'validationComment' => 'Orden anterior sin escaneada',
                             'expectedOrder' => $oldestMissingOrder['order_id'],
                             'displayMessage' => 'Falta escanear la secuencia: ' . $missingSequence . ' de la orden: ' . $oldestMissingOrder['order_id'],
                         ]);
@@ -389,9 +408,7 @@ class MaterialValidationController extends Controller
                     // Log::info('No hay órdenes anteriores, es la primera orden de la secuencia');
                 }
 
-                // VALIDACIÓN 2: Validar secuencias dentro de la orden actual
-                $currentSequenceNumber = intval($sequenceFromLabel);
-
+                // VALIDACIÓN 3: Validar secuencias anteriores dentro de la orden actual
                 // Log::info('Validando secuencias de la orden actual', [
                 //     'sequence_from_label' => $sequenceFromLabel,
                 //     'sequence_number' => $currentSequenceNumber,
@@ -407,7 +424,7 @@ class MaterialValidationController extends Controller
                         // Solo verificar secuencias menores a la que se está escaneando
                         if ($barcodeSequenceNumber < $currentSequenceNumber) {
                             // Si esta secuencia no está escaneada
-                            if (empty($barcode['scanned_m'])) {
+                            if (!$barcode['is_scanned']) {
                                 Log::info('Secuencia anterior no escaneada en orden actual', [
                                     'missing_sequence' => $barcode['sequence'],
                                     'current_sequence' => $sequenceFromLabel,
@@ -466,6 +483,20 @@ class MaterialValidationController extends Controller
     {
         $completeSequence = str_pad((string) $sequence, 6, '0', STR_PAD_LEFT);
         return substr($completeSequence, -3);
+    }
+
+    /**
+     * Determina si un barcode ya fue escaneado. MMVO lo marca llenando
+     * SCANNED_M; el resto de las etiquetas lo reportan en STATUS, donde
+     * 'CREATED' significa que todavía no se ha escaneado.
+     */
+    private function isBarcodeScanned(string $labelType, $record): bool
+    {
+        if ($labelType === 'MMVO') {
+            return !empty($record->SCANNED_M);
+        }
+
+        return $record->STATUS !== 'CREATED';
     }
 
     /**
@@ -535,11 +566,11 @@ class MaterialValidationController extends Controller
             $label = [
                 'labelType' => 'TOYOTA_660B',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
-                'sequenceFromLabel' => substr($finalLabelCode, 151, 8),
+                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 8)),
                 'partNumber' => trim(substr($finalLabelCode, 42, 12)),
-                'quantity' => substr($finalLabelCode, 74, 5),
+                'quantity' => (string) intval(substr($finalLabelCode, 74, 5)),
             ];
-            dd($label, $this->fetchShipmentData($label['partNumber']));
+
             return [
                 'label' => $label,
                 'shipmentData' => $this->fetchShipmentData($label['partNumber']),
@@ -551,9 +582,9 @@ class MaterialValidationController extends Controller
             $label = [
                 'labelType' => 'TOYOTA_920B_BC',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
-                'sequenceFromLabel' => substr($finalLabelCode, 151, 8),
+                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 8)),
                 'partNumber' => trim(substr($finalLabelCode, 42, 12) . '-BC'),
-                'quantity' => substr($finalLabelCode, 74, 5),
+                'quantity' => (string) intval(substr($finalLabelCode, 74, 5)),
             ];
 
             return [
@@ -567,9 +598,9 @@ class MaterialValidationController extends Controller
             $label = [
                 'labelType' => 'TOYOTA_920B_GT',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
-                'sequenceFromLabel' => substr($finalLabelCode, 151, 8),
+                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 8)),
                 'partNumber' => trim(substr($finalLabelCode, 42, 12) . '-GT'),
-                'quantity' => substr($finalLabelCode, 74, 5),
+                'quantity' => (string) intval(substr($finalLabelCode, 74, 5)),
             ];
 
             return [
@@ -583,9 +614,9 @@ class MaterialValidationController extends Controller
             $label = [
                 'labelType' => 'J34A_MNAO_T1_DIRECTAS',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
-                'sequenceFromLabel' => substr($finalLabelCode, 151, 8),
+                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 8)),
                 'partNumber' => trim(substr($finalLabelCode, 42, 12)),
-                'quantity' => substr($finalLabelCode, 74, 5),
+                'quantity' => (string) intval(substr($finalLabelCode, 74, 5)),
             ];
 
             return [
