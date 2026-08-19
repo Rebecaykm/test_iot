@@ -34,89 +34,78 @@ class MaterialValidationController extends Controller
                 'device_name' => 'nullable|string|max:255',
                 'device_id' => 'nullable|string|max:255',
                 'ip_address' => 'nullable|string|max:45',
+                'mac_address' => 'nullable|string|max:255',
                 'validation_comment' => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {
-                $accessErrors[] = 'Datos de validación incorrectos';
                 return response()->json([
                     'success' => false,
-                    'message' => 'Datos de validación incorrectos',
+                    'message' => 'Datos Incorrectos',
                     'errors' => $validator->errors()
                 ], 422);
             }
 
             $user = $request->user();
 
-            $partNumber = PartNumber::where('number', trim($request->part_number))->first();
+            $partNumber = null;
+            if ($request->filled('part_number')) {
+                $partNumber = PartNumber::where('number', trim($request->part_number))->first();
 
-            if ($request->filled('part_number') && !$partNumber) {
-                $accessErrors[] = 'El número de parte no existe';
+                if (!$partNumber) {
+                    $accessErrors[] = 'El número de parte no existe';
+                }
             }
+
+            $externalApiPayload = [
+                'barcode' => $request->final_label_code,
+                'status' => $request->validation_status,
+                'comments' => $request->validation_comment,
+            ];
 
             // Enviar datos a la API externa antes de crear el registro
             $externalApiResponse = null;
             try {
-                $response = Http::withHeaders([
+                $httpResponse = Http::withHeaders([
                     'Accept' => 'application/json',
                     'Content-Type' => 'application/json',
                     'X-Auth-Channel' => '0C5A15CC-DD57-4C4F-81DF-730AFA796967'
                 ])
                     ->timeout(30) // Timeout de 30 segundos
-                    ->post('http://192.168.130.46:8980/ykm-monitor/qualitylog', [
-                        'barcode' => $request->final_label_code,
-                        'status' => $request->validation_status,
-                        'comments' => $request->validation_comment
-                    ]);
+                    ->post('http://192.168.130.46:8980/ykm-monitor/qualitylog', $externalApiPayload);
 
                 // Capturar la respuesta completa
                 $externalApiResponse = [
-                    'status_code' => $response->status(),
-                    'response_body' => $response->json(),
-                    'request_sent' => [
-                        'barcode' => $request->final_label_code,
-                        'status' => $request->validation_status,
-                        'comments' => $request->validation_comment
-                    ],
+                    'status_code' => $httpResponse->status(),
+                    'response_body' => $httpResponse->json(),
+                    'request_sent' => $externalApiPayload,
                     'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
                 ];
 
                 // Verificar si la respuesta fue exitosa
-                if (!$response->successful()) {
-                    $accessErrors[] = 'Error al enviar datos a la API externa';
-                    Log::warning('Error enviando datos a API externa', [
-                        'status' => $response->status(),
-                        'response' => $response->body(),
-                        'request_data' => [
-                            'barcode' => $request->final_label_code,
-                            'status' => $request->validation_status,
-                            'comments' => $request->validation_comment
-                        ]
+                if (!$httpResponse->successful()) {
+                    $accessErrors[] = 'Error al enviar datos a la API';
+                    Log::warning('Error al enviar datos a API', [
+                        'status' => $httpResponse->status(),
+                        'response' => $httpResponse->body(),
+                        'request_data' => $externalApiPayload,
                     ]);
                 }
             } catch (\Exception $e) {
-                $accessErrors[] = 'Error de conexión con la API externa';
+                $accessErrors[] = 'Error de conexión con la API';
 
                 // Capturar el error en la respuesta
                 $externalApiResponse = [
                     'status_code' => null,
                     'response_body' => null,
                     'error' => $e->getMessage(),
-                    'request_sent' => [
-                        'barcode' => $request->final_label_code,
-                        'status' => $request->validation_status,
-                        'comments' => $request->validation_comment
-                    ],
+                    'request_sent' => $externalApiPayload,
                     'timestamp' => Carbon::now()->format('Y-m-d H:i:s')
                 ];
 
-                Log::error('Error conectando con API externa', [
+                Log::error('Error al conectar con API', [
                     'error' => $e->getMessage(),
-                    'request_data' => [
-                        'barcode' => $request->final_label_code,
-                        'status' => $request->validation_status,
-                        'comments' => $request->validation_comment
-                    ]
+                    'request_data' => $externalApiPayload,
                 ]);
             }
 
@@ -126,14 +115,14 @@ class MaterialValidationController extends Controller
                 'container_code' => $request->container_code,
                 'visual_aid_code' => $request->visual_aid_code,
                 'final_label_code' => $request->final_label_code,
-                'part_number' => trim($request->part_number),
+                'part_number' => $partNumber?->number ?? trim((string) $request->part_number),
                 'validation_status' => $request->validation_status,
                 'validation_comment' => $request->validation_comment,
                 'validation_details' => [
                     'user_name' => $user->name,
                     'user_email' => $user->email,
-                    'part_number' => $partNumber ? $partNumber->number : null,
-                    'part_name' => $partNumber ? $partNumber->name : null,
+                    'part_number' => $partNumber?->number,
+                    'part_name' => $partNumber?->name,
                     'device_model' => $request->device_model,
                     'device_name' => $request->device_name,
                     'device_id' => $request->device_id,
@@ -148,8 +137,8 @@ class MaterialValidationController extends Controller
             $response = [
                 'success' => empty($accessErrors),
                 'message' => empty($accessErrors)
-                    ? 'Validación registrada correctamente'
-                    : 'Validación registrada con errores de acceso',
+                    ? 'Registrado correctamente'
+                    : 'Registrado con error de acceso',
                 'data' => [
                     'id' => $materialValidation->id,
                     'validation_status' => $materialValidation->validation_status,
@@ -246,7 +235,7 @@ class MaterialValidationController extends Controller
 
         $allowedLines = ['Miniceldas', 'Index', 'InPanel J', 'Body Cross', 'Poka-Yoke'];
 
-        if (count($userLines) === 1 && in_array($userLines[0], $allowedLines)) {
+        if (!empty(array_intersect($userLines, $allowedLines))) {
             try {
                 // Identificar el tipo de etiqueta
                 $data = $this->parseLabel($finalLabelCode);
@@ -274,7 +263,7 @@ class MaterialValidationController extends Controller
                     ]);
                 }
 
-                // Procesar datos en memoria
+                // Agrupar por ORDER_ID y preparar la estructura de datos
                 $ordersMap = [];
                 foreach ($combinedData as $record) {
                     $orderId = $record->ORDER_ID;
@@ -290,14 +279,14 @@ class MaterialValidationController extends Controller
                         ];
                     }
 
-                    // Convertir la secuencia de la BD a 3 dígitos
-                    $threeDigitSequence = $this->convertSequenceToThreeDigits($record->SEQUENCE);
+                    // Extraer el número de secuencia real
+                    $sequenceNumber = $this->extractSequenceNumber($record->SEQUENCE);
                     $isScanned = $this->isBarcodeScanned($labelType, $record);
 
                     // Agregar información del barcode
                     $ordersMap[$orderId]['barcodes'][] = [
                         'barcode_id' => $record->BARCODE_ID,
-                        'sequence' => $threeDigitSequence,
+                        'sequence' => $sequenceNumber,
                         'original_sequence' => $record->SEQUENCE,
                         'is_scanned' => $isScanned,
                     ];
@@ -308,7 +297,7 @@ class MaterialValidationController extends Controller
                     }
 
                     // Almacenar secuencias para validación
-                    $ordersMap[$orderId]['sequences'][] = $threeDigitSequence;
+                    $ordersMap[$orderId]['sequences'][] = $sequenceNumber;
                 }
 
                 // Convertir a array y ordenar por fecha
@@ -335,17 +324,9 @@ class MaterialValidationController extends Controller
                         'validationComment' => 'Orden no encontrada',
                     ]);
                 }
-
-                // Log::info('Orden actual encontrada', [
-                //     'ORDER_ID' => $currentOrder['order_id'],
-                //     'DELIVERY_DATE' => $currentOrder['delivery_date'],
-                //     'all_scanned' => $currentOrder['all_scanned'],
-                //     'index' => $currentIndex
-                // ]);
-
                 $currentSequenceNumber = intval($sequenceFromLabel);
 
-                // VALIDACIÓN 1: La secuencia que se está escaneando no debe estar ya registrada
+                // VALIDACIÓN 1: Verificar si la secuencia ya fue escaneada
                 $currentBarcode = null;
                 foreach ($currentOrder['barcodes'] as $barcode) {
                     if (intval($barcode['sequence']) === $currentSequenceNumber) {
@@ -358,7 +339,7 @@ class MaterialValidationController extends Controller
                     return response()->json([
                         'isValid' => false,
                         'validationComment' => 'Etiqueta ya registrada',
-                        'displayMessage' => 'La secuencia: ' . $sequenceFromLabel . ' de la orden: ' . $order . ' ya fue escaneada anteriormente',
+                        'displayMessage' => 'La secuencia: ' . $sequenceFromLabel . ', de la orden: ' . $order . ', ya fue escaneada anteriormente',
                     ]);
                 }
 
@@ -389,31 +370,20 @@ class MaterialValidationController extends Controller
                             }
                         }
 
-                        Log::info('Orden más antigua no escaneada encontrada', [
-                            'missing_order' => $oldestMissingOrder['order_id'],
-                            'missing_sequence' => $missingSequence,
-                            'all_sequences' => $oldestMissingOrder['sequences']
-                        ]);
+                        // Log::info('Orden más antigua no escaneada encontrada', [
+                        //     'missing_order' => $oldestMissingOrder['order_id'],
+                        //     'missing_sequence' => $missingSequence,
+                        //     'all_sequences' => $oldestMissingOrder['sequences']
+                        // ]);
 
                         return response()->json([
                             'isValid' => false,
-                            'validationComment' => 'Orden anterior sin escaneada',
+                            'validationComment' => 'Orden anterior sin escanear',
                             'expectedOrder' => $oldestMissingOrder['order_id'],
-                            'displayMessage' => 'Falta escanear la secuencia: ' . $missingSequence . ' de la orden: ' . $oldestMissingOrder['order_id'],
+                            'displayMessage' => 'Falta escanear la secuencia: ' . $missingSequence . ', de la orden: ' . $oldestMissingOrder['order_id'],
                         ]);
                     }
-
-                    // Log::info('Todas las órdenes anteriores han sido escaneadas correctamente');
-                } else {
-                    // Log::info('No hay órdenes anteriores, es la primera orden de la secuencia');
                 }
-
-                // VALIDACIÓN 3: Validar secuencias anteriores dentro de la orden actual
-                // Log::info('Validando secuencias de la orden actual', [
-                //     'sequence_from_label' => $sequenceFromLabel,
-                //     'sequence_number' => $currentSequenceNumber,
-                //     'barcodes_in_order' => count($currentOrder['barcodes'])
-                // ]);
 
                 // Si la secuencia escaneada no es la primera (001), validar que las anteriores estén escaneadas
                 if ($currentSequenceNumber > 1) {
@@ -425,23 +395,21 @@ class MaterialValidationController extends Controller
                         if ($barcodeSequenceNumber < $currentSequenceNumber) {
                             // Si esta secuencia no está escaneada
                             if (!$barcode['is_scanned']) {
-                                Log::info('Secuencia anterior no escaneada en orden actual', [
-                                    'missing_sequence' => $barcode['sequence'],
-                                    'current_sequence' => $sequenceFromLabel,
-                                    'order' => $order
-                                ]);
+                                // Log::info('Secuencia anterior no escaneada en orden actual', [
+                                //     'missing_sequence' => $barcode['sequence'],
+                                //     'current_sequence' => $sequenceFromLabel,
+                                //     'order' => $order
+                                // ]);
 
                                 return response()->json([
                                     'isValid' => false,
                                     'validationComment' => 'Secuencia anterior sin escanear',
                                     'expectedOrder' => $order,
-                                    'displayMessage' => 'Falta escanear la secuencia: ' . $barcode['sequence'] . ' de la orden: ' . $order,
+                                    'displayMessage' => 'Falta escanear la secuencia: ' . $barcode['sequence'] . ', de la orden: ' . $order,
                                 ]);
                             }
                         }
                     }
-
-                    // Log::info('Todas las secuencias anteriores están escaneadas correctamente en la orden actual');
                 }
 
                 // Si pasa todas las validaciones
@@ -468,7 +436,6 @@ class MaterialValidationController extends Controller
                 ], 500);
             }
         } else {
-            dd("Alto ahí loca");
             return response()->json([
                 'isValid' => true,
                 'validationComment' => null,
@@ -477,12 +444,15 @@ class MaterialValidationController extends Controller
     }
 
     /**
-     * Convierte una secuencia de la BD a formato de 3 dígitos
+     * Extrae el número de secuencia real desde el campo SEQUENCE de la BD.
+     * Se guarda como secuencia*1000 + total de la orden (ej. 1002 = secuencia
+     * 1, total 2; 1006 = secuencia 1, total 6), así que basta con quedarnos
+     * con lo que hay antes de los últimos 3 dígitos.
      */
-    private function convertSequenceToThreeDigits($sequence): string
+    private function extractSequenceNumber($sequence): string
     {
-        $completeSequence = str_pad((string) $sequence, 6, '0', STR_PAD_LEFT);
-        return substr($completeSequence, -3);
+        $sequenceNumber = intdiv((int) $sequence, 1000);
+        return str_pad((string) $sequenceNumber, 3, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -566,7 +536,7 @@ class MaterialValidationController extends Controller
             $label = [
                 'labelType' => 'TOYOTA_660B',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
-                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 8)),
+                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 4)),
                 'partNumber' => trim(substr($finalLabelCode, 42, 12)),
                 'quantity' => (string) intval(substr($finalLabelCode, 74, 5)),
             ];
@@ -582,7 +552,7 @@ class MaterialValidationController extends Controller
             $label = [
                 'labelType' => 'TOYOTA_920B_BC',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
-                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 8)),
+                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 4)),
                 'partNumber' => trim(substr($finalLabelCode, 42, 12) . '-BC'),
                 'quantity' => (string) intval(substr($finalLabelCode, 74, 5)),
             ];
@@ -598,7 +568,7 @@ class MaterialValidationController extends Controller
             $label = [
                 'labelType' => 'TOYOTA_920B_GT',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
-                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 8)),
+                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 4)),
                 'partNumber' => trim(substr($finalLabelCode, 42, 12) . '-GT'),
                 'quantity' => (string) intval(substr($finalLabelCode, 74, 5)),
             ];
@@ -614,7 +584,7 @@ class MaterialValidationController extends Controller
             $label = [
                 'labelType' => 'J34A_MNAO_T1_DIRECTAS',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
-                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 8)),
+                'sequenceFromLabel' => (string) intval(substr($finalLabelCode, 151, 4)),
                 'partNumber' => trim(substr($finalLabelCode, 42, 12)),
                 'quantity' => (string) intval(substr($finalLabelCode, 74, 5)),
             ];
