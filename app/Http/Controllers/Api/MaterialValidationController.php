@@ -253,6 +253,14 @@ class MaterialValidationController extends Controller
                 $partNumber = $label['partNumber'];
                 $quantity = $label['quantity'];
 
+                Log::info('Validando secuencia de etiqueta', [
+                        'label_type' => $labelType,
+                        'order' => $order,
+                        'sequence_from_label' => $sequenceFromLabel,
+                        'part_number' => $partNumber,
+                        'quantity' => $quantity,
+                    ]);
+
                 // Datos de embarque obtenidos de la base de datos
                 $combinedData = $data['shipmentData'];
 
