@@ -9,6 +9,7 @@ use App\Models\PartNumber;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
@@ -254,12 +255,12 @@ class MaterialValidationController extends Controller
                 $quantity = $label['quantity'];
 
                 Log::info('Validando secuencia de etiqueta', [
-                        'label_type' => $labelType,
-                        'order' => $order,
-                        'sequence_from_label' => $sequenceFromLabel,
-                        'part_number' => $partNumber,
-                        'quantity' => $quantity,
-                    ]);
+                    'label_type' => $labelType,
+                    'order' => $order,
+                    'sequence_from_label' => $sequenceFromLabel,
+                    'part_number' => $partNumber,
+                    'quantity' => $quantity,
+                ]);
 
                 // Datos de embarque obtenidos de la base de datos
                 $combinedData = $data['shipmentData'];
@@ -539,8 +540,13 @@ class MaterialValidationController extends Controller
      */
     private function parseLabel(string $finalLabelCode): array|JsonResponse
     {
+        // El marcador de tipo (TMX/TMB/TMG/MTM) va fijo en la posición 162-164
+        // de la etiqueta; se compara por igualdad exacta ahí, no en cualquier
+        // parte del texto, para no confundirlo si esas letras aparecen en otro campo.
+        $typeMarker = trim(substr($finalLabelCode, 161, 3));
+
         // Validación para etiquetas que contienen "TOYOTA 660B"
-        if (str_contains($finalLabelCode, 'TMX')) {
+        if ($typeMarker === 'TMX') {
             $label = [
                 'labelType' => 'TOYOTA_660B',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
@@ -556,7 +562,7 @@ class MaterialValidationController extends Controller
         }
 
         // Validación para etiquetas que contienen "TOYOTA 920B BC"
-        if (str_contains($finalLabelCode, 'TMB')) {
+        if ($typeMarker === 'TMB') {
             $label = [
                 'labelType' => 'TOYOTA_920B_BC',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
@@ -572,7 +578,7 @@ class MaterialValidationController extends Controller
         }
 
         // Validación para etiquetas que contienen "TOYOTA 920B GT"
-        if (str_contains($finalLabelCode, 'TMG')) {
+        if ($typeMarker === 'TMG') {
             $label = [
                 'labelType' => 'TOYOTA_920B_GT',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
@@ -588,7 +594,7 @@ class MaterialValidationController extends Controller
         }
 
         // Validación para etiquetas que contienen "J34A MNAO T1 DIRECTAS"
-        if (str_contains($finalLabelCode, 'MTM')) {
+        if ($typeMarker === 'MTM') {
             $label = [
                 'labelType' => 'J34A_MNAO_T1_DIRECTAS',
                 'order' => substr($finalLabelCode, 139, 10) . '  ' . substr($finalLabelCode, 38, 4),
@@ -603,12 +609,21 @@ class MaterialValidationController extends Controller
             ];
         }
 
-        if (str_starts_with($finalLabelCode, 'T1')) {
-            // TODO: agregar separación de campos para "J34A MNAO T2 INDIRECTAS"
+        // Validación para etiquetas que contienen "J34A MNAO T2 INDIRECTAS"
+        if (str_starts_with($finalLabelCode, 'T1,')) {
+            Log::info('J34A MNAO T2 INDIRECTAS', [
+                'label_type' => 'J34A_MNAO_T2_INDIRECTAS',
+                'final_label_code' => $finalLabelCode,
+            ]);
+
+            return response()->json([
+                'isValid' => true,
+                'validationComment' => null,
+            ]);
         }
 
         // Validación para etiquetas que contienen "MMVO"
-        if (strlen($finalLabelCode) >= 35 && strlen($finalLabelCode) <= 40) {
+        if (strlen($finalLabelCode) >= 30 && strlen($finalLabelCode) <= 40) {
             $label = [
                 'labelType' => 'MMVO',
                 'order' => substr($finalLabelCode, 0, 7),
@@ -622,6 +637,14 @@ class MaterialValidationController extends Controller
                 'shipmentData' => $this->fetchShipmentData($label['partNumber'], excludeRouteW1: true),
             ];
         }
+
+        Log::warning('Etiqueta final no válida', [
+            'final_label_code' => $finalLabelCode,
+            'label_length' => strlen($finalLabelCode),
+            'type_marker' => $typeMarker,
+            'user_id' => Auth::user()?->nickname ?? 'N/A',
+            'timestamp' => Carbon::now()->format('Y-m-d H:i:s'),
+        ]);
 
         return response()->json([
             'isValid' => false,
