@@ -87,6 +87,7 @@ class MaterialValidationController extends Controller
                 if (!$httpResponse->successful()) {
                     $accessErrors[] = 'Error al enviar datos a la API';
                     Log::warning('Error al enviar datos a API', [
+                        'user' => Auth::user()?->nickname ?? 'N/A',
                         'status' => $httpResponse->status(),
                         'response' => $httpResponse->body(),
                         'request_data' => $externalApiPayload,
@@ -254,13 +255,13 @@ class MaterialValidationController extends Controller
                 $partNumber = $label['partNumber'];
                 $quantity = $label['quantity'];
 
-                Log::info('Validando secuencia de etiqueta', [
-                    'label_type' => $labelType,
-                    'order' => $order,
-                    'sequence_from_label' => $sequenceFromLabel,
-                    'part_number' => $partNumber,
-                    'quantity' => $quantity,
-                ]);
+                // Log::info('Validando secuencia de etiqueta', [
+                //     'label_type' => $labelType,
+                //     'order' => $order,
+                //     'sequence_from_label' => $sequenceFromLabel,
+                //     'part_number' => $partNumber,
+                //     'quantity' => $quantity,
+                // ]);
 
                 // Datos de embarque obtenidos de la base de datos
                 $combinedData = $data['shipmentData'];
@@ -534,6 +535,40 @@ class MaterialValidationController extends Controller
     }
 
     /**
+     * Consulta ORDERS + BARCODES para etiquetas J34A MNAO T2 INDIRECTAS.
+     * A diferencia de fetchShipmentData, aquí el QR no trae el ORDER_ID
+     * completo, así que la orden se identifica por la combinación
+     * proveedor-orden, número de artículo, número de parte y fecha de entrega.
+     */
+    private function fetchMnaoT2ShipmentData(string $purchaseOrderFragment, string $itemNumber, string $partId, string $deliveryDate)
+    {
+        return DB::connection('dbEmba')
+            ->table('ORDERS AS O')
+            ->join('BARCODES AS B', 'O.ORDER_ID', '=', 'B.ORDER_ID')
+            ->select(
+                'O.ORDER_ID',
+                'O.PURCHASE_ORDER',
+                'O.DELIVERY_DATE',
+                'O.PART_ID',
+                'O.ITEM_NUMBER',
+                'B.BARCODE_ID',
+                'B.SCANNED_M',
+                'B.SEQUENCE',
+                'B.SNP',
+                'B.STATUS',
+                'B.QTY'
+            )
+            ->where('O.ORDER_TYPE', 'LIKE', 'INFOR_MNAO_T2')
+            ->where('O.PURCHASE_ORDER', 'LIKE', '%' . $purchaseOrderFragment . '%')
+            ->where('O.ITEM_NUMBER', 'LIKE', $itemNumber . '%')
+            ->whereRaw('RTRIM(LEFT(O.PART_ID, 10)) = ?', [$partId])
+            ->whereRaw("FORMAT(O.DELIVERY_DATE, 'yyyyMMdd') = ?", [$deliveryDate])
+            ->orderBy('O.DELIVERY_DATE', 'asc')
+            ->orderBy('B.SEQUENCE', 'asc')
+            ->get();
+    }
+
+    /**
      * Identificar el tipo de etiqueta y separar sus campos según su formato.
      * Devuelve un JsonResponse si la etiqueta no es válida o no tiene
      * lógica de separación implementada todavía.
@@ -611,15 +646,45 @@ class MaterialValidationController extends Controller
 
         // Validación para etiquetas que contienen "J34A MNAO T2 INDIRECTAS"
         if (str_starts_with($finalLabelCode, 'T1,')) {
-            Log::info('J34A MNAO T2 INDIRECTAS', [
-                'label_type' => 'J34A_MNAO_T2_INDIRECTAS',
-                'final_label_code' => $finalLabelCode,
-            ]);
+            $tokens = explode(',', $finalLabelCode);
 
-            return response()->json([
-                'isValid' => true,
-                'validationComment' => null,
-            ]);
+            if (count($tokens) < 27) {
+                Log::warning('J34A MNAO T2 INDIRECTAS', [
+                    'user' => Auth::user()?->nickname ?? 'N/A',
+                    'final_label_code' => $finalLabelCode,
+                    'tokens_count' => count($tokens),
+                ]);
+
+                return response()->json([
+                    'isValid' => false,
+                    'validationComment' => 'Etiqueta no válida',
+                ]);
+            }
+
+            $quantity = trim($tokens[10]);
+            $supplierCode = trim($tokens[11]);
+            $serial = trim($tokens[13]);
+            $shippingDate = trim($tokens[14]);
+            $partId = trim($tokens[26]);
+
+            $orderNumber = substr($serial, 0, 4);
+            $itemNumber = substr($serial, 4, 3);
+            $currentSequence = substr($serial, 7);
+            $purchaseOrderFragment = $supplierCode . '-' . $orderNumber;
+
+            $label = [
+                'labelType' => 'J34A_MNAO_T2_INDIRECTAS',
+                'order' => $purchaseOrderFragment,
+                'sequenceFromLabel' => (string) intval($currentSequence),
+                'partNumber' => $partId,
+                'quantity' => $quantity,
+            ];
+
+
+            return [
+                'label' => $label,
+                'shipmentData' => $this->fetchMnaoT2ShipmentData($purchaseOrderFragment, $itemNumber, $partId, $shippingDate),
+            ];
         }
 
         // Validación para etiquetas que contienen "MMVO"
@@ -639,10 +704,10 @@ class MaterialValidationController extends Controller
         }
 
         Log::warning('Etiqueta final no válida', [
+            'user' => Auth::user()?->nickname ?? 'N/A',
             'final_label_code' => $finalLabelCode,
             'label_length' => strlen($finalLabelCode),
             'type_marker' => $typeMarker,
-            'user_id' => Auth::user()?->nickname ?? 'N/A',
             'timestamp' => Carbon::now()->format('Y-m-d H:i:s'),
         ]);
 
