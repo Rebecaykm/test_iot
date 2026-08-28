@@ -501,8 +501,12 @@ class MaterialValidationController extends Controller
      * Consulta combinada ORDERS + BARCODES para un número de parte,
      * dentro de la ventana de fechas de embarque vigente.
      */
-    private function fetchShipmentData(string $partNumber, bool $excludeRouteW1 = false)
-    {
+    private function fetchShipmentData(
+        string $partNumber,
+        bool $excludeRouteW1 = false,
+        bool $filterByCurrentYear = true,
+        ?string $orderType = null
+    ) {
         [$formattedStartDate, $currentYear] = $this->getShipmentDateRange();
 
         $query = DB::connection('dbEmba')
@@ -523,12 +527,19 @@ class MaterialValidationController extends Controller
             )
             ->whereRaw('RTRIM(LTRIM(O.PART_ID)) LIKE ?', [trim($partNumber)])
             ->where('O.DELIVERY_DATE', '>=', $formattedStartDate)
-            ->where('B.BARCODE_M', 'LIKE', $currentYear . '%')
             ->orderBy('O.DELIVERY_DATE', 'asc')
             ->orderBy('B.SEQUENCE', 'asc');
 
+        if ($filterByCurrentYear) {
+            $query->where('B.BARCODE_M', 'LIKE', $currentYear . '%');
+        }
+
         if ($excludeRouteW1) {
             $query->where('O.ROUTE', 'NOT LIKE', 'W1');
+        }
+
+        if ($orderType !== null) {
+            $query->where('O.ORDER_TYPE', $orderType);
         }
 
         return $query->get();
@@ -684,6 +695,53 @@ class MaterialValidationController extends Controller
             return [
                 'label' => $label,
                 'shipmentData' => $this->fetchMnaoT2ShipmentData($purchaseOrderFragment, $itemNumber, $partId, $shippingDate),
+            ];
+        }
+
+        // Validación para etiquetas de material secuenciado "MMVO_SSOR"
+        // (empiezan con "L" seguido de 10 dígitos, ej. L2708262305...)
+        if (preg_match('/^L\d{10}/', $finalLabelCode) === 1) {
+
+            $orderId = substr($finalLabelCode, 0, 11) . substr($finalLabelCode, -16);
+            $partNumberRaw = substr($finalLabelCode, 11, strlen($finalLabelCode) - 11 - 11);
+
+            // Si trae "/" son dos números de parte que comparten el mismo sufijo:
+            // "BDTS/BDTV53400" -> "BDTS53400" y "BDTV53400"
+            if (str_contains($partNumberRaw, '/')) {
+                [$prefix1, $rest] = explode('/', $partNumberRaw, 2);
+                $prefix2 = substr($rest, 0, strlen($prefix1));
+                $suffix = substr($rest, strlen($prefix1));
+                $partNumberCandidates = [$prefix1 . $suffix, $prefix2 . $suffix];
+            } else {
+                $partNumberCandidates = [$partNumberRaw];
+            }
+
+            // Se consulta cada número de parte candidato y se combinan los resultados;
+            // la orden se ubica después por su ORDER_ID, sin importar de cuál vino.
+            $shipmentData = collect();
+            foreach ($partNumberCandidates as $candidate) {
+                $shipmentData = $shipmentData->concat(
+                    $this->fetchShipmentData(
+                        $candidate . '%',
+                        excludeRouteW1: true,
+                        filterByCurrentYear: false,
+                        orderType: 'SEQ'
+                    )
+                );
+            }
+
+            $label = [
+                'labelType' => 'MMVO_SSOR',
+                'order' => $orderId,
+                // Cada orden de material secuenciado trae un único barcode
+                'sequenceFromLabel' => '1',
+                'partNumber' => $partNumberRaw,
+                'quantity' => '',
+            ];
+
+            return [
+                'label' => $label,
+                'shipmentData' => $shipmentData,
             ];
         }
 
