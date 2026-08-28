@@ -333,7 +333,7 @@
                         if (@json($realTime)) {
                             refreshInterval = setInterval(() => {
                                 this.$wire.dispatchSelf('refresh-production-records');
-                            }, 10000);
+                            }, 30000);
                         }
 
                         this.$watch(() => this.$wire.chartKey, () => {

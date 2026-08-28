@@ -14,6 +14,14 @@ class ProductionRecord extends Model
 {
     use HasFactory;
 
+    /**
+     * TTL (segundos) del cache de consultas de solo lectura usadas por las
+     * vistas de piso (ayudas visuales, gráficas, tableros). Corto a propósito:
+     * absorbe ráfagas de pantallas consultando el mismo work center/turno casi
+     * al mismo tiempo, sin dejar la información "desactualizada" por mucho tiempo.
+     */
+    const PRODUCTION_CACHE_TTL = 20;
+
     protected $fillable = [
         'part_number_id',
         'planned_quantity',
@@ -162,7 +170,7 @@ class ProductionRecord extends Model
     {
         $cacheKey = "production_records_{$workCenter}_{$shiftId}_{$now->toDateString()}";
 
-        return cache()->remember($cacheKey, 300, function () use ($workCenter, $shiftId, $now) {
+        return cache()->remember($cacheKey, self::PRODUCTION_CACHE_TTL, function () use ($workCenter, $shiftId, $now) {
             return self::getWorkCenterProductionRecord($workCenter, $shiftId, $now);
         });
     }
@@ -208,6 +216,21 @@ class ProductionRecord extends Model
             // ->orderBy('production_records.planned_date', 'asc')
             // ->orderBy('production_records.production_end', 'desc')
             ->get();
+    }
+
+    /**
+     * Versión con cache de getProductionRecords(), para las vistas que refrescan
+     * seguido (gráficas de prensa, tablero de producción del turno). Varias
+     * llamadas para el mismo work center/turno/día dentro del TTL reutilizan el
+     * mismo resultado en vez de repetir el join de 4 tablas contra SQL Server.
+     */
+    public static function getCachedProductionRecords(string $workCenter, int $shiftId, $now): Collection
+    {
+        $cacheKey = "production_plan_records_{$workCenter}_{$shiftId}_{$now->toDateString()}";
+
+        return cache()->remember($cacheKey, self::PRODUCTION_CACHE_TTL, function () use ($workCenter, $shiftId, $now) {
+            return self::getProductionRecords($workCenter, $shiftId, $now);
+        });
     }
 
     /**

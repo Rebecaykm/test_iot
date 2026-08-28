@@ -49,7 +49,7 @@ class ProductionTable extends Component
             return;
         }
 
-        $productionRecords = ProductionRecord::getWorkCenterProductionRecord(
+        $productionRecords = ProductionRecord::getCachedWorkCenterProductionRecord(
             $this->workCenter,
             $this->shift->id,
             $this->now

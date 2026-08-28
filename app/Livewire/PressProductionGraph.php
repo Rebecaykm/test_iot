@@ -96,7 +96,7 @@ class PressProductionGraph extends Component
      */
     private function divisorsForShift($shiftInfo): array
     {
-        $partIds = ProductionRecord::getProductionRecords(
+        $partIds = ProductionRecord::getCachedProductionRecords(
             $this->workCenter,
             $shiftInfo->shift->id,
             $shiftInfo->date
@@ -127,7 +127,7 @@ class PressProductionGraph extends Component
     private function calculatePlannedForShift($shiftInfo, $timeBlocks, array $divisors): array
     {
         // Obtener el total planeado para este turno
-        $records = ProductionRecord::getProductionRecords(
+        $records = ProductionRecord::getCachedProductionRecords(
             $this->workCenter,
             $shiftInfo->shift->id,
             $shiftInfo->date

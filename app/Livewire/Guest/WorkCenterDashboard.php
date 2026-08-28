@@ -114,11 +114,21 @@ class WorkCenterDashboard extends Component
             $query->whereIn('lines.id', $this->selectedLines);
         }
 
-        $productionRecords = $query
+        $query
             ->orderBy('areas.name', 'asc')
             ->orderBy('lines.name', 'asc')
-            ->orderBy('work_centers.name', 'asc')
-            ->get();
+            ->orderBy('work_centers.name', 'asc');
+
+        // Cache corto: este dashboard consulta TODA la planta (join de 6 tablas),
+        // la query más pesada de las vistas de piso. Con varias pantallas
+        // refrescando casi al mismo tiempo, reutilizar el resultado por unos
+        // segundos evita repetir el join completo en cada poll.
+        $linesKey = !empty($this->selectedLines) ? implode('-', $this->selectedLines) : 'all';
+        $cacheKey = "work_center_dashboard_{$this->date}_{$this->shift->abbreviation}_{$linesKey}";
+
+        $productionRecords = cache()->remember($cacheKey, ProductionRecord::PRODUCTION_CACHE_TTL, function () use ($query) {
+            return $query->get();
+        });
 
         $this->prepareAreasData($productionRecords);
     }

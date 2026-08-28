@@ -154,7 +154,7 @@
 <script>
     Alpine.data("table", () => ({
         init() {
-            setInterval(() => $wire.dispatchSelf("refresh"), 10000);
+            setInterval(() => $wire.dispatchSelf("refresh"), 30000);
         }
     }));
 </script>

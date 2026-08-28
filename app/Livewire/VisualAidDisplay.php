@@ -48,7 +48,7 @@ class VisualAidDisplay extends Component
                 ->where('name', $this->workCenter)
                 ->firstOrFail();
 
-            $productionRecord = ProductionRecord::getWorkCenterProductionRecord(
+            $productionRecord = ProductionRecord::getCachedWorkCenterProductionRecord(
                 $this->workCenter,
                 $currentShift->id,
                 $this->currentTime

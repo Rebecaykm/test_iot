@@ -71,7 +71,7 @@ class ProductionRecordView extends Component
 
         if (!$previousShiftInfo->timeRange) return;
 
-        $previousProductionRecords = ProductionRecord::getProductionRecords(
+        $previousProductionRecords = ProductionRecord::getCachedProductionRecords(
             $this->workCenter->name,
             $previousShiftInfo->shift->id,
             $previousShiftInfo->timeRange->startDateTime
@@ -89,7 +89,7 @@ class ProductionRecordView extends Component
 
         if (!$currentShiftInfo->timeRange) return;
 
-        $currentProductionRecord = ProductionRecord::getProductionRecords(
+        $currentProductionRecord = ProductionRecord::getCachedProductionRecords(
             $this->workCenter->name,
             $currentShiftInfo->shift->id,
             $currentShiftInfo->timeRange->startDateTime

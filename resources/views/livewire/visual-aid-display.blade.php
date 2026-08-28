@@ -111,7 +111,7 @@
                         } catch (error) {
                             console.error('Error al actualizar la pantalla:', error);
                         }
-                    }, 10000);
+                    }, 30000);
                 }
             }
         });
