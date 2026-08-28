@@ -290,7 +290,7 @@ class MaterialValidationController extends Controller
                     }
 
                     // Extraer el número de secuencia real
-                    $sequenceNumber = $this->extractSequenceNumber($record->SEQUENCE);
+                    $sequenceNumber = $this->extractSequenceNumber($labelType, $record->SEQUENCE);
                     $isScanned = $this->isBarcodeScanned($labelType, $record);
 
                     // Agregar información del barcode
@@ -455,12 +455,19 @@ class MaterialValidationController extends Controller
 
     /**
      * Extrae el número de secuencia real desde el campo SEQUENCE de la BD.
-     * Se guarda como secuencia*1000 + total de la orden (ej. 1002 = secuencia
-     * 1, total 2; 1006 = secuencia 1, total 6), así que basta con quedarnos
-     * con lo que hay antes de los últimos 3 dígitos.
+     * En la mayoría de las etiquetas se guarda como secuencia*1000 + total de
+     * la orden (ej. 1002 = secuencia 1, total 2; 1006 = secuencia 1, total 6),
+     * así que basta con quedarnos con lo que hay antes de los últimos 3
+     * dígitos. MMVO_SSOR es distinto: cada orden tiene un solo barcode y
+     * SEQUENCE ya viene como el número de secuencia real (ej. 1), sin ese
+     * total concatenado.
      */
-    private function extractSequenceNumber($sequence): string
+    private function extractSequenceNumber(string $labelType, $sequence): string
     {
+        if ($labelType === 'MMVO_SSOR') {
+            return str_pad((string) (int) $sequence, 3, '0', STR_PAD_LEFT);
+        }
+
         $sequenceNumber = intdiv((int) $sequence, 1000);
         return str_pad((string) $sequenceNumber, 3, '0', STR_PAD_LEFT);
     }
