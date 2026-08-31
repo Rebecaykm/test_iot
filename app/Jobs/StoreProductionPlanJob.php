@@ -54,14 +54,15 @@ class StoreProductionPlanJob implements ShouldQueue
             'part_number_id' => $partNumber->id,
             'planned_date' => $this->planned_date,
             'shift_id' => $shift->id,
-            'shop_order_number' => $this->shop_order_number
         ])->first();
 
         if ($existingRecord !== null) {
-            if ((int) $existingRecord->planned_quantity !== $plannedQuantityInt) {
+            if ((int) $existingRecord->planned_quantity !== $plannedQuantityInt || $existingRecord->shop_order_number !== $this->shop_order_number) {
                 $existingRecord->update([
-                    'planned_quantity' => $plannedQuantityInt
+                    'shop_order_number' => $this->shop_order_number,
+                    'planned_quantity' => $plannedQuantityInt,
                 ]);
+                Log::info("Production record updated for part number {$this->part_number}, shop order number {$this->shop_order_number}, planned date {$this->planned_date}, shift {$this->planned_shift}, and planned quantity {$this->planned_quantity}.");
             }
         } else {
             ProductionRecord::store($partNumber->id, $plannedQuantityInt, $this->planned_date, $shift->id, $this->shop_order_number);

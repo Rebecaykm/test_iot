@@ -31,8 +31,11 @@ class GetProductionPlanJob implements ShouldQueue
     {
         $today = Carbon::today();
 
-        $startDate = $today->copy()->startOfWeek()->format('Ymd');
-        $endDate = $today->copy()->addWeek()->endOfWeek()->format('Ymd');
+        // $startDate = $today->copy()->startOfWeek()->format('Ymd');
+        // $endDate = $today->copy()->addWeek()->endOfWeek()->format('Ymd');
+        $startDate = $today->copy()->format('Ymd');
+        $endDate = $today->copy()->format('Ymd');
+
 
         $partNumbers = PartNumber::query()
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
