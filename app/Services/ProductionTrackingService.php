@@ -91,6 +91,86 @@ class ProductionTrackingService
         // }, $dataSet);
     }
 
+    public function getProductionStatusForWorkcenter(DateTimeImmutable $productionDate, ?string $workcenterCode = null): array
+    {
+        $query = 'EXEC [dbo].[GetProductionTrackingProducts] ?, ?';
+        $statement = DB::connection()->getPdo()->prepare($query);
+        $statement->bindValue(1, $productionDate->format('Ymd'));
+        $statement->bindValue(2, $workcenterCode);
+
+        $rc = $statement->execute();
+        if ($rc === false) {
+            throw new \RuntimeException('Failed to execute query: '.implode(', ', $statement->errorInfo()));
+        }
+
+        $dataSet1 = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $statement->nextRowset();
+        // $dataSet2 = $statement->fetchAll(PDO::FETCH_ASSOC);
+        // Dummy data for testing purposes
+        $dataSet2 = [
+            [
+                'shopOrderNumber' => 'SO-001',
+                'labelId' => 1,
+                'labelOrder' => 1,
+                'labelNumber' => 1,
+                'labelQuantityPlanned' => 60,
+                'labelQuantityCompleted' => 60,
+                'labelPlannedAt' => '2026-07-29 08:22:00',
+                'labelCompletedAt' => '2026-07-29 08:20:00',
+                'labelIsComplete' => 1,
+                'labelStatus' => 'A',
+                'productId' => 1823,
+                'productionRecordId' => 0,
+                'label' => 'SO-001-1',
+            ],
+            [
+                'shopOrderNumber' => 'SO-001',
+                'labelId' => 2,
+                'labelOrder' => 2,
+                'labelNumber' => 2,
+                'labelQuantityPlanned' => 60,
+                'labelQuantityCompleted' => 5,
+                'labelPlannedAt' => '2026-07-29 08:50:00',
+                'labelCompletedAt' => null,
+                'labelIsComplete' => 0,
+                'labelStatus' => 'R',
+                'productId' => 1823,
+                'productionRecordId' => 0,
+                'label' => 'SO-001-2',
+            ],
+            [
+                'shopOrderNumber' => 'SO-001',
+                'labelId' => 3,
+                'labelOrder' => 3,
+                'labelNumber' => 3,
+                'labelQuantityPlanned' => 55,
+                'labelQuantityCompleted' => 0,
+                'labelPlannedAt' => '2026-07-29 09:12:00',
+                'labelCompletedAt' => null,
+                'labelIsComplete' => 0,
+                'labelStatus' => 'R',
+                'productId' => 1823,
+                'productionRecordId' => 0,
+                'label' => 'SO-001-3',
+            ],
+        ];
+
+        return [$dataSet1, $dataSet2];
+    }
+
+    public function getLabelProductionRecords(
+        int $workcenterId,
+        DateTimeImmutable $plannedDate
+    ): array {
+        $statement = DB::connection('iot')->getPdo()->prepare('EXEC dbo.GetProductionLabelsTracking ?, ?');
+        $statement->execute([$plannedDate->format('Y-m-d'), $workcenterId]);
+        $orders = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $statement->nextRowset();
+        $labels = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        return ['orders' => $orders, 'labels' => $labels];
+    }
+
     public function getWorkcenters(): array
     {
         return [];

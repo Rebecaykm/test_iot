@@ -114,20 +114,20 @@ return [
 
         'infor-live' => [
             'driver' => 'odbc',
-            'dsn' => "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;",
-            'database' => "LX834F01",
-            'host' => "192.168.200.7",
-            'username' => "LXSECOFR",
-            'password' => "LXSECOFR"
+            'dsn' => 'Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;',
+            'database' => 'LX834F01',
+            'host' => '192.168.200.7',
+            'username' => 'LXSECOFR',
+            'password' => 'LXSECOFR',
         ],
 
         'infor-proto' => [
             'driver' => 'odbc',
-            'dsn' => "Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;",
-            'database' => "LX834FU02",
-            'host' => "192.168.200.7",
-            'username' => "LXSECOFR",
-            'password' => "LXSECOFR"
+            'dsn' => 'Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;',
+            'database' => 'LX834FU02',
+            'host' => '192.168.200.7',
+            'username' => 'LXSECOFR',
+            'password' => 'LXSECOFR',
         ],
 
         'dbEmba' => [
@@ -142,6 +142,21 @@ return [
             'prefix_indexes' => true,
             // 'encrypt' => env('DB_EMBA_ENCRYPT', 'yes'),
             // 'trust_server_certificate' => env('DB_EMBA_TRUST_SERVER_CERT', 'true'),
+        ],
+
+        'iot' => [
+            'driver' => 'sqlsrv',
+            'url' => '',
+            'host' => '192.168.130.87',
+            'port' => '1433',
+            'database' => 'IoT',
+            'username' => 'sa',
+            'password' => 'Alcala91',
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'encrypt' => env('DB_ENCRYPT', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'true'),
         ],
     ],
 
@@ -178,7 +193,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
+            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
         ],
 
         'default' => [

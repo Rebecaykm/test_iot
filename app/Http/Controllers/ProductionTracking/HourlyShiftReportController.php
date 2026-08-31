@@ -37,7 +37,7 @@ class HourlyShiftReportController extends Controller
 
         $productionTrackingDataSet = $this->productionTrackingService->getProductionStatus(
             productionDate: $productionDate,
-            shift: $shift,
+            shift: null,
             workcenterCode: '122070'
         );
 

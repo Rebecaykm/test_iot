@@ -8,6 +8,7 @@ use App\Http\Controllers\LineStoppageRecordController;
 use App\Http\Controllers\MaterialValidationController;
 use App\Http\Controllers\PartNumberController;
 use App\Http\Controllers\ProductionRecordController;
+use App\Http\Controllers\ProductionTracking\HourlyShiftController;
 use App\Http\Controllers\ProductionTracking\HourlyShiftReportController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RoleController;
@@ -131,3 +132,6 @@ Route::get('guest/work-center-dashboard', function () {
 // Production Tracking Status
 Route::get('production-tracking/hourly-shift-report', [HourlyShiftReportController::class, '__invoke'])
     ->name('production-tracking.hourly-shift-report');
+
+Route::get('production-tracking/hourly-shift', [HourlyShiftController::class, '__invoke'])
+    ->name('production-tracking.hourly-shift');
