@@ -60,15 +60,24 @@ class StoreProductionPlanJob implements ShouldQueue
         if ($existingRecord !== null) {
             $producedQuantity = (int) $existingRecord->produced_quantity;
 
-            if ($producedQuantity > $plannedQuantityInt) {
-                $excessQuantity = $producedQuantity - $plannedQuantityInt;
-                $inProgressStatus = Status::where('name', 'LIKE', 'En progreso')->first();
+            $inProgressStatus = Status::where('name', 'LIKE', 'En progreso')->first();
+            $isInProgress = $inProgressStatus && (int) $existingRecord->status_id === $inProgressStatus->id;
 
-                if ($inProgressStatus && (int) $existingRecord->status_id === $inProgressStatus->id) {
-                    // El recolector del PLC escribe la producción usando el ID de este
-                    // registro. No se puede "congelar" ese ID como completado: debe
-                    // seguir siendo el mismo registro el que reciba lo que sigue
-                    // llegando, así que la orden completada se congela en uno nuevo.
+            // Mientras el registro sigue "En progreso", el recolector del PLC sigue
+            // escribiendo producción sobre su ID. Por eso, en ese estado, en cuanto la
+            // orden se cubre por completo (producido >= plan, no solo cuando se rebasa)
+            // esa orden se congela en un registro nuevo y este registro se libera
+            // (sin orden/plan) para seguir acumulando lo que seguirá llegando del PLC.
+            // En cualquier otro estado no hay ese riesgo, así que solo se divide si
+            // realmente se rebasa (producido > plan).
+            $isOverflow = $isInProgress
+                ? $producedQuantity >= $plannedQuantityInt
+                : $producedQuantity > $plannedQuantityInt;
+
+            if ($isOverflow) {
+                $excessQuantity = $producedQuantity - $plannedQuantityInt;
+
+                if ($isInProgress) {
                     $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
 
                     ProductionRecord::create([
@@ -88,7 +97,7 @@ class StoreProductionPlanJob implements ShouldQueue
                         'produced_quantity' => $excessQuantity,
                     ]);
 
-                    Log::info("Production record #{$existingRecord->id} for part number {$this->part_number}, planned date {$this->planned_date}, shift {$this->planned_shift} was In Progress and exceeded Infor's planned quantity ({$plannedQuantityInt}) for shop order number {$this->shop_order_number}. Completed order frozen in a new record; existing record kept its ID with the remaining quantity ({$excessQuantity}) and no order/plan.");
+                    Log::info("Production record #{$existingRecord->id} for part number {$this->part_number}, planned date {$this->planned_date}, shift {$this->planned_shift} was In Progress and covered Infor's planned quantity ({$plannedQuantityInt}) for shop order number {$this->shop_order_number}. Completed order frozen in a new record; existing record kept its ID with the remaining quantity ({$excessQuantity}) and no order/plan.");
                 } else {
                     $existingRecord->update([
                         'shop_order_number' => $this->shop_order_number,
