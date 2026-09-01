@@ -68,3 +68,13 @@
     text-shadow:
         0 1px 1px rgba(255, 255, 255, 0.6);
 }
+
+.ag-theme-quartz {
+    --ag-font-family: Arial, sans-serif;
+    --ag-font-size: 0.65rem;
+}
+
+.current-hour-header {
+    background-color: #d1d5db !important;
+    color: #111827 !important;
+}

@@ -1,5 +1,5 @@
 import './bootstrap';
-import { parseISO, addHours, format } from 'date-fns';
+import { parseISO, addHours, format, addDays } from 'date-fns';
 import Chart from 'chart.js/auto';
 window.Chart = Chart;
 
@@ -217,15 +217,21 @@ function generateHours(selectedDate) {
     });
 }
 
-window.productionGrid = function (initialOrders) {
+window.productionGrid = function (initialOrders, initialDate) {
     return {
         gridApi: null,
         hours: [],
+        date: initialDate,
         init() {
-            this.hours = generateHours('2026-08-21');
+            this.hours = generateHours(this.date);
+
+            const currentDateHour = format(new Date(), 'yyyyMMdd HH');
+
             const gridOptions = {
                 headerHeight: 23,
                 rowHeight: 23,
+                domLayout: 'autoHeight',
+                suppressRowVirtualisation: true,
                 columnDefs: [
                     {
                         field: 'ProductionSequence',
@@ -236,7 +242,13 @@ window.productionGrid = function (initialOrders) {
                     },
                     {
                         field: 'ProductCode',
-                        headerName: 'ProductCode',
+                        headerName: 'Product Code',
+                        pinned: 'left',
+                        width: 120,
+                    },
+                    {
+                        field: 'WorkcenterName',
+                        headerName: 'Workcenter Name',
                         pinned: 'left',
                         width: 120,
                     },
@@ -259,9 +271,13 @@ window.productionGrid = function (initialOrders) {
                         field: 'labels',
                         headerName: hour.hour,
                         flex: 1,
-                        minWidth: 80,
-                        width: 80,
+                        minWidth: 60,
+                        width: 60,
                         sortable: false,
+                        headerClass:
+                            hour.label === currentDateHour
+                                ? 'current-hour-header'
+                                : '',
                         ...(hour.index === 0 && {
                             colSpan: (params) => params.data ? this.hours.length : 1,
                             cellRenderer: TimelineBarRendererByShift,
@@ -275,6 +291,11 @@ window.productionGrid = function (initialOrders) {
                 this.$refs.grid,
                 gridOptions
             );
+        },
+        previousDay() { this.date = format(addDays(parseISO(this.date), -1), 'yyyy-MM-dd'); this.reloadGrid(); },
+        nextDay() { this.date = format(addDays(parseISO(this.date), 1), 'yyyy-MM-dd'); this.reloadGrid(); },
+        reloadGrid() {
+
         }
     };
 };
