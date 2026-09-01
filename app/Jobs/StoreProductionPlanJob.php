@@ -85,24 +85,71 @@ class StoreProductionPlanJob implements ShouldQueue
                 ->get();
 
             if ($accumulatorCandidates->count() > 1) {
-                Log::warning("Multiple accumulator records found for part number {$this->part_number} on dates other than {$this->planned_date} (IDs: " . $accumulatorCandidates->pluck('id')->implode(', ') . "). Skipping date reconciliation for shop order number {$this->shop_order_number}; needs manual review.");
+                Log::warning("Varios acumuladores para la parte {$this->part_number} (IDs: " . $accumulatorCandidates->pluck('id')->implode(', ') . "). Se omite conciliación de la orden {$this->shop_order_number}; revisar manualmente.");
             } elseif ($accumulatorCandidates->count() === 1) {
                 $accumulator = $accumulatorCandidates->first();
 
-                // Un registro solo se puede borrar si es un placeholder vacío real: sin
-                // plan, sin orden, sin producción, status "No planeado" (24) y sin
-                // etiquetas de producción generadas (FK production_labels).
-                $existingRecordIsDeletable = $existingRecord === null || (
-                    $accumulatorStatus
-                    && (int) $existingRecord->status_id === $accumulatorStatus->id
-                    && (int) $existingRecord->planned_quantity === 0
-                    && (int) $existingRecord->produced_quantity === 0
-                    && empty($existingRecord->shop_order_number)
-                    && !DB::table('production_labels')->where('production_record_id', $existingRecord->id)->exists()
+                // El registro en la fecha exacta ya tiene producción propia (no solo la
+                // del acumulador): no se puede fusionar sin perder datos.
+                $existingRecordHasOwnProduction = $existingRecord !== null && (int) $existingRecord->produced_quantity > 0;
+
+                // Ya trae orden y/o plan propios (p. ej. quedó Pendiente de una corrida
+                // anterior): no es un placeholder vacío, conserva su ID y se le fusiona
+                // la producción del acumulador.
+                $existingRecordHasOwnOrderOrPlan = $existingRecord !== null && (
+                    !empty($existingRecord->shop_order_number) || (int) $existingRecord->planned_quantity > 0
                 );
 
-                if (!$existingRecordIsDeletable) {
-                    Log::warning("Accumulator record #{$accumulator->id} found, but record #{$existingRecord->id} for part number {$this->part_number}, planned date {$this->planned_date}, shift {$this->planned_shift} isn't a safe-to-delete placeholder (needs no plan, no order, no production, status \"No planeado\", and no production labels). Skipping date reconciliation; needs manual review.");
+                $existingRecordHasLabels = $existingRecord !== null
+                    && DB::table('production_labels')->where('production_record_id', $existingRecord->id)->exists();
+
+                if ($existingRecordHasOwnProduction) {
+                    Log::warning("Acumulador #{$accumulator->id} y registro #{$existingRecord->id} (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) tienen producción propia. Se omite conciliación; revisar manualmente.");
+                } elseif ($existingRecordHasOwnOrderOrPlan) {
+                    $accumulatorProduced = (int) $accumulator->produced_quantity;
+                    $targetPlan = (int) $existingRecord->planned_quantity;
+                    $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
+
+                    if ($accumulatorProduced > $targetPlan) {
+                        $excessQuantity = $accumulatorProduced - $targetPlan;
+
+                        // Se cubrió el plan por completo, el resto se va al acumulador:
+                        // el registro destino queda Completado.
+                        $existingRecord->update([
+                            'produced_quantity' => $targetPlan,
+                            'status_id' => $completedStatus ? $completedStatus->id : $existingRecord->status_id,
+                        ]);
+
+                        $accumulator->update([
+                            'planned_date' => $this->planned_date,
+                            'shift_id' => $shift->id,
+                            'produced_quantity' => $excessQuantity,
+                        ]);
+
+                        Log::info("Registro #{$existingRecord->id} (orden {$existingRecord->shop_order_number}) completó su plan ({$targetPlan}) con el acumulador #{$accumulator->id} y quedó Completado. El acumulador conservó el restante ({$excessQuantity}) en {$this->planned_date}/{$this->planned_shift}.");
+                    } else {
+                        $existingRecordUpdate = ['produced_quantity' => $accumulatorProduced];
+
+                        // Solo se marca Completado si con esto se cubrió el plan completo;
+                        // si quedó por debajo, sigue con su status actual.
+                        if ($completedStatus && $accumulatorProduced >= $targetPlan) {
+                            $existingRecordUpdate['status_id'] = $completedStatus->id;
+                        }
+
+                        $existingRecord->update($existingRecordUpdate);
+
+                        if (DB::table('production_labels')->where('production_record_id', $accumulator->id)->exists()) {
+                            $accumulator->update(['produced_quantity' => 0]);
+                            Log::info("Registro #{$existingRecord->id} (orden {$existingRecord->shop_order_number}) recibió {$accumulatorProduced} piezas del acumulador #{$accumulator->id}. El acumulador tenía etiquetas, se dejó en 0 en vez de borrarse.");
+                        } else {
+                            $accumulator->delete();
+                            Log::info("Registro #{$existingRecord->id} (orden {$existingRecord->shop_order_number}) recibió {$accumulatorProduced} piezas del acumulador #{$accumulator->id}, que se eliminó.");
+                        }
+                    }
+
+                    return;
+                } elseif ($existingRecordHasLabels) {
+                    Log::warning("Registro #{$existingRecord->id} (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) está vacío pero tiene etiquetas de producción; no se puede conciliar. Revisar manualmente.");
                 } else {
                     if ($existingRecord !== null) {
                         $existingRecord->delete();
@@ -146,10 +193,10 @@ class StoreProductionPlanJob implements ShouldQueue
                         $accumulator->update($accumulatorUpdate);
 
                         $remainderLocation = $accumulatorWasInProgress
-                            ? "moved to {$this->planned_date}/{$this->planned_shift}"
-                            : "keeping its original date/shift";
+                            ? "se movió a {$this->planned_date}/{$this->planned_shift}"
+                            : "conservó su fecha/turno original";
 
-                        Log::info("Accumulator record #{$accumulator->id} for part number {$this->part_number} covered Infor's planned quantity ({$plannedQuantityInt}) for shop order number {$this->shop_order_number} on {$this->planned_date}, shift {$this->planned_shift}. Completed order frozen in a new record; accumulator kept the remaining quantity ({$excessQuantity}), {$remainderLocation}.");
+                        Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) cubrió el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}; se creó un registro Completado. El restante ({$excessQuantity}) {$remainderLocation}.");
                     } else {
                         $accumulator->update([
                             'planned_date' => $this->planned_date,
@@ -158,7 +205,7 @@ class StoreProductionPlanJob implements ShouldQueue
                             'planned_quantity' => $plannedQuantityInt,
                         ]);
 
-                        Log::info("Accumulator record #{$accumulator->id} for part number {$this->part_number} was misdated. Moved to {$this->planned_date}/{$this->planned_shift} and matched to shop order number {$this->shop_order_number} with planned quantity {$plannedQuantityInt}.");
+                        Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) tenía la fecha equivocada. Se movió a {$this->planned_date}/{$this->planned_shift} con la orden {$this->shop_order_number} y plan {$plannedQuantityInt}.");
                     }
 
                     return;
@@ -205,7 +252,7 @@ class StoreProductionPlanJob implements ShouldQueue
                         'produced_quantity' => $excessQuantity,
                     ]);
 
-                    Log::info("Production record #{$existingRecord->id} for part number {$this->part_number}, planned date {$this->planned_date}, shift {$this->planned_shift} was In Progress and covered Infor's planned quantity ({$plannedQuantityInt}) for shop order number {$this->shop_order_number}. Completed order frozen in a new record; existing record kept its ID with the remaining quantity ({$excessQuantity}) and no order/plan.");
+                    Log::info("Registro #{$existingRecord->id} (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) en progreso cubrió el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}; se creó un registro Completado. El restante ({$excessQuantity}) se quedó en este registro, sin orden ni plan.");
                 } else {
                     $existingRecord->update([
                         'shop_order_number' => $this->shop_order_number,
@@ -226,14 +273,14 @@ class StoreProductionPlanJob implements ShouldQueue
                         'synced_to_infor' => false,
                     ]);
 
-                    Log::info("Production record for part number {$this->part_number}, planned date {$this->planned_date}, shift {$this->planned_shift} had produced quantity ({$producedQuantity}) exceeding Infor's planned quantity ({$plannedQuantityInt}) for shop order number {$this->shop_order_number}. Capped record to planned quantity and moved the excess ({$excessQuantity}) to a new unplanned record.");
+                    Log::info("Registro (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) produjo {$producedQuantity}, más que el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}. Se limitó al plan y el restante ({$excessQuantity}) pasó a un registro nuevo sin planear.");
                 }
             } elseif ((int) $existingRecord->planned_quantity !== $plannedQuantityInt || $existingRecord->shop_order_number !== $this->shop_order_number) {
                 $existingRecord->update([
                     'shop_order_number' => $this->shop_order_number,
                     'planned_quantity' => $plannedQuantityInt,
                 ]);
-                Log::info("Production record updated for part number {$this->part_number}, shop order number {$this->shop_order_number}, planned date {$this->planned_date}, shift {$this->planned_shift}, and planned quantity {$this->planned_quantity}.");
+                Log::info("Registro actualizado: parte {$this->part_number}, orden {$this->shop_order_number}, {$this->planned_date} turno {$this->planned_shift}, plan {$this->planned_quantity}.");
             }
         } else {
             ProductionRecord::store($partNumber->id, $plannedQuantityInt, $this->planned_date, $shift->id, $this->shop_order_number);
