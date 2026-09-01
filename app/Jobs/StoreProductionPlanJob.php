@@ -8,6 +8,7 @@ use App\Models\Shift;
 use App\Models\Status;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class StoreProductionPlanJob implements ShouldQueue
@@ -88,8 +89,20 @@ class StoreProductionPlanJob implements ShouldQueue
             } elseif ($accumulatorCandidates->count() === 1) {
                 $accumulator = $accumulatorCandidates->first();
 
-                if ($existingRecord !== null && (int) $existingRecord->produced_quantity > 0) {
-                    Log::warning("Accumulator record #{$accumulator->id} and a non-empty record #{$existingRecord->id} both found for part number {$this->part_number}, planned date {$this->planned_date}, shift {$this->planned_shift}. Skipping date reconciliation; needs manual review.");
+                // Un registro solo se puede borrar si es un placeholder vacío real: sin
+                // plan, sin orden, sin producción, status "No planeado" (24) y sin
+                // etiquetas de producción generadas (FK production_labels).
+                $existingRecordIsDeletable = $existingRecord === null || (
+                    $accumulatorStatus
+                    && (int) $existingRecord->status_id === $accumulatorStatus->id
+                    && (int) $existingRecord->planned_quantity === 0
+                    && (int) $existingRecord->produced_quantity === 0
+                    && empty($existingRecord->shop_order_number)
+                    && !DB::table('production_labels')->where('production_record_id', $existingRecord->id)->exists()
+                );
+
+                if (!$existingRecordIsDeletable) {
+                    Log::warning("Accumulator record #{$accumulator->id} found, but record #{$existingRecord->id} for part number {$this->part_number}, planned date {$this->planned_date}, shift {$this->planned_shift} isn't a safe-to-delete placeholder (needs no plan, no order, no production, status \"No planeado\", and no production labels). Skipping date reconciliation; needs manual review.");
                 } else {
                     if ($existingRecord !== null) {
                         $existingRecord->delete();
