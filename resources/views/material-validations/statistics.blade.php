@@ -3,13 +3,14 @@
 @section('title', 'Estadísticas de Escaneos')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Estadísticas de Escaneos</h1>
         </div>
 
-        <a href="{{ route('material-validations.index') }}" class="btn-action btn-action-primary">
-            <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <a href="{{ route('material-validations.index') }}" class="btn-action btn-action-primary"
+            aria-label="Ver historial de escaneos">
+            <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
             </svg>
             <span class="d-none d-md-inline">Ver Historial</span>
@@ -25,25 +26,25 @@
     @endphp
 
     {{-- Filtro de fecha --}}
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
         <div class="card-body py-3">
             <form action="{{ route('material-validations.statistics') }}" method="GET"
                 class="d-flex flex-wrap align-items-end" style="gap: 0.65rem;">
                 <div class="filter-field">
-                    <label class="filter-label-text">Fecha</label>
+                    <label for="mvs-date" class="filter-label-text">Fecha</label>
                     <div class="filter-group">
-                        <i class="fas fa-calendar-alt filter-icon"></i>
-                        <input type="date" name="date" class="filter-input"
+                        <i class="fas fa-calendar-alt filter-icon" aria-hidden="true"></i>
+                        <input type="text" id="mvs-date" name="date" class="filter-input flatpickr-date"
                             value="{{ request('date') ?? now()->format('Y-m-d') }}"
                             max="{{ date('Y-m-d') }}">
                     </div>
                 </div>
                 <div class="d-flex" style="gap: 0.4rem; padding-bottom: 1px;">
-                    <button class="btn-filter-submit" type="submit">
+                    <button class="btn-action btn-action-solid" type="submit">
                         <i class="fas fa-search mr-1"></i>Buscar
                     </button>
                     @if (request('date'))
-                        <a href="{{ route('material-validations.statistics') }}" class="btn-filter-clear">
+                        <a href="{{ route('material-validations.statistics') }}" class="btn-action btn-action-secondary">
                             <i class="fas fa-times mr-1"></i>Hoy
                         </a>
                     @endif
@@ -59,7 +60,7 @@
     <div class="row mb-2">
         {{-- Total --}}
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+            <div class="card border-0 shadow-sm h-100 rounded-4">
                 <div class="card-body stat-card">
                     <div class="stat-icon stat-icon-primary">
                         <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -77,7 +78,7 @@
 
         {{-- OK --}}
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+            <div class="card border-0 shadow-sm h-100 rounded-4">
                 <div class="card-body stat-card">
                     <div class="stat-icon stat-icon-success">
                         <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -95,7 +96,7 @@
 
         {{-- NG --}}
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+            <div class="card border-0 shadow-sm h-100 rounded-4">
                 <div class="card-body stat-card">
                     <div class="stat-icon stat-icon-danger">
                         <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -113,7 +114,7 @@
 
         {{-- Eficiencia --}}
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+            <div class="card border-0 shadow-sm h-100 rounded-4">
                 <div class="card-body stat-card">
                     <div class="stat-icon stat-icon-{{ $effColor }}">
                         <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -131,7 +132,7 @@
     </div>
 
     {{-- Gráfica por hora --}}
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid #e9ecef;">
             <h5 class="section-title mb-0">
                 <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -149,7 +150,7 @@
     </div>
 
     {{-- Estadísticas por turno --}}
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
             <h5 class="section-title mb-0">
                 <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -234,7 +235,7 @@
 
     {{-- Tipos de NG --}}
     @if (isset($ngTypes) && count($ngTypes) > 0)
-        <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+        <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid #e9ecef;">
                 <h5 class="section-title mb-0">
                     <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -256,9 +257,9 @@
                             <table class="table table-hover mb-0">
                                 <thead>
                                     <tr class="table-head-row">
-                                        <th class="th-cell">Tipo de NG</th>
-                                        <th class="th-cell text-center">Cantidad</th>
-                                        <th class="th-cell">Porcentaje</th>
+                                        <th class="th-cell" scope="col">Tipo de NG</th>
+                                        <th class="th-cell text-center" scope="col">Cantidad</th>
+                                        <th class="th-cell" scope="col">Porcentaje</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -290,7 +291,7 @@
     @endif
 
     {{-- Estadísticas por usuario --}}
-    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid #e9ecef;">
             <h5 class="section-title mb-0">
                 <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -306,11 +307,11 @@
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr class="table-head-row">
-                                <th class="th-cell">Operador</th>
-                                <th class="th-cell text-center">Total</th>
-                                <th class="th-cell text-center">OK</th>
-                                <th class="th-cell text-center">NG</th>
-                                <th class="th-cell text-center" style="min-width: 160px;">Eficiencia</th>
+                                <th class="th-cell" scope="col">Operador</th>
+                                <th class="th-cell text-center" scope="col">Total</th>
+                                <th class="th-cell text-center" scope="col">OK</th>
+                                <th class="th-cell text-center" scope="col">NG</th>
+                                <th class="th-cell text-center" style="min-width: 160px;" scope="col">Eficiencia</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -377,102 +378,13 @@
 @stop
 
 @section('css')
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
+    @include('partials.theme-datepicker-styles')
     <style>
-        body, .card, .btn, .form-control, .table, .content-header h1 {
-            font-family: 'Inter', sans-serif !important;
-        }
-
-        /* ── Heroicons ── */
+        /* ── Heroicons (específico de esta vista) ── */
         .hi { width: 20px; height: 20px; }
-
-        /* ── Botones de acción (header) ── */
-        .btn-action {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.42rem 0.9rem;
-            font-size: 0.8rem;
-            font-weight: 600;
-            border-radius: 7px;
-            border: 1.5px solid transparent;
-            text-decoration: none;
-            transition: all 0.15s ease;
-            white-space: nowrap;
-        }
         .btn-action .hi { width: 16px; height: 16px; }
-        .btn-action-primary {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border-color: #93c5fd;
-        }
-        .btn-action-primary:hover { background: #dbeafe; color: #1e40af; text-decoration: none; }
-
-        /* ── Filtros ── */
-        .filter-field { display: flex; flex-direction: column; gap: 0.25rem; }
-        .filter-label-text {
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #64748b;
-            margin-bottom: 0;
-        }
-        .filter-group {
-            display: inline-flex;
-            align-items: center;
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 7px;
-            padding: 0 0.6rem;
-            height: 34px;
-            transition: border-color 0.15s;
-        }
-        .filter-group:focus-within {
-            border-color: #93c5fd;
-            background: #fff;
-            box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
-        }
-        .filter-icon { color: #94a3b8; font-size: 0.75rem; margin-right: 0.45rem; }
-        .filter-input {
-            border: none;
-            background: transparent;
-            font-size: 0.82rem;
-            color: #334155;
-            outline: none;
-            height: 100%;
-            font-family: 'Inter', sans-serif;
-        }
-        .btn-filter-submit {
-            display: inline-flex;
-            align-items: center;
-            height: 34px;
-            padding: 0 0.85rem;
-            font-size: 0.8rem;
-            font-weight: 600;
-            border-radius: 7px;
-            background: #1d4ed8;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .btn-filter-submit:hover { background: #1e40af; }
-        .btn-filter-clear {
-            display: inline-flex;
-            align-items: center;
-            height: 34px;
-            padding: 0 0.75rem;
-            font-size: 0.8rem;
-            font-weight: 500;
-            border-radius: 7px;
-            background: transparent;
-            color: #64748b;
-            border: 1.5px solid #e2e8f0;
-            text-decoration: none;
-            transition: all 0.15s;
-        }
-        .btn-filter-clear:hover { background: #f1f5f9; color: #475569; text-decoration: none; }
 
         /* ── Tarjetas de resumen ── */
         .stat-card { display: flex; align-items: center; gap: 1rem; padding: 1.25rem 1.35rem; }
@@ -497,14 +409,11 @@
         .stat-value { font-size: 1.65rem; font-weight: 700; color: #1e293b; line-height: 1.15; }
         .stat-sub { font-size: 0.74rem; color: #94a3b8; }
 
-        /* ── Títulos de sección ── */
+        /* ── Títulos de sección (layout con ícono, extiende .section-title del partial) ── */
         .section-title {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #334155;
         }
         .section-title .hi { color: #64748b; }
 
@@ -515,38 +424,6 @@
             border-radius: 11px;
             padding: 1rem 1.1rem;
         }
-
-        /* ── Tabla ── */
-        .table-head-row { background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
-        .th-cell {
-            font-size: 0.7rem !important;
-            font-weight: 700 !important;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
-            color: #64748b !important;
-            border: none !important;
-            padding: 0.65rem 0.85rem !important;
-            white-space: nowrap;
-        }
-        .td-row { border-bottom: 1px solid #f1f5f9 !important; transition: background 0.1s ease; }
-        .td-row:hover { background-color: #f8fafc !important; }
-        .td-cell { padding: 0.5rem 0.85rem !important; vertical-align: middle !important; border-top: none !important; }
-
-        /* ── Badges ── */
-        .badge-soft {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.28em 0.65em;
-            border-radius: 5px;
-            font-size: 0.73rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .badge-soft.badge-primary   { background: #eff6ff; color: #1d4ed8; }
-        .badge-soft.badge-success   { background: #f0fdf4; color: #15803d; }
-        .badge-soft.badge-danger    { background: #fef2f2; color: #b91c1c; }
-        .badge-soft.badge-warning   { background: #fefce8; color: #92400e; }
-        .badge-soft.badge-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
 
         /* ── Barras de progreso ── */
         .progress-track {
@@ -575,8 +452,6 @@
             width: 100%;
         }
 
-        .fw-500 { font-weight: 500; }
-        .fw-600 { font-weight: 600; }
         .text-success { color: #15803d !important; }
         .text-danger  { color: #b91c1c !important; }
         .text-warning { color: #b45309 !important; }
@@ -588,6 +463,8 @@
 @stop
 
 @section('js')
+    @include('partials.theme-scripts')
+    @include('partials.theme-datepicker-scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {

@@ -3,14 +3,15 @@
 @section('title', 'Crear Tipo de Tag')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Crear Tipo de Tag</h1>
         </div>
 
-        <div class="d-flex" style="gap: 0.5rem;">
-            <a href="{{ route('tag-types.index') }}" class="btn-action btn-action-secondary">
-                <i class="fas fa-arrow-left"></i>
+        <div class="d-flex gap-2">
+            <a href="{{ route('tag-types.index') }}" class="btn-action btn-action-secondary"
+                aria-label="Volver al listado">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
                 <span class="d-none d-md-inline">Volver</span>
             </a>
         </div>
@@ -20,7 +21,7 @@
 @section('content')
     @include('partials.theme-alerts')
 
-    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
             <h5 class="mb-0 section-title">
                 <i class="fas fa-tag mr-2" style="color: #94a3b8;"></i>Información del Tipo de Tag
@@ -52,7 +53,7 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end" style="gap: 0.5rem; margin-top: 1.5rem;">
+                <div class="d-flex justify-content-end gap-2 mt-4">
                     <a href="{{ route('tag-types.index') }}" class="btn-action btn-action-secondary">
                         <i class="fas fa-times"></i>
                         <span>Cancelar</span>
@@ -73,6 +74,7 @@
 
 @section('css')
     @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
 @stop
 
 @section('js')

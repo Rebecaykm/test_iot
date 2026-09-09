@@ -132,6 +132,14 @@ class PartNumber extends Model
     }
 
     /**
+     * Historial de cambios de production_order (orden de producción en línea)
+     */
+    public function orderHistories(): HasMany
+    {
+        return $this->hasMany(ProductionOrderHistory::class, 'part_number_id');
+    }
+
+    /**
      *
      */
     public function scrapRecords(): HasMany

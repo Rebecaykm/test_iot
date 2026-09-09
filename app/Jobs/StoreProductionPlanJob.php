@@ -3,9 +3,11 @@
 namespace App\Jobs;
 
 use App\Models\PartNumber;
+use App\Models\ProductionOrderHistory;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use App\Models\Status;
+use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +53,19 @@ class StoreProductionPlanJob implements ShouldQueue
         }
 
         $plannedQuantityInt = intval($this->planned_quantity);
+
+        // Orden de producción a grabar en el/los registro(s) de este plan. Si
+        // planned_date ya pasó, se congela: se toma el valor que ya estaba vigente
+        // ESE día (vía production_order_histories) en vez del valor actual de
+        // part_numbers, que puede haber cambiado desde entonces. Si planned_date es
+        // hoy o futuro, se usa el valor en vivo y se seguirá refrescando en cada
+        // corrida de este job mientras el día no haya pasado.
+        $plannedDateStr = Carbon::parse($this->planned_date)->toDateString();
+        $shouldRefreshOrder = $plannedDateStr >= Carbon::today()->toDateString();
+
+        $productionOrderForRecord = $shouldRefreshOrder
+            ? $partNumber->production_order
+            : (ProductionOrderHistory::orderOnDate($partNumber->id, $plannedDateStr) ?? $partNumber->production_order);
 
         // Un registro con una orden DISTINTA a la que se está procesando no es "el
         // mismo" registro para efectos de este job: puede haber varias órdenes de
@@ -181,6 +196,7 @@ class StoreProductionPlanJob implements ShouldQueue
                             'planned_quantity' => $plannedQuantityInt,
                             'produced_quantity' => $plannedQuantityInt,
                             'shop_order_number' => $this->shop_order_number,
+                            'production_order' => $productionOrderForRecord,
                             'status_id' => $completedStatus->id,
                             'synced_to_infor' => false,
                         ]);
@@ -272,6 +288,7 @@ class StoreProductionPlanJob implements ShouldQueue
                         'planned_quantity' => $plannedQuantityInt,
                         'produced_quantity' => $plannedQuantityInt,
                         'shop_order_number' => $this->shop_order_number,
+                        'production_order' => $productionOrderForRecord,
                         'status_id' => $completedStatus->id,
                         'synced_to_infor' => false,
                     ]);
@@ -284,11 +301,17 @@ class StoreProductionPlanJob implements ShouldQueue
 
                     Log::info("Registro #{$existingRecord->id} (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) en progreso cubrió el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}; se creó un registro Completado. El restante ({$excessQuantity}) se quedó en este registro, sin orden ni plan.");
                 } else {
-                    $existingRecord->update([
+                    $existingRecordUpdate = [
                         'shop_order_number' => $this->shop_order_number,
                         'planned_quantity' => $plannedQuantityInt,
                         'produced_quantity' => $plannedQuantityInt,
-                    ]);
+                    ];
+
+                    if ($shouldRefreshOrder) {
+                        $existingRecordUpdate['production_order'] = $productionOrderForRecord;
+                    }
+
+                    $existingRecord->update($existingRecordUpdate);
 
                     $overflowStatus = Status::where('name', 'LIKE', 'No planeado')->first();
 
@@ -299,6 +322,7 @@ class StoreProductionPlanJob implements ShouldQueue
                         'planned_quantity' => 0,
                         'produced_quantity' => $excessQuantity,
                         'shop_order_number' => null,
+                        'production_order' => $productionOrderForRecord,
                         'status_id' => $overflowStatus->id,
                         'synced_to_infor' => false,
                     ]);
@@ -306,14 +330,20 @@ class StoreProductionPlanJob implements ShouldQueue
                     Log::info("Registro (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) produjo {$producedQuantity}, más que el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}. Se limitó al plan y el restante ({$excessQuantity}) pasó a un registro nuevo sin planear.");
                 }
             } elseif ((int) $existingRecord->planned_quantity !== $plannedQuantityInt || $existingRecord->shop_order_number !== $this->shop_order_number) {
-                $existingRecord->update([
+                $existingRecordUpdate = [
                     'shop_order_number' => $this->shop_order_number,
                     'planned_quantity' => $plannedQuantityInt,
-                ]);
+                ];
+
+                if ($shouldRefreshOrder) {
+                    $existingRecordUpdate['production_order'] = $productionOrderForRecord;
+                }
+
+                $existingRecord->update($existingRecordUpdate);
                 Log::info("Registro actualizado: parte {$this->part_number}, orden {$this->shop_order_number}, {$this->planned_date} turno {$this->planned_shift}, plan {$this->planned_quantity}.");
             }
         } else {
-            ProductionRecord::store($partNumber->id, $plannedQuantityInt, $this->planned_date, $shift->id, $this->shop_order_number);
+            ProductionRecord::store($partNumber->id, $plannedQuantityInt, $this->planned_date, $shift->id, $this->shop_order_number, $productionOrderForRecord);
         }
     }
 }

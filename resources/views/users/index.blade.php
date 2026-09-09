@@ -3,16 +3,17 @@
 @section('title', 'Usuarios')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Usuarios</h1>
         </div>
 
-        <div class="d-flex" style="gap: 0.5rem;">
+        <div class="d-flex gap-2">
             @can('create users')
-                <a href="{{ route('users.create') }}" class="btn-action btn-action-primary">
-                    <i class="fas fa-plus"></i>
-                    <span>Agregar Usuario</span>
+                <a href="{{ route('users.create') }}" class="btn-action btn-action-primary"
+                    aria-label="Agregar nuevo usuario">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                    <span class="d-none d-md-inline">Agregar Usuario</span>
                 </a>
             @endcan
         </div>
@@ -22,25 +23,26 @@
 @section('content')
     @include('partials.theme-alerts')
 
-    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
 
         {{-- Filtros --}}
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
             <form method="GET" action="{{ route('users.index') }}">
-                <div class="d-flex flex-wrap align-items-center justify-content-end" style="gap: 0.5rem;">
+                <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
 
                     <div class="filter-group" style="width: 280px;">
-                        <i class="fas fa-search filter-icon"></i>
-                        <input type="text" name="search" class="filter-input" placeholder="Buscar..."
-                            value="{{ request('search') }}">
+                        <label for="user-search" class="sr-only">Buscar usuario</label>
+                        <i class="fas fa-search filter-icon" aria-hidden="true"></i>
+                        <input type="text" id="user-search" name="search" class="filter-input"
+                            placeholder="Nombre, usuario, rol, línea..." value="{{ request('search') }}">
                     </div>
 
-                    <button type="submit" class="btn-filter-submit">
+                    <button type="submit" class="btn-action btn-action-solid">
                         <i class="fas fa-search mr-1"></i>Buscar
                     </button>
 
                     @if (request()->filled('search'))
-                        <a href="{{ route('users.index') }}" class="btn-filter-clear">
+                        <a href="{{ route('users.index') }}" class="btn-action btn-action-secondary">
                             <i class="fas fa-times mr-1"></i>Limpiar
                         </a>
                     @endif
@@ -54,12 +56,12 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr class="table-head-row">
-                            <th class="th-cell">Nombre</th>
-                            <th class="th-cell">Usuario</th>
-                            <th class="th-cell">Rol</th>
-                            <th class="th-cell">Líneas</th>
-                            <th class="th-cell">Creado</th>
-                            <th class="th-cell text-center">Acciones</th>
+                            <th class="th-cell" scope="col">Nombre</th>
+                            <th class="th-cell" scope="col">Usuario</th>
+                            <th class="th-cell" scope="col">Rol</th>
+                            <th class="th-cell" scope="col">Líneas</th>
+                            <th class="th-cell" scope="col">Creado</th>
+                            <th class="th-cell text-center" scope="col">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -84,7 +86,7 @@
 
                                 <td class="td-cell">
                                     @if ($user->lines->count() > 0)
-                                        <div class="d-flex flex-wrap" style="gap: 0.35rem;">
+                                        <div class="d-flex flex-wrap gap-1">
                                             @foreach ($user->lines as $line)
                                                 <span class="badge-soft badge-primary">{{ $line->name }}</span>
                                             @endforeach
@@ -104,7 +106,7 @@
                                 </td>
 
                                 <td class="td-cell text-center">
-                                    <div class="d-flex justify-content-center" style="gap: 0.5rem;">
+                                    <div class="d-flex justify-content-center gap-2">
                                         @can('edit users')
                                             <a href="{{ route('users.edit', $user->id) }}"
                                                 class="btn-action btn-action-primary btn-action-sm">
@@ -133,16 +135,14 @@
                                     <div class="text-muted">
                                         <i class="fas fa-users fa-3x mb-3 d-block" style="color: #cbd5e1;"></i>
                                         <p class="mb-1 fw-500" style="color: #475569;">
-                                            @if (request('search'))
+                                            @if (request()->filled('search'))
                                                 No se encontraron usuarios que coincidan con "{{ request('search') }}"
                                             @else
                                                 No hay usuarios registrados
                                             @endif
                                         </p>
-                                        @if (request('search'))
-                                            <a href="{{ route('users.index') }}" class="btn-filter-clear mt-2">
-                                                Limpiar búsqueda
-                                            </a>
+                                        @if (request()->filled('search'))
+                                            <small>Intenta ajustar la búsqueda</small>
                                         @endif
                                     </div>
                                 </td>
@@ -156,11 +156,11 @@
         {{-- Paginación --}}
         @if ($users->hasPages() || $users->total() > 0)
             <div class="card-footer bg-white py-3" style="border-top: 1px solid #e9ecef;">
-                <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <small class="text-muted">
                         Mostrando <strong>{{ $users->firstItem() ?? 0 }}</strong> –
                         <strong>{{ $users->lastItem() ?? 0 }}</strong> de
-                        <strong>{{ $users->total() }}</strong> resultados
+                        <strong>{{ $users->total() }}</strong> registros
                     </small>
                     @if ($users->hasPages())
                         {{ $users->links('pagination::bootstrap-4') }}
@@ -173,8 +173,10 @@
 
 @section('css')
     @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
 @stop
 
 @section('js')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @include('partials.theme-scripts', ['deleteMessage' => '¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.'])
 @stop

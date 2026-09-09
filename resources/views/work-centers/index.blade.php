@@ -3,7 +3,7 @@
 @section('title', 'Estaciones de Trabajo')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Estaciones de Trabajo</h1>
         </div>
@@ -13,26 +13,27 @@
 @section('content')
     @include('partials.theme-alerts')
 
-    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
 
         {{-- Filtros --}}
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
             <form method="GET" action="{{ route('work-centers.index') }}">
-                <div class="d-flex flex-wrap align-items-center justify-content-end" style="gap: 0.5rem;">
+                <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
 
                     <div class="filter-group" style="width: 280px;">
-                        <i class="fas fa-search filter-icon"></i>
-                        <input type="text" name="search" class="filter-input"
+                        <label for="search-work-center" class="sr-only">Buscar estación, línea o IP</label>
+                        <i class="fas fa-search filter-icon" aria-hidden="true"></i>
+                        <input type="text" id="search-work-center" name="search" class="filter-input"
                             placeholder="Buscar estación, línea, IP..."
                             value="{{ request('search') }}">
                     </div>
 
-                    <button type="submit" class="btn-filter-submit">
+                    <button type="submit" class="btn-action btn-action-solid">
                         <i class="fas fa-search mr-1"></i>Buscar
                     </button>
 
                     @if (request()->filled('search'))
-                        <a href="{{ route('work-centers.index') }}" class="btn-filter-clear">
+                        <a href="{{ route('work-centers.index') }}" class="btn-action btn-action-secondary">
                             <i class="fas fa-times mr-1"></i>Limpiar
                         </a>
                     @endif
@@ -46,12 +47,12 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr class="table-head-row">
-                            <th class="th-cell">Línea</th>
-                            <th class="th-cell">Número</th>
-                            <th class="th-cell">Nombre</th>
-                            <th class="th-cell">IP</th>
-                            <th class="th-cell">Creado</th>
-                            <th class="th-cell text-center">Acciones</th>
+                            <th class="th-cell" scope="col">Línea</th>
+                            <th class="th-cell" scope="col">Número</th>
+                            <th class="th-cell" scope="col">Nombre</th>
+                            <th class="th-cell" scope="col">IP</th>
+                            <th class="th-cell" scope="col">Creado</th>
+                            <th class="th-cell text-center" scope="col">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -130,7 +131,7 @@
         {{-- Paginación --}}
         @if ($workCenters->hasPages() || $workCenters->total() > 0)
             <div class="card-footer bg-white py-3" style="border-top: 1px solid #e9ecef;">
-                <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <small class="text-muted">
                         Mostrando <strong>{{ $workCenters->firstItem() ?? 0 }}</strong> –
                         <strong>{{ $workCenters->lastItem() ?? 0 }}</strong> de
@@ -148,6 +149,7 @@
 
 @section('css')
     @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
 @stop
 
 @section('js')

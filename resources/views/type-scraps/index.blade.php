@@ -3,175 +3,148 @@
 @section('title', 'Tipos de Scrap')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="m-0 text-dark">{{ __('Tipos de Scrap') }}</h1>
-        <div class="col-md-4">
-            <form action="{{ route('type-scraps.index') }}" method="GET">
-                <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="Buscar..." value="{{ request('search') }}">
-                    <div class="input-group-append">
-                        <button class="btn btn-primary" type="submit">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
-                </div>
-            </form>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Tipos de Scrap</h1>
+        </div>
+
+        <div class="d-flex gap-2">
+            @can('create type scraps')
+                <a href="{{ route('type-scraps.create') }}" class="btn-action btn-action-primary"
+                    aria-label="Agregar nuevo tipo de scrap">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                    <span class="d-none d-md-inline">Agregar Tipo</span>
+                </a>
+            @endcan
         </div>
     </div>
 @stop
 
 @section('content')
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                        <h3 class="card-title m-0">{{ __('Lista de Tipos de Scrap') }}</h3>
-                        @can('create type scraps')
-                            <div class="ml-auto">
-                                <a href="{{ route('type-scraps.create') }}" class="btn btn-primary">
-                                    <i class="fas fa-plus mr-1"></i> {{ __('Crear Tipo de Scrap') }}
-                                </a>
-                            </div>
-                        @endcan
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table align-middle mb-0">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th class="ps-4 py-3 text-secondary fw-normal">{{ __('Nombre') }}</th>
-                                        <th class="py-3 text-secondary fw-normal">{{ __('Descripción') }}</th>
-                                        <th class="py-3 text-secondary fw-normal text-center">{{ __('Acciones') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse ($typeScraps as $typeScrap)
-                                        <tr class="border-top">
-                                            <td class="ps-4 py-3 fw-medium">{{ $typeScrap->name }}</td>
-                                            <td class="py-3">{{ $typeScrap->description ?? '-' }}</td>
-                                            <td class="py-3 text-center">
-                                                <div class="btn-group" role="group">
-                                                    @can('edit type scraps')
-                                                        <a href="{{ route('type-scraps.edit', $typeScrap->id) }}"
-                                                           class="btn btn-sm btn-primary" title="Editar">
-                                                            <i class="fas fa-edit mr-1"></i>
-                                                            <span class="d-none d-sm-inline">{{ __('Editar') }}</span>
-                                                        </a>
-                                                    @endcan
-                                                    @can('delete type scraps')
-                                                        <form action="{{ route('type-scraps.destroy', $typeScrap->id) }}"
-                                                              method="POST"
-                                                              onsubmit="return confirm('¿Estás seguro de eliminar este tipo de scrap?')"
-                                                              style="display:inline-block;">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
-                                                                <i class="fas fa-trash mr-1"></i>
-                                                                <span class="d-none d-sm-inline">{{ __('Eliminar') }}</span>
-                                                            </button>
-                                                        </form>
-                                                    @endcan
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="3" class="text-center py-4">
-                                                @if(request('search'))
-                                                    {{ __('No se encontraron tipos de scrap que coincidan con') }} "{{ request('search') }}"
-                                                @else
-                                                    <div class="d-flex flex-column align-items-center">
-                                                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                                                        <span class="text-secondary">{{ __('No hay tipos de scrap registrados') }}</span>
-                                                    </div>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
+    @include('partials.theme-alerts')
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+
+        {{-- Filtros --}}
+        <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
+            <form method="GET" action="{{ route('type-scraps.index') }}">
+                <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+
+                    <div class="filter-group" style="width: 280px;">
+                        <label for="ts-search" class="sr-only">Buscar tipo de scrap</label>
+                        <i class="fas fa-search filter-icon" aria-hidden="true"></i>
+                        <input type="text" id="ts-search" name="search" class="filter-input"
+                            placeholder="Buscar tipo de scrap..." value="{{ request('search') }}">
                     </div>
 
-                    @if ($typeScraps->hasPages() || $typeScraps->total() > 0)
-                        <div class="card-footer d-flex justify-content-between align-items-center">
-                            <div class="text-muted">
-                                {{ __('Mostrando') }} {{ $typeScraps->firstItem() ?? 0 }} - {{ $typeScraps->lastItem() ?? 0 }} {{ __('de') }} {{ $typeScraps->total() }}
-                            </div>
-                            <div>
-                                {{ $typeScraps->links('pagination::bootstrap-4') }}
-                            </div>
-                        </div>
+                    <button type="submit" class="btn-action btn-action-solid">
+                        <i class="fas fa-search mr-1"></i>Buscar
+                    </button>
+
+                    @if (request()->filled('search'))
+                        <a href="{{ route('type-scraps.index') }}" class="btn-action btn-action-secondary">
+                            <i class="fas fa-times mr-1"></i>Limpiar
+                        </a>
+                    @endif
+                </div>
+            </form>
+        </div>
+
+        {{-- Tabla --}}
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr class="table-head-row">
+                            <th class="th-cell" scope="col">Nombre</th>
+                            <th class="th-cell" scope="col">Descripción</th>
+                            <th class="th-cell text-center" scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($typeScraps as $typeScrap)
+                            <tr class="td-row">
+                                <td class="td-cell">
+                                    <span class="fw-600 text-dark" style="font-size: 0.85rem;">{{ $typeScrap->name }}</span>
+                                </td>
+
+                                <td class="td-cell">
+                                    <span class="text-muted" style="font-size: 0.8rem;">{{ $typeScrap->description ?? '-' }}</span>
+                                </td>
+
+                                <td class="td-cell text-center">
+                                    <div class="d-flex justify-content-center gap-2">
+                                        @can('edit type scraps')
+                                            <a href="{{ route('type-scraps.edit', $typeScrap->id) }}"
+                                                class="btn-action btn-action-primary btn-action-sm">
+                                                <i class="fas fa-edit"></i>
+                                                <span>Editar</span>
+                                            </a>
+                                        @endcan
+
+                                        @can('delete type scraps')
+                                            <form action="{{ route('type-scraps.destroy', $typeScrap->id) }}" method="POST"
+                                                style="display:inline;" class="delete-form">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-action btn-action-danger btn-action-sm">
+                                                    <i class="fas fa-trash"></i>
+                                                    <span>Eliminar</span>
+                                                </button>
+                                            </form>
+                                        @endcan
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <i class="fas fa-inbox fa-3x mb-3 d-block" style="color: #cbd5e1;"></i>
+                                        <p class="mb-1 fw-500" style="color: #475569;">
+                                            @if (request()->filled('search'))
+                                                No se encontraron tipos de scrap que coincidan con "{{ request('search') }}"
+                                            @else
+                                                No hay tipos de scrap registrados
+                                            @endif
+                                        </p>
+                                        @if (request()->filled('search'))
+                                            <small>Intenta ajustar la búsqueda</small>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- Paginación --}}
+        @if ($typeScraps->hasPages() || $typeScraps->total() > 0)
+            <div class="card-footer bg-white py-3" style="border-top: 1px solid #e9ecef;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <small class="text-muted">
+                        Mostrando <strong>{{ $typeScraps->firstItem() ?? 0 }}</strong> –
+                        <strong>{{ $typeScraps->lastItem() ?? 0 }}</strong> de
+                        <strong>{{ $typeScraps->total() }}</strong> registros
+                    </small>
+                    @if ($typeScraps->hasPages())
+                        {{ $typeScraps->links('pagination::bootstrap-4') }}
                     @endif
                 </div>
             </div>
-        </div>
+        @endif
+
     </div>
 @stop
 
 @section('css')
-    <style>
-        .pagination {
-            margin-bottom: 0;
-        }
+    @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
+@stop
 
-        .page-item.active .page-link {
-            background-color: #007bff;
-            border-color: #007bff;
-        }
-
-        .badge {
-            font-weight: 500;
-            font-size: 0.85rem;
-        }
-
-        .btn-group {
-            white-space: nowrap;
-        }
-
-        .btn-group .btn {
-            margin-right: 0.3rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            display: inline-flex;
-            align-items: center;
-        }
-
-        .btn-group .btn:last-child {
-            margin-right: 0;
-        }
-
-        .btn-sm i {
-            font-size: 0.8rem;
-        }
-
-        @media (max-width: 576px) {
-            .btn-group .btn span {
-                display: none;
-            }
-
-            .btn-sm i {
-                margin-right: 0 !important;
-            }
-        }
-
-        .input-group {
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-        }
-
-        .form-control {
-            border-radius: 0.25rem 0 0 0.25rem;
-        }
-
-        .input-group-append .btn {
-            border-radius: 0 0.25rem 0.25rem 0;
-        }
-
-        .table-hover tbody tr:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            transform: translateY(-1px);
-            transition: all 0.2s ease;
-        }
-    </style>
+@section('js')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    @include('partials.theme-scripts', ['deleteMessage' => '¿Estás seguro de que deseas eliminar este tipo de scrap? Esta acción no se puede deshacer.'])
 @stop

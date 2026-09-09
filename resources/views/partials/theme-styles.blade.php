@@ -97,6 +97,19 @@
     }
 
     /* ── Filtros ── */
+    .filter-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    .filter-label-text {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        margin-bottom: 0;
+    }
     .filter-group {
         display: inline-flex;
         align-items: center;
@@ -129,6 +142,9 @@
     }
     .filter-input::placeholder {
         color: #94a3b8;
+    }
+    .filter-input option {
+        color: #334155;
     }
     .btn-filter-submit {
         display: inline-flex;
@@ -278,23 +294,8 @@
     .field-hint {
         display: block;
         font-size: 0.75rem;
-        color: #94a3b8;
+        color: #64748b;
         margin-top: 0.3rem;
-    }
-
-    /* ── Contenedor de checkboxes (estaciones, etc.) ── */
-    .check-container {
-        background: #f8fafc;
-        border: 1.5px solid #e2e8f0;
-        border-radius: 7px;
-        padding: 1rem;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    .check-container .form-check-label {
-        font-size: 0.82rem;
-        color: #334155;
-        cursor: pointer;
     }
 
     /* ── Select2 (si está presente) ── */
@@ -354,8 +355,236 @@
     .fw-500 { font-weight: 500; }
     .fw-600 { font-weight: 600; }
 
+    /* ── Switch (interruptor) — reskin de .custom-switch de BS4 ── */
+    .custom-switch .custom-control-label {
+        cursor: pointer;
+    }
+    .custom-switch .custom-control-label::before {
+        width: 2.25rem;
+        height: 1.25rem;
+        top: 0.05rem;
+        left: -2.55rem;
+        border-radius: 999px;
+        background-color: #e2e8f0;
+        border: none;
+        box-shadow: none;
+        transition: background-color 0.15s ease;
+    }
+    .custom-switch .custom-control-label::after {
+        width: 1.05rem;
+        height: 1.05rem;
+        top: 0.15rem;
+        left: -2.45rem;
+        border-radius: 50%;
+        background-color: #fff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+        transition: transform 0.15s ease;
+    }
+    .custom-switch .custom-control-input:checked ~ .custom-control-label::before {
+        background-color: #1d4ed8;
+        border-color: #1d4ed8;
+    }
+    .custom-switch .custom-control-input:checked ~ .custom-control-label::after {
+        transform: translateX(1rem);
+        background-color: #fff;
+    }
+    .custom-switch .custom-control-input:focus ~ .custom-control-label::before {
+        box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.35);
+    }
+    .custom-switch .custom-control-input:disabled ~ .custom-control-label {
+        cursor: not-allowed;
+        opacity: 0.55;
+    }
+
+    /* ── Multi-select con búsqueda y chips (usado por el componente multi-select) ── */
+    .ms-dropdown {
+        position: relative;
+    }
+    .ms-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 7px;
+        padding: 0 0.6rem;
+        min-height: 34px;
+        min-width: 8rem;
+        cursor: pointer;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        gap: 0.4rem;
+        user-select: none;
+    }
+    .ms-trigger.open,
+    .ms-trigger:focus-within {
+        border-color: #93c5fd;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
+    }
+    .ms-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        padding: 3px 0;
+        flex: 1;
+        min-width: 0;
+    }
+    .ms-placeholder {
+        font-size: 0.82rem;
+        color: #94a3b8;
+        font-family: 'Inter', sans-serif;
+        line-height: 1;
+    }
+    .ms-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 1px 6px;
+        white-space: nowrap;
+    }
+    .ms-chip-remove {
+        cursor: pointer;
+        color: #93c5fd;
+        font-size: 0.65rem;
+        line-height: 1;
+    }
+    .ms-chip-remove:hover { color: #1d4ed8; }
+    .ms-arrow {
+        font-size: 0.65rem;
+        color: #94a3b8;
+        transition: transform 0.2s;
+        flex-shrink: 0;
+    }
+    .ms-arrow.rotated { transform: rotate(180deg); }
+    .ms-panel {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        min-width: 100%;
+        width: max-content;
+        max-width: 320px;
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        z-index: 999;
+        overflow: hidden;
+    }
+    .ms-panel.open { display: block; }
+    .ms-search-wrap {
+        display: flex;
+        align-items: center;
+        padding: 0.4rem 0.6rem;
+        border-bottom: 1px solid #f1f5f9;
+        gap: 0.4rem;
+    }
+    .ms-search-icon { font-size: 0.72rem; color: #94a3b8; }
+    .ms-search {
+        border: none;
+        outline: none;
+        font-size: 0.8rem;
+        color: #334155;
+        width: 100%;
+        font-family: 'Inter', sans-serif;
+    }
+    .ms-search::placeholder { color: #94a3b8; }
+    .ms-options {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 0.25rem 0;
+    }
+    .ms-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.7rem;
+        cursor: pointer;
+        font-size: 0.82rem;
+        color: #334155;
+        margin: 0;
+        font-weight: 400;
+        transition: background 0.1s;
+        min-width: 0;
+    }
+    .ms-option:hover { background: #f8fafc; }
+    .ms-option.ms-selected { background: #eff6ff; color: #1d4ed8; }
+    .ms-option.ms-hidden { display: none; }
+    .ms-checkbox {
+        width: 16px;
+        height: 16px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.12s;
+    }
+    .ms-option.ms-selected .ms-checkbox {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+    }
+    .ms-check-icon {
+        font-size: 0.55rem;
+        color: #fff;
+        display: none;
+    }
+    .ms-option.ms-selected .ms-check-icon { display: block; }
+    .ms-option-text {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ms-color-swatch {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+    .ms-option .ms-color-swatch {
+        margin-right: 0.1rem;
+    }
+
+    /* ── Valor único (usado por el componente select de opción simple) ── */
+    .ss-value {
+        font-size: 0.82rem;
+        color: #334155;
+        font-family: 'Inter', sans-serif;
+        line-height: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* ── Utilidades puente (equivalentes BS5 que no existen en BS4) ── */
+    .rounded-3 { border-radius: 8px !important; }
+    .rounded-4 { border-radius: 12px !important; }
+    .overflow-hidden { overflow: hidden !important; }
+    .gap-1 { gap: 0.25rem !important; }
+    .gap-2 { gap: 0.5rem !important; }
+    .gap-3 { gap: 0.75rem !important; }
+    .gap-4 { gap: 1rem !important; }
+
     @media (max-width: 767px) {
-        .filter-group, .btn-filter-submit, .btn-filter-clear {
+        .filter-group, .filter-field, .btn-filter-submit, .btn-filter-clear,
+        .card-header form .btn-action {
             width: 100%;
         }
         .card-header form > div {

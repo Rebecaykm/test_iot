@@ -3,14 +3,15 @@
 @section('title', 'Editar Estación')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Editar Estación</h1>
         </div>
 
-        <div class="d-flex" style="gap: 0.5rem;">
-            <a href="{{ route('work-centers.index') }}" class="btn-action btn-action-secondary">
-                <i class="fas fa-arrow-left"></i>
+        <div class="d-flex gap-2">
+            <a href="{{ route('work-centers.index') }}" class="btn-action btn-action-secondary"
+                aria-label="Volver al listado">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
                 <span class="d-none d-md-inline">Volver</span>
             </a>
         </div>
@@ -21,7 +22,7 @@
     @include('partials.theme-alerts')
 
     {{-- Formulario Principal --}}
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
             <h5 class="mb-0 section-title">
                 <i class="fas fa-cog mr-2" style="color: #94a3b8;"></i>Información General
@@ -34,15 +35,16 @@
 
                 <div class="row mb-3">
                     <div class="col-md-6 mb-3 mb-md-0">
-                        <label class="field-label">Número</label>
-                        <div class="field-readonly" style="font-family: 'SFMono-Regular', Consolas, monospace;">
+                        <span class="field-label" id="lbl-numero">Número</span>
+                        <div class="field-readonly" role="group" aria-labelledby="lbl-numero"
+                            style="font-family: 'SFMono-Regular', Consolas, monospace;">
                             {{ $workCenter->number }}
                         </div>
                     </div>
 
                     <div class="col-md-6">
-                        <label class="field-label">Nombre</label>
-                        <div class="field-readonly">
+                        <span class="field-label" id="lbl-nombre">Nombre</span>
+                        <div class="field-readonly" role="group" aria-labelledby="lbl-nombre">
                             {{ $workCenter->name }}
                         </div>
                     </div>
@@ -50,8 +52,8 @@
 
                 <div class="row mb-3">
                     <div class="col-md-6 mb-3 mb-md-0">
-                        <label class="field-label">Línea</label>
-                        <div class="field-readonly">
+                        <span class="field-label" id="lbl-linea">Línea</span>
+                        <div class="field-readonly" role="group" aria-labelledby="lbl-linea">
                             @if ($workCenter->line)
                                 <span class="badge-soft badge-primary">{{ $workCenter->line->name }}</span>
                             @else
@@ -73,7 +75,7 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end" style="gap: 0.5rem; margin-top: 1.5rem;">
+                <div class="d-flex justify-content-end gap-2 mt-4">
                     <a href="{{ route('work-centers.index') }}" class="btn-action btn-action-secondary">
                         <i class="fas fa-times"></i>
                         <span>Cancelar</span>
@@ -88,9 +90,9 @@
     </div>
 
     {{-- Listado de Tags --}}
-    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
-            <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h5 class="mb-0 section-title">
                     <i class="fas fa-tags mr-2" style="color: #94a3b8;"></i>Tags Asociados
                 </h5>
@@ -108,11 +110,11 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr class="table-head-row">
-                            <th class="th-cell">Dirección</th>
-                            <th class="th-cell">Longitud</th>
-                            <th class="th-cell">Tipo</th>
-                            <th class="th-cell">Descripción</th>
-                            <th class="th-cell text-center">Acciones</th>
+                            <th class="th-cell" scope="col">Dirección</th>
+                            <th class="th-cell" scope="col">Longitud</th>
+                            <th class="th-cell" scope="col">Tipo</th>
+                            <th class="th-cell" scope="col">Descripción</th>
+                            <th class="th-cell text-center" scope="col">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -134,7 +136,7 @@
                                     <span class="text-muted" style="font-size: 0.8rem;">{{ $tag->description ?? '-' }}</span>
                                 </td>
                                 <td class="td-cell text-center">
-                                    <div class="d-flex justify-content-center" style="gap: 0.5rem;">
+                                    <div class="d-flex justify-content-center gap-2">
                                         @can('edit tags')
                                             <a href="{{ route('tags.edit', $tag) }}"
                                                 class="btn-action btn-action-primary btn-action-sm">
@@ -176,6 +178,7 @@
 
 @section('css')
     @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
 @stop
 
 @section('js')

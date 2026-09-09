@@ -3,68 +3,77 @@
 @section('title', 'Editar Rol')
 
 @section('content_header')
-    <h1>{{ __('Editar Rol') }}</h1>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Editar Rol</h1>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="{{ route('roles.index') }}" class="btn-action btn-action-secondary"
+                aria-label="Volver al listado">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                <span class="d-none d-md-inline">Volver</span>
+            </a>
+        </div>
+    </div>
 @stop
 
 @section('content')
-    @if (session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    @endif
+    @include('partials.theme-alerts')
 
-    @if (session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
+            <h5 class="mb-0 section-title">
+                <i class="fas fa-user-shield mr-2" style="color: #94a3b8;"></i>Información del Rol
+            </h5>
         </div>
-    @endif
-
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
-        <div class="card-body">
+        <div class="card-body p-4">
             <form action="{{ route('roles.update', $role->id) }}" method="POST">
                 @csrf
                 @method('PUT')
 
                 <div class="row mb-3">
                     <div class="col-md-12">
-                        <label for="name" class="form-label fw-bold text-secondary">{{ __('Nombre del Rol') }} *</label>
+                        <label for="name" class="field-label">Nombre del Rol *</label>
                         <input type="text" name="name" id="name"
-                            class="form-control border-light-subtle @error('name') is-invalid @enderror"
+                            class="field-input @error('name') is-invalid @enderror"
                             value="{{ old('name', $role->name) }}" required placeholder="Ej: Editor">
                         @error('name')
-                            <div class="invalid-feedback">{{ $message }}</div>
+                            <div class="field-error">{{ $message }}</div>
                         @enderror
                     </div>
                 </div>
 
                 <div class="row mb-3">
                     <div class="col-md-12">
-                        <label class="form-label fw-bold text-secondary">{{ __('Permisos') }}</label>
-                        <div class="permissions-container border rounded p-3" style="max-height: 400px; overflow-y: auto;">
-                            @if($permissions->count() > 0)
+                        <label class="field-label">Permisos</label>
+                        <div class="permissions-container" style="max-height: 400px; overflow-y: auto;">
+                            @if ($permissions->count() > 0)
                                 <div class="row">
-                                    @foreach($permissions->groupBy(function($item) {
-                                        return explode(' ', $item->name)[0];
-                                    }) as $group => $groupPermissions)
+                                    @foreach ($permissions->groupBy(fn($item) => explode(' ', $item->name)[0]) as $group => $groupPermissions)
                                         <div class="col-md-4 mb-4">
-                                            <div class="card border-0 bg-light">
-                                                <div class="card-header bg-transparent py-2">
-                                                    <h6 class="mb-0 fw-bold text-secondary text-uppercase">
-                                                        <i class="fas fa-folder me-2"></i>{{ $group }}
-                                                    </h6>
+                                            <div class="permission-group">
+                                                <div class="permission-group-header">
+                                                    <span class="section-title" style="font-size: 0.8rem;">
+                                                        <i class="fas fa-folder mr-2" style="color: #94a3b8;"></i>{{ $group }}
+                                                    </span>
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input select-all-group"
+                                                            id="select-all-{{ $group }}">
+                                                        <label class="custom-control-label" for="select-all-{{ $group }}"
+                                                            style="font-size: 0.72rem; color: #64748b;">Todos</label>
+                                                    </div>
                                                 </div>
-                                                <div class="card-body py-2">
-                                                    @foreach($groupPermissions as $permission)
-                                                        <div class="form-check mb-2">
-                                                            <input class="form-check-input" type="checkbox"
-                                                                name="permissions[]"
-                                                                value="{{ $permission->id }}"
+                                                <div class="permission-group-body">
+                                                    @foreach ($groupPermissions as $permission)
+                                                        <div class="custom-control custom-checkbox mb-2">
+                                                            <input class="custom-control-input" type="checkbox"
+                                                                name="permissions[]" value="{{ $permission->id }}"
                                                                 id="permission_{{ $permission->id }}"
                                                                 {{ in_array($permission->id, $rolePermissions) ? 'checked' : '' }}>
-                                                            <label class="form-check-label" for="permission_{{ $permission->id }}">
-                                                                {{ ucwords(str_replace($group.' ', '', $permission->name)) }}
+                                                            <label class="custom-control-label" for="permission_{{ $permission->id }}"
+                                                                style="font-size: 0.82rem; color: #334155;">
+                                                                {{ ucwords(str_replace($group . ' ', '', $permission->name)) }}
                                                             </label>
                                                         </div>
                                                     @endforeach
@@ -74,26 +83,27 @@
                                     @endforeach
                                 </div>
                             @else
-                                <div class="alert alert-info mb-0">
-                                    No hay permisos disponibles.
-                                </div>
+                                <p class="text-muted mb-0">No hay permisos disponibles.</p>
                             @endif
                         </div>
                         @error('permissions')
-                            <div class="text-danger small mt-2">{{ $message }}</div>
+                            <div class="field-error">{{ $message }}</div>
                         @enderror
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2">
-                    <a href="{{ route('roles.index') }}" class="btn btn-outline-secondary rounded-3">
-                        <i class="fas fa-times me-2"></i> {{ __('Cancelar') }}
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="{{ route('roles.index') }}" class="btn-action btn-action-secondary">
+                        <i class="fas fa-times"></i>
+                        <span>Cancelar</span>
                     </a>
-                    <button type="reset" class="btn btn-outline-primary rounded-3">
-                        <i class="fas fa-undo me-2"></i> {{ __('Restablecer') }}
+                    <button type="reset" class="btn-action btn-action-secondary">
+                        <i class="fas fa-undo"></i>
+                        <span>Restablecer</span>
                     </button>
-                    <button type="submit" class="btn btn-primary rounded-3">
-                        <i class="fas fa-save me-2"></i> {{ __('Actualizar Rol') }}
+                    <button type="submit" class="btn-action btn-action-solid">
+                        <i class="fas fa-save"></i>
+                        <span>Actualizar Rol</span>
                     </button>
                 </div>
             </form>
@@ -102,175 +112,49 @@
 @stop
 
 @section('css')
-    <!-- Fuente Google Roboto -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-
+    @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
     <style>
-        /* Aplicar fuente a todo el sistema */
-        body,
-        .main-header,
-        .main-sidebar,
-        .content-wrapper,
-        .card,
-        .btn,
-        .form-control,
-        .form-select,
-        .form-label,
-        .table,
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6 {
-            font-family: 'Roboto', sans-serif !important;
-        }
-
-        /* Estilos para formularios */
-        .border-light-subtle {
-            border-color: #f0f0f0 !important;
-        }
-
-        .form-control {
-            border-radius: 8px !important;
-            padding: 0.5rem 1rem !important;
-            font-size: 0.95rem !important;
-            border: 1px solid #e0e0e0 !important;
-            transition: all 0.2s ease;
-        }
-
-        .form-control:focus {
-            border-color: #86b7fe !important;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
-            outline: none !important;
-        }
-
-        .form-label {
-            font-size: 0.9rem !important;
-            margin-bottom: 0.5rem !important;
-            font-weight: 600 !important;
-        }
-
-        /* Botones */
-        .btn {
-            border-radius: 8px !important;
-            padding: 0.5rem 1.5rem !important;
-            font-weight: 500 !important;
-            font-size: 0.95rem !important;
-            display: inline-flex;
-            align-items: center;
-            transition: all 0.2s ease;
-        }
-
-        .btn i {
-            font-size: 0.9rem !important;
-            margin-right: 0.5rem !important;
-        }
-
-        .gap-2 {
-            gap: 0.5rem;
-        }
-
-        /* Card */
-        .rounded-3 {
-            border-radius: 12px !important;
-        }
-
-        /* Invalid feedback */
-        .invalid-feedback {
-            font-size: 0.85rem !important;
-        }
-
-        /* Placeholder styling */
-        ::placeholder {
-            color: #6c757d !important;
-            opacity: 0.7;
-        }
-
-        /* Alertas */
-        .alert {
-            border-radius: 8px;
-        }
-
-        .btn-close {
-            background-size: 0.75rem;
-            padding: 0.5rem;
-        }
-
-        /* Contenedor de permisos */
         .permissions-container {
-            border-color: #e0e0e0 !important;
-            border-radius: 8px !important;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 7px;
+            padding: 1rem;
+            background: #f8fafc;
         }
-
-        .permissions-container .card {
-            border-radius: 8px !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        .permission-group {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 7px;
+            height: 100%;
         }
-
-        .permissions-container .form-check-label {
-            font-size: 0.9rem !important;
-            cursor: pointer;
+        .permission-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 0.85rem;
+            border-bottom: 1px solid #f1f5f9;
         }
-
-        .permissions-container .form-check-input {
-            margin-top: 0.3rem;
-        }
-
-        /* Estilos para checkboxes */
-        .form-check-input:checked {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
+        .permission-group-body {
+            padding: 0.75rem 0.85rem;
         }
     </style>
 @stop
 
 @section('js')
+    @include('partials.theme-scripts')
+
     <script>
-        // Cerrar alertas automáticamente después de 5 segundos
-        setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                }
-            });
-        }, 5000);
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.permission-group').forEach(group => {
+                const selectAll = group.querySelector('.select-all-group');
+                const checkboxes = group.querySelectorAll('.permission-group-body .custom-control-input');
 
-        // Función para seleccionar/deseleccionar todos los permisos de un grupo
-        document.addEventListener('DOMContentLoaded', function() {
-            // Agregar checkboxes de "Seleccionar todos" para cada grupo
-            document.querySelectorAll('.permissions-container .card-header').forEach(header => {
-                const groupPermissions = header.closest('.col-md-4').querySelectorAll('.form-check-input');
-                if (groupPermissions.length > 0) {
-                    const selectAllCheckbox = document.createElement('div');
-                    selectAllCheckbox.className = 'form-check form-check-inline mb-2';
-                    selectAllCheckbox.innerHTML = `
-                        <input type="checkbox" class="form-check-input select-all-group">
-                        <label class="form-check-label small">Seleccionar todos</label>
-                    `;
-                    header.appendChild(selectAllCheckbox);
-                }
-            });
+                // Estado inicial: marcado si todos los permisos del grupo ya están seleccionados
+                selectAll.checked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
 
-            // Event listener para checkboxes de "Seleccionar todos"
-            document.querySelectorAll('.select-all-group').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const groupCard = this.closest('.card');
-                    const checkboxes = groupCard.querySelectorAll('.form-check-input:not(.select-all-group)');
-                    checkboxes.forEach(cb => {
-                        cb.checked = this.checked;
-                    });
+                selectAll.addEventListener('change', function () {
+                    checkboxes.forEach(cb => cb.checked = this.checked);
                 });
-
-                // Verificar si todos los permisos del grupo están seleccionados
-                const groupCard = checkbox.closest('.card');
-                const groupCheckboxes = groupCard.querySelectorAll('.form-check-input:not(.select-all-group)');
-                const allChecked = Array.from(groupCheckboxes).every(cb => cb.checked);
-                checkbox.checked = allChecked;
             });
         });
     </script>

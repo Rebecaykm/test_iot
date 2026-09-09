@@ -3,70 +3,81 @@
 @section('title', 'Editar Estado')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center">
-        <h1 class="m-0 text-dark">Editar Estado</h1>
-        <a href="{{ route('statuses.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left mr-2"></i> Volver
-        </a>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Editar Estado</h1>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="{{ route('statuses.index') }}" class="btn-action btn-action-secondary"
+                aria-label="Volver al listado">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                <span class="d-none d-md-inline">Volver</span>
+            </a>
+        </div>
     </div>
 @stop
 
 @section('content')
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-primary">
-                    <div class="card-header">
-                        <h3 class="card-title">Información del Estado</h3>
+    @include('partials.theme-alerts')
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
+            <h5 class="mb-0 section-title">
+                <i class="fas fa-flag mr-2" style="color: #94a3b8;"></i>Información del Estado
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <form action="{{ route('statuses.update', $status->id) }}" method="POST">
+                @csrf
+                @method('PUT')
+
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label for="name" class="field-label">Nombre *</label>
+                        <input type="text" name="name" id="name"
+                            class="field-input @error('name') is-invalid @enderror"
+                            value="{{ old('name', $status->name) }}" required placeholder="Ej: En Proceso">
+                        @error('name')
+                            <div class="field-error">{{ $message }}</div>
+                        @enderror
                     </div>
 
-                    <form action="{{ route('statuses.update', $status->id) }}" method="POST">
-                        @csrf
-                        @method('PUT')
-
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="name" class="font-weight-bold">Nombre <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control @error('name') is-invalid @enderror"
-                                               id="name" name="name" value="{{ old('name', $status->name) }}"
-                                               placeholder="Ej: En Proceso" required>
-                                        @error('name')
-                                        <span class="invalid-feedback" role="alert">
-                                        <strong>{{ $message }}</strong>
-                                    </span>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="description" class="font-weight-bold">Descripción</label>
-                                        <textarea class="form-control @error('description') is-invalid @enderror"
-                                                  id="description" name="description" rows="1"
-                                                  placeholder="Descripción del estado">{{ old('description', $status->description) }}</textarea>
-                                        @error('description')
-                                        <span class="invalid-feedback" role="alert">
-                                        <strong>{{ $message }}</strong>
-                                    </span>
-                                        @enderror
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card-footer bg-white d-flex justify-content-end py-3">
-                            <button type="reset" class="btn btn-default mr-2">
-                                <i class="fas fa-undo mr-1"></i> Restablecer
-                            </button>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save mr-1"></i> Actualizar
-                            </button>
-                        </div>
-                    </form>
+                    <div class="col-md-6">
+                        <label for="description" class="field-label">Descripción</label>
+                        <input type="text" name="description" id="description"
+                            class="field-input @error('description') is-invalid @enderror"
+                            value="{{ old('description', $status->description) }}" placeholder="Descripción del estado">
+                        @error('description')
+                            <div class="field-error">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </div>
-            </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="{{ route('statuses.index') }}" class="btn-action btn-action-secondary">
+                        <i class="fas fa-times"></i>
+                        <span>Cancelar</span>
+                    </a>
+                    <button type="reset" class="btn-action btn-action-secondary">
+                        <i class="fas fa-undo"></i>
+                        <span>Restablecer</span>
+                    </button>
+                    <button type="submit" class="btn-action btn-action-solid">
+                        <i class="fas fa-save"></i>
+                        <span>Actualizar Estado</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
+@stop
+
+@section('css')
+    @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
+@stop
+
+@section('js')
+    @include('partials.theme-scripts')
 @stop

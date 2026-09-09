@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Imports\ProductionOrdersImport;
 use App\Jobs\GetPartNumberJob;
 use App\Models\PartNumber;
+use App\Models\ProductionOrderHistory;
 use App\Models\VisualAid;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -136,6 +137,23 @@ class PartNumberController extends Controller
                 }
 
                 $dataToUpdate['production_order'] = $productionOrder;
+            }
+        }
+
+        // Si production_order va a cambiar, dejar registro del nuevo valor vigente
+        // antes de sobrescribirlo, para poder consultar qué orden tenía en fechas pasadas.
+        if (array_key_exists('production_order', $dataToUpdate)) {
+            $newProductionOrder = $dataToUpdate['production_order'] === null
+                ? null
+                : (int) $dataToUpdate['production_order'];
+
+            if ($newProductionOrder !== $partNumber->production_order) {
+                ProductionOrderHistory::create([
+                    'part_number_id' => $partNumber->id,
+                    'work_center_id' => $partNumber->work_center_id,
+                    'production_order' => $newProductionOrder,
+                    'effective_date' => now()->toDateString(),
+                ]);
             }
         }
 

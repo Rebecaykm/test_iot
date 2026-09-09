@@ -3,14 +3,15 @@
 @section('title', 'Editar Usuario')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Editar Usuario</h1>
         </div>
 
-        <div class="d-flex" style="gap: 0.5rem;">
-            <a href="{{ route('users.index') }}" class="btn-action btn-action-secondary">
-                <i class="fas fa-arrow-left"></i>
+        <div class="d-flex gap-2">
+            <a href="{{ route('users.index') }}" class="btn-action btn-action-secondary"
+                aria-label="Volver al listado">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
                 <span class="d-none d-md-inline">Volver</span>
             </a>
         </div>
@@ -20,7 +21,7 @@
 @section('content')
     @include('partials.theme-alerts')
 
-    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
             <h5 class="mb-0 section-title">
                 <i class="fas fa-user mr-2" style="color: #94a3b8;"></i>Información General
@@ -66,17 +67,17 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label for="role" class="field-label">Rol</label>
-                        <select name="role" id="role"
-                            class="field-input select2 @error('role') is-invalid @enderror" style="width: 100%;">
-                            <option value="">Seleccione un rol</option>
-                            @foreach ($roles as $role)
-                                <option value="{{ $role->name }}"
-                                    {{ (old('role', $user->roles->first()?->name) == $role->name) ? 'selected' : '' }}>
-                                    {{ ucfirst($role->name) }}
-                                </option>
-                            @endforeach
-                        </select>
+                        @php $currentRole = old('role', $user->roles->first()?->name); @endphp
+                        <x-select
+                            name="role"
+                            label="Rol"
+                            :options="collect([['value' => '', 'label' => 'Seleccione un rol', 'selected' => !$currentRole]])
+                                ->concat($roles->map(fn ($role) => [
+                                    'value' => $role->name,
+                                    'label' => ucfirst($role->name),
+                                    'selected' => $currentRole == $role->name,
+                                ]))"
+                        />
                         @error('role')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
@@ -105,35 +106,26 @@
                 {{-- Líneas asociadas --}}
                 <div class="row mb-3">
                     <div class="col-md-12">
-                        <label class="field-label">Líneas Asociadas</label>
-                        <small class="field-hint d-block mb-2">Las estaciones de cada línea se asignan automáticamente.</small>
-                        <div class="check-container">
-                            @if ($lines->count() > 0)
-                                <div class="row">
-                                    @foreach ($lines as $line)
-                                        <div class="col-md-4">
-                                            <div class="form-check mb-2">
-                                                <input class="form-check-input" type="checkbox"
-                                                    name="lines[]" id="line_{{ $line->id }}" value="{{ $line->id }}"
-                                                    {{ in_array($line->id, old('lines', $user->lines->pluck('id')->toArray())) ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="line_{{ $line->id }}">
-                                                    {{ $line->name }}
-                                                </label>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @else
-                                <div class="text-muted small mb-0">No hay líneas disponibles para asociar.</div>
-                            @endif
-                        </div>
+                        <x-multi-select
+                            name="lines"
+                            label="Líneas Asociadas"
+                            placeholder="Ninguna línea seleccionada"
+                            search-placeholder="Buscar línea..."
+                            empty-message="No hay líneas disponibles para asociar."
+                            :options="$lines->map(fn ($line) => [
+                                'value' => $line->id,
+                                'label' => $line->name,
+                                'selected' => in_array($line->id, old('lines', $user->lines->pluck('id')->toArray())),
+                            ])"
+                        />
+                        <small class="field-hint d-block mt-1">Las estaciones de cada línea se asignan automáticamente.</small>
                         @error('lines')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end" style="gap: 0.5rem; margin-top: 1.5rem;">
+                <div class="d-flex justify-content-end gap-2 mt-4">
                     <a href="{{ route('users.index') }}" class="btn-action btn-action-secondary">
                         <i class="fas fa-times"></i>
                         <span>Cancelar</span>
@@ -150,18 +142,9 @@
 
 @section('css')
     @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
 @stop
 
 @section('js')
     @include('partials.theme-scripts')
-
-    <script>
-        $(document).ready(function() {
-            $('#role').select2({
-                placeholder: 'Seleccione un rol',
-                allowClear: false,
-                width: '100%'
-            });
-        });
-    </script>
 @stop

@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\PartNumber;
+use App\Models\ProductionOrderHistory;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -53,16 +54,30 @@ class ProductionOrdersImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            $affected = PartNumber::query()
+            $partNumber = PartNumber::query()
                 ->where('number', $number)
                 ->where('is_obsolete', '<>', 1)
-                ->update(['production_order' => (int) $orden]);
+                ->first();
 
-            if ($affected === 0) {
+            if ($partNumber === null) {
                 $this->notFound[] = $number;
-            } else {
-                $this->updated += $affected;
+                continue;
             }
+
+            $newOrder = (int) $orden;
+
+            if ($partNumber->production_order !== $newOrder) {
+                ProductionOrderHistory::create([
+                    'part_number_id' => $partNumber->id,
+                    'work_center_id' => $partNumber->work_center_id,
+                    'production_order' => $newOrder,
+                    'effective_date' => now()->toDateString(),
+                ]);
+
+                $partNumber->update(['production_order' => $newOrder]);
+            }
+
+            $this->updated++;
         }
     }
 }

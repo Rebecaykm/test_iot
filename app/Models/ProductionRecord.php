@@ -33,6 +33,7 @@ class ProductionRecord extends Model
         'shift_id',
         'status_id',
         'shop_order_number',
+        'production_order',
         'synced_to_infor',
         'synced_at'
     ];
@@ -41,6 +42,7 @@ class ProductionRecord extends Model
         'planned_quantity' => 'integer',
         'produced_quantity' => 'integer',
         'scrap_quantity' => 'integer',
+        'production_order' => 'integer',
         'synced_to_infor' => 'boolean',
     ];
 
@@ -141,6 +143,7 @@ class ProductionRecord extends Model
         $plannedDate,
         $shiftId = null,
         $shopOrderNumber = null,
+        $productionOrder = null,
     ) {
         $plannedQuantity = (int) $plannedQuantity;
 
@@ -156,6 +159,7 @@ class ProductionRecord extends Model
                 'shift_id' => $shiftId,
                 'status_id' => $status->id,
                 'shop_order_number' => $shopOrderNumber,
+                'production_order' => $productionOrder,
                 'synced_to_infor' => false,
             ]);
         }
@@ -271,7 +275,9 @@ class ProductionRecord extends Model
      */
     public static function getShiftPlannedSchedule(string $workCenter, int $shiftId, $date): Collection
     {
-        return ProductionRecord::query()
+        $date = \Carbon\Carbon::parse($date)->toDateString();
+
+        $planParts = ProductionRecord::query()
             ->select([
                 'part_numbers.id AS part_number_id',
                 'part_numbers.number AS part_number',
@@ -283,7 +289,7 @@ class ProductionRecord extends Model
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-            ->where('production_records.planned_date', \Carbon\Carbon::parse($date)->toDateString())
+            ->where('production_records.planned_date', $date)
             ->where('shifts.id', $shiftId)
             ->where('work_centers.name', 'LIKE', $workCenter)
             ->groupBy(
@@ -296,6 +302,41 @@ class ProductionRecord extends Model
             // Solo partes que tuvieron cantidad planeada o producida en el turno
             ->havingRaw('SUM(production_records.planned_quantity) > 0 OR SUM(production_records.produced_quantity) > 0')
             ->get();
+
+        self::applyHistoricalProductionOrder($planParts, $date);
+
+        return $planParts;
+    }
+
+    /**
+     * Sustituye production_order (valor actual de part_numbers) por el que estaba
+     * vigente en $date cuando esa fecha ya pasó, usando production_order_histories.
+     * Sin esto, una línea de tiempo de un turno pasado ordenaría las filas con el
+     * orden de HOY en vez del que realmente aplicaba ese día.
+     */
+    private static function applyHistoricalProductionOrder(Collection $planParts, string $date): void
+    {
+        if ($date >= now()->toDateString() || $planParts->isEmpty()) {
+            return;
+        }
+
+        $partIds = $planParts->pluck('part_number_id')->unique()->all();
+
+        $historicalOrders = ProductionOrderHistory::query()
+            ->whereIn('part_number_id', $partIds)
+            ->whereDate('effective_date', '<=', $date)
+            ->orderBy('part_number_id')
+            ->orderByDesc('effective_date')
+            ->orderByDesc('id')
+            ->get()
+            ->unique('part_number_id')
+            ->pluck('production_order', 'part_number_id');
+
+        foreach ($planParts as $record) {
+            if ($historicalOrders->has($record->part_number_id)) {
+                $record->production_order = $historicalOrders->get($record->part_number_id);
+            }
+        }
     }
 
     /**

@@ -3,7 +3,7 @@
 @section('title', 'Sincronización a Infor')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Sincronización a Infor</h1>
         </div>
@@ -11,25 +11,7 @@
 @stop
 
 @section('content')
-    @if (session('success'))
-        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert"
-            style="border-radius: 8px;">
-            <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
-
-    @if ($errors->any())
-        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert"
-            style="border-radius: 8px;">
-            <i class="fas fa-exclamation-triangle mr-2"></i>{{ $errors->first() }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
+    @include('partials.theme-alerts')
 
     @php
         $environments = [
@@ -64,7 +46,7 @@
                 @endphp
 
                 <div class="col-lg-6 mb-4">
-                    <div class="card border-0 shadow-sm h-100 env-card" style="border-radius: 12px; overflow: hidden;"
+                    <div class="card border-0 shadow-sm h-100 env-card rounded-4 overflow-hidden"
                         data-env="{{ $envKey }}">
 
                         {{-- Encabezado del ambiente --}}
@@ -105,8 +87,8 @@
                                 <table class="table table-hover mb-0">
                                     <thead>
                                         <tr class="table-head-row">
-                                            <th class="th-cell">Línea / Estación</th>
-                                            <th class="th-cell text-right">Número</th>
+                                            <th class="th-cell" scope="col">Línea / Estación</th>
+                                            <th class="th-cell text-right" scope="col">Número</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -185,7 +167,7 @@
         </div>
 
         <div class="d-flex justify-content-end mb-4">
-            <button type="submit" class="btn-filter-submit">
+            <button type="submit" class="btn-action btn-action-solid">
                 <i class="fas fa-save mr-1"></i>Guardar configuración
             </button>
         </div>
@@ -193,16 +175,10 @@
 @stop
 
 @section('css')
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
     <style>
-        body, .card, .btn, .form-control, .table, .content-header h1 {
-            font-family: 'Inter', sans-serif !important;
-        }
-
-        .fw-500 { font-weight: 500; }
-        .fw-600 { font-weight: 600; }
-
-        /* ── Ícono del ambiente ── */
+        /* ── Ícono del ambiente (específico de esta vista) ── */
         .env-icon {
             display: inline-flex;
             align-items: center;
@@ -215,78 +191,22 @@
         .env-icon-live  { background: #f0fdf4; color: #15803d; }
         .env-icon-proto { background: #eff6ff; color: #1d4ed8; }
 
-        /* ── Tabla ── */
-        .table-head-row {
-            background: #f8fafc;
-            border-bottom: 2px solid #e2e8f0;
-        }
+        /* ── Encabezado de tabla fijo al hacer scroll (extiende .th-cell del partial) ── */
         .th-cell {
-            font-size: 0.7rem !important;
-            font-weight: 700 !important;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
-            color: #64748b !important;
-            border: none !important;
-            padding: 0.65rem 0.85rem !important;
-            white-space: nowrap;
             position: sticky;
             top: 0;
             background: #f8fafc;
             z-index: 1;
-        }
-        .td-row {
-            border-bottom: 1px solid #f1f5f9 !important;
-            transition: background 0.1s ease;
-        }
-        .td-row:hover {
-            background-color: #f8fafc !important;
-        }
-        .td-cell {
-            padding: 0.5rem 0.85rem !important;
-            vertical-align: middle !important;
-            border-top: none !important;
         }
         .line-row {
             background: #f8fafc;
             border-top: 1px solid #e2e8f0;
         }
 
-        /* ── Badges ── */
-        .badge-soft {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.28em 0.65em;
-            border-radius: 5px;
-            font-size: 0.73rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .badge-soft.badge-success   { background: #f0fdf4; color: #15803d; }
-        .badge-soft.badge-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
-
         /* ── Cuerpo deshabilitado (solo visual, sigue siendo editable) ── */
         .env-body-disabled { opacity: 0.55; }
 
-        /* ── Botón guardar (mismo estilo que el de filtros) ── */
-        .btn-filter-submit {
-            display: inline-flex;
-            align-items: center;
-            height: 38px;
-            padding: 0 1rem;
-            font-size: 0.82rem;
-            font-weight: 600;
-            border-radius: 7px;
-            background: #1d4ed8;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .btn-filter-submit:hover {
-            background: #1e40af;
-        }
-
-        /* ── Switch ── */
+        /* ── Switch: color "activo" verde (envío a Infor), forma ya viene del partial ── */
         .custom-switch .custom-control-input:checked ~ .custom-control-label::before {
             background-color: #15803d;
             border-color: #15803d;
@@ -295,12 +215,9 @@
 @stop
 
 @section('js')
+    @include('partials.theme-scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                document.querySelectorAll('.alert').forEach(el => $(el).alert('close'));
-            }, 5000);
-
             const stationsOf = (env, line) =>
                 document.querySelectorAll(`.wc-check[data-env="${env}"][data-line="${line}"]`);
 

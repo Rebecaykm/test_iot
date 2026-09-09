@@ -3,7 +3,7 @@
 @section('title', 'Secuencias de Producción')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Secuencias de Producción</h1>
         </div>
@@ -11,73 +11,51 @@
 @stop
 
 @section('content')
-    @if (session('success'))
-        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert"
-            style="border-radius: 8px;">
-            <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
+    @include('partials.theme-alerts')
 
-    @if (session('error'))
-        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert"
-            style="border-radius: 8px;">
-            <i class="fas fa-exclamation-triangle mr-2"></i>{{ session('error') }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Cerrar">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-    @endif
-
-    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
 
         {{-- Filtros --}}
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
             <form method="GET" action="{{ route('production-sequences.index') }}">
-                <div class="d-flex flex-wrap align-items-end justify-content-end" style="gap: 0.65rem;">
+                <div class="d-flex flex-wrap align-items-end justify-content-end gap-2">
 
                     <div class="filter-field" style="min-width: 220px;">
-                        <label class="filter-label-text">N° de Parte</label>
+                        <label for="ps-search" class="filter-label-text">N° de Parte</label>
                         <div class="filter-group">
-                            <i class="fas fa-barcode filter-icon"></i>
-                            <input type="text" name="search" class="filter-input"
+                            <i class="fas fa-barcode filter-icon" aria-hidden="true"></i>
+                            <input type="text" id="ps-search" name="search" class="filter-input"
                                 placeholder="Buscar parte..." value="{{ request('search') }}">
                         </div>
                     </div>
 
                     <div class="filter-field">
-                        <label class="filter-label-text">Fecha</label>
+                        <label for="ps-date" class="filter-label-text">Fecha</label>
                         <div class="filter-group">
-                            <i class="fas fa-calendar-alt filter-icon"></i>
-                            <input type="date" name="date" class="filter-input"
-                                value="{{ request('date') }}" max="{{ date('Y-m-d') }}">
+                            <i class="fas fa-calendar-alt filter-icon" aria-hidden="true"></i>
+                            <input type="text" id="ps-date" name="date" class="filter-input flatpickr-date"
+                                placeholder="Seleccionar fecha" value="{{ request('date') }}"
+                                max="{{ date('Y-m-d') }}">
                         </div>
                     </div>
 
-                    <div class="filter-field">
-                        <label class="filter-label-text">Turno</label>
-                        <div class="filter-group">
-                            <i class="fas fa-clock filter-icon"></i>
-                            <select name="shift" class="filter-input" style="cursor: pointer;">
-                                <option value="">Todos</option>
-                                @foreach ($shifts as $shift)
-                                    <option value="{{ $shift->abbreviation }}"
-                                        {{ request('shift') === $shift->abbreviation ? 'selected' : '' }}>
-                                        {{ $shift->abbreviation }} – {{ $shift->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
+                    <x-select
+                        name="shift"
+                        label="Turno"
+                        :options="collect([['value' => '', 'label' => 'Todos', 'selected' => !request('shift')]])
+                            ->concat($shifts->map(fn ($shift) => [
+                                'value' => $shift->abbreviation,
+                                'label' => $shift->abbreviation . ' – ' . $shift->name,
+                                'selected' => request('shift') === $shift->abbreviation,
+                            ]))"
+                    />
 
                     <div class="d-flex" style="gap: 0.4rem; padding-bottom: 1px;">
-                        <button type="submit" class="btn-filter-submit">
+                        <button type="submit" class="btn-action btn-action-solid">
                             <i class="fas fa-search mr-1"></i>Buscar
                         </button>
                         @if (request()->filled('search') || request()->filled('date') || request()->filled('shift'))
-                            <a href="{{ route('production-sequences.index') }}" class="btn-filter-clear">
+                            <a href="{{ route('production-sequences.index') }}" class="btn-action btn-action-secondary">
                                 <i class="fas fa-times mr-1"></i>Limpiar
                             </a>
                         @endif
@@ -93,14 +71,14 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr class="table-head-row">
-                            <th class="th-cell">N° de Orden</th>
-                            <th class="th-cell">N° de Parte</th>
-                            <th class="th-cell">Fecha</th>
-                            <th class="th-cell">Turno</th>
-                            <th class="th-cell text-center">Secuencia</th>
-                            <th class="th-cell text-center">Cantidad</th>
-                            <th class="th-cell text-center">Procesado</th>
-                            <th class="th-cell">Actualizado</th>
+                            <th class="th-cell" scope="col">N° de Orden</th>
+                            <th class="th-cell" scope="col">N° de Parte</th>
+                            <th class="th-cell" scope="col">Fecha</th>
+                            <th class="th-cell" scope="col">Turno</th>
+                            <th class="th-cell text-center" scope="col">Secuencia</th>
+                            <th class="th-cell text-center" scope="col">Cantidad</th>
+                            <th class="th-cell text-center" scope="col">Procesado</th>
+                            <th class="th-cell" scope="col">Actualizado</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -169,7 +147,7 @@
         {{-- Paginación --}}
         @if ($sequences->hasPages())
             <div class="card-footer bg-white py-3" style="border-top: 1px solid #e9ecef;">
-                <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <small class="text-muted">
                         Mostrando <strong>{{ $sequences->firstItem() }}</strong> –
                         <strong>{{ $sequences->lastItem() }}</strong> de
@@ -184,168 +162,12 @@
 @stop
 
 @section('css')
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body, .card, .btn, .form-control, .table, .content-header h1 {
-            font-family: 'Inter', sans-serif !important;
-        }
-
-        /* ── Filtros ── */
-        .filter-field {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-        .filter-label-text {
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #64748b;
-            margin-bottom: 0;
-        }
-        .filter-group {
-            display: inline-flex;
-            align-items: center;
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 7px;
-            padding: 0 0.6rem;
-            height: 34px;
-            transition: border-color 0.15s;
-        }
-        .filter-group:focus-within {
-            border-color: #93c5fd;
-            background: #fff;
-            box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
-        }
-        .filter-icon {
-            color: #94a3b8;
-            font-size: 0.75rem;
-            margin-right: 0.45rem;
-        }
-        .filter-input {
-            border: none;
-            background: transparent;
-            font-size: 0.82rem;
-            color: #334155;
-            outline: none;
-            height: 100%;
-            font-family: 'Inter', sans-serif;
-        }
-        .filter-input::placeholder { color: #94a3b8; }
-        .filter-input option { color: #334155; }
-        .btn-filter-submit {
-            display: inline-flex;
-            align-items: center;
-            height: 34px;
-            padding: 0 0.85rem;
-            font-size: 0.8rem;
-            font-weight: 600;
-            border-radius: 7px;
-            background: #1d4ed8;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .btn-filter-submit:hover { background: #1e40af; }
-        .btn-filter-clear {
-            display: inline-flex;
-            align-items: center;
-            height: 34px;
-            padding: 0 0.75rem;
-            font-size: 0.8rem;
-            font-weight: 500;
-            border-radius: 7px;
-            background: transparent;
-            color: #64748b;
-            border: 1.5px solid #e2e8f0;
-            text-decoration: none;
-            transition: all 0.15s;
-        }
-        .btn-filter-clear:hover {
-            background: #f1f5f9;
-            color: #475569;
-            text-decoration: none;
-        }
-
-        /* ── Tabla ── */
-        .table-head-row {
-            background: #f8fafc;
-            border-bottom: 2px solid #e2e8f0;
-        }
-        .th-cell {
-            font-size: 0.7rem !important;
-            font-weight: 700 !important;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
-            color: #64748b !important;
-            border: none !important;
-            padding: 0.65rem 0.85rem !important;
-            white-space: nowrap;
-        }
-        .td-row {
-            border-bottom: 1px solid #f1f5f9 !important;
-            transition: background 0.1s ease;
-        }
-        .td-row:hover { background-color: #f8fafc !important; }
-        .td-cell {
-            padding: 0.5rem 0.85rem !important;
-            vertical-align: middle !important;
-            border-top: none !important;
-        }
-
-        /* ── Badges ── */
-        .badge-soft {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.28em 0.65em;
-            border-radius: 5px;
-            font-size: 0.73rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .badge-soft.badge-primary   { background: #eff6ff; color: #1d4ed8; }
-        .badge-soft.badge-success   { background: #f0fdf4; color: #15803d; }
-        .badge-soft.badge-danger    { background: #fef2f2; color: #b91c1c; }
-        .badge-soft.badge-warning   { background: #fefce8; color: #92400e; }
-        .badge-soft.badge-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
-
-        /* ── Paginación ── */
-        .pagination { margin-bottom: 0; }
-        .pagination .page-link {
-            border-radius: 6px !important;
-            margin: 0 2px;
-            border-color: #e2e8f0;
-            color: #475569;
-            font-size: 0.8rem;
-            padding: 0.3rem 0.6rem;
-        }
-        .pagination .page-item.active .page-link {
-            background-color: #1d4ed8;
-            border-color: #1d4ed8;
-            color: #fff;
-        }
-        .pagination .page-item.disabled .page-link { color: #cbd5e1; }
-
-        .fw-500 { font-weight: 500; }
-        .fw-600 { font-weight: 600; }
-
-        @media (max-width: 767px) {
-            .filter-field { width: 100%; }
-            .card-header form > div { flex-direction: column; }
-            .filter-group { width: 100%; }
-        }
-    </style>
+    @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
+    @include('partials.theme-datepicker-styles')
 @stop
 
 @section('js')
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                document.querySelectorAll('.alert').forEach(el => $(el).alert('close'));
-            }, 5000);
-        });
-    </script>
+    @include('partials.theme-scripts')
+    @include('partials.theme-datepicker-scripts')
 @stop

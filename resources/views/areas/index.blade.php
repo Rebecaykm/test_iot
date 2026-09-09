@@ -3,15 +3,16 @@
 @section('title', 'Áreas')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Áreas</h1>
         </div>
 
-        <div class="d-flex" style="gap: 0.5rem;">
+        <div class="d-flex gap-2">
             @can('create areas')
-                <a href="{{ route('areas.create') }}" class="btn-action btn-action-primary">
-                    <i class="fas fa-plus"></i>
+                <a href="{{ route('areas.create') }}" class="btn-action btn-action-primary"
+                    aria-label="Agregar nueva área">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
                     <span class="d-none d-md-inline">Agregar Área</span>
                 </a>
             @endcan
@@ -22,26 +23,27 @@
 @section('content')
     @include('partials.theme-alerts')
 
-    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
 
         {{-- Filtros --}}
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
             <form method="GET" action="{{ route('areas.index') }}">
-                <div class="d-flex flex-wrap align-items-center justify-content-end" style="gap: 0.5rem;">
+                <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
 
                     <div class="filter-group" style="width: 280px;">
-                        <i class="fas fa-search filter-icon"></i>
-                        <input type="text" name="search" class="filter-input"
+                        <label for="area-search" class="sr-only">Buscar área o código</label>
+                        <i class="fas fa-search filter-icon" aria-hidden="true"></i>
+                        <input type="text" id="area-search" name="search" class="filter-input"
                             placeholder="Buscar área, código..."
                             value="{{ request('search') }}">
                     </div>
 
-                    <button type="submit" class="btn-filter-submit">
+                    <button type="submit" class="btn-action btn-action-solid">
                         <i class="fas fa-search mr-1"></i>Buscar
                     </button>
 
                     @if (request()->filled('search'))
-                        <a href="{{ route('areas.index') }}" class="btn-filter-clear">
+                        <a href="{{ route('areas.index') }}" class="btn-action btn-action-secondary">
                             <i class="fas fa-times mr-1"></i>Limpiar
                         </a>
                     @endif
@@ -55,12 +57,12 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr class="table-head-row">
-                            <th class="th-cell">Código</th>
-                            <th class="th-cell">Nombre</th>
-                            <th class="th-cell">Descripción</th>
-                            <th class="th-cell">Creado</th>
-                            <th class="th-cell">Actualizado</th>
-                            <th class="th-cell text-center">Acciones</th>
+                            <th class="th-cell" scope="col">Código</th>
+                            <th class="th-cell" scope="col">Nombre</th>
+                            <th class="th-cell" scope="col">Descripción</th>
+                            <th class="th-cell" scope="col">Creado</th>
+                            <th class="th-cell" scope="col">Actualizado</th>
+                            <th class="th-cell text-center" scope="col">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -104,7 +106,7 @@
                                 </td>
 
                                 <td class="td-cell text-center">
-                                    <div class="d-flex justify-content-center" style="gap: 0.5rem;">
+                                    <div class="d-flex justify-content-center gap-2">
                                         @can('edit areas')
                                             <a href="{{ route('areas.edit', $area->id) }}"
                                                 class="btn-action btn-action-primary btn-action-sm">
@@ -154,7 +156,7 @@
         {{-- Paginación --}}
         @if ($areas->hasPages() || $areas->total() > 0)
             <div class="card-footer bg-white py-3" style="border-top: 1px solid #e9ecef;">
-                <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <small class="text-muted">
                         Mostrando <strong>{{ $areas->firstItem() ?? 0 }}</strong> –
                         <strong>{{ $areas->lastItem() ?? 0 }}</strong> de
@@ -172,6 +174,7 @@
 
 @section('css')
     @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
 @stop
 
 @section('js')

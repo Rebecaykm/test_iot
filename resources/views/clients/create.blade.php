@@ -3,69 +3,80 @@
 @section('title', 'Crear Cliente')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center">
-        <h1 class="m-0 text-dark">Crear Cliente</h1>
-        <a href="{{ route('clients.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left mr-2"></i> Volver
-        </a>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Crear Cliente</h1>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="{{ route('clients.index') }}" class="btn-action btn-action-secondary"
+                aria-label="Volver al listado">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                <span class="d-none d-md-inline">Volver</span>
+            </a>
+        </div>
     </div>
 @stop
 
 @section('content')
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-primary">
-                    <div class="card-header">
-                        <h3 class="card-title">Información del Cliente</h3>
+    @include('partials.theme-alerts')
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
+            <h5 class="mb-0 section-title">
+                <i class="fas fa-building mr-2" style="color: #94a3b8;"></i>Información del Cliente
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <form action="{{ route('clients.store') }}" method="POST">
+                @csrf
+
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label for="code" class="field-label">Código *</label>
+                        <input type="text" name="code" id="code"
+                            class="field-input @error('code') is-invalid @enderror"
+                            value="{{ old('code') }}" required placeholder="Ej: CLT-001">
+                        @error('code')
+                            <div class="field-error">{{ $message }}</div>
+                        @enderror
                     </div>
 
-                    <form action="{{ route('clients.store') }}" method="POST">
-                        @csrf
-
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="code" class="font-weight-bold">Código <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control @error('code') is-invalid @enderror"
-                                               id="code" name="code" value="{{ old('code') }}"
-                                               placeholder="Ej: CLT-001" required>
-                                        @error('code')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="name" class="font-weight-bold">Nombre <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control @error('name') is-invalid @enderror"
-                                               id="name" name="name" value="{{ old('name') }}"
-                                               placeholder="Ej: Empresa ABC" required>
-                                        @error('name')
-                                        <span class="invalid-feedback" role="alert">
-                                            <strong>{{ $message }}</strong>
-                                        </span>
-                                        @enderror
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card-footer bg-white d-flex justify-content-end py-3">
-                            <button type="reset" class="btn btn-default mr-2">
-                                <i class="fas fa-undo mr-1"></i> Limpiar
-                            </button>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save mr-1"></i> Guardar
-                            </button>
-                        </div>
-                    </form>
+                    <div class="col-md-6">
+                        <label for="name" class="field-label">Nombre *</label>
+                        <input type="text" name="name" id="name"
+                            class="field-input @error('name') is-invalid @enderror"
+                            value="{{ old('name') }}" required placeholder="Ej: Empresa ABC">
+                        @error('name')
+                            <div class="field-error">{{ $message }}</div>
+                        @enderror
+                    </div>
                 </div>
-            </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="{{ route('clients.index') }}" class="btn-action btn-action-secondary">
+                        <i class="fas fa-times"></i>
+                        <span>Cancelar</span>
+                    </a>
+                    <button type="reset" class="btn-action btn-action-secondary">
+                        <i class="fas fa-undo"></i>
+                        <span>Limpiar</span>
+                    </button>
+                    <button type="submit" class="btn-action btn-action-solid">
+                        <i class="fas fa-save"></i>
+                        <span>Guardar Cliente</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
+@stop
+
+@section('css')
+    @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
+@stop
+
+@section('js')
+    @include('partials.theme-scripts')
 @stop

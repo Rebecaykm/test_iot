@@ -3,14 +3,15 @@
 @section('title', 'Crear Línea')
 
 @section('content_header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.75rem;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
             <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Crear Línea</h1>
         </div>
 
-        <div class="d-flex" style="gap: 0.5rem;">
-            <a href="{{ route('lines.index') }}" class="btn-action btn-action-secondary">
-                <i class="fas fa-arrow-left"></i>
+        <div class="d-flex gap-2">
+            <a href="{{ route('lines.index') }}" class="btn-action btn-action-secondary"
+                aria-label="Volver al listado">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i>
                 <span class="d-none d-md-inline">Volver</span>
             </a>
         </div>
@@ -20,7 +21,7 @@
 @section('content')
     @include('partials.theme-alerts')
 
-    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="card-header bg-white py-3" style="border-bottom: 1px solid #e9ecef;">
             <h5 class="mb-0 section-title">
                 <i class="fas fa-stream mr-2" style="color: #94a3b8;"></i>Información de la Línea
@@ -42,27 +43,24 @@
                     </div>
 
                     <div class="col-md-4 mb-3 mb-md-0">
-                        <label for="area_id" class="field-label">Área</label>
-                        <select name="area_id" id="area_id"
-                            class="field-input select2 @error('area_id') is-invalid @enderror">
-                            <option value="">{{ __('Seleccione un área') }}</option>
-                            @foreach ($areas as $area)
-                                <option value="{{ $area->id }}" {{ old('area_id') == $area->id ? 'selected' : '' }}>
-                                    {{ $area->name }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-select
+                            name="area_id"
+                            label="Área"
+                            :options="collect([['value' => '', 'label' => 'Seleccione un área', 'selected' => !old('area_id')]])
+                                ->concat($areas->map(fn ($area) => [
+                                    'value' => $area->id,
+                                    'label' => $area->name,
+                                    'selected' => old('area_id') == $area->id,
+                                ]))"
+                        />
                         @error('area_id')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
                     </div>
 
                     <div class="col-md-4">
-                        <label for="color" class="field-label">Color *</label>
-                        <select name="color" id="color"
-                            class="field-input select2 @error('color') is-invalid @enderror" required>
-                            <option value="">{{ __('Seleccione un color') }}</option>
-                            @foreach ([
+                        @php
+                            $lineColors = [
                                 '#1E40AF' => 'Azul Marino',
                                 '#2563EB' => 'Azul',
                                 '#0284C7' => 'Azul Cielo',
@@ -80,13 +78,19 @@
                                 '#9333EA' => 'Púrpura',
                                 '#7C3AED' => 'Violeta',
                                 '#4F46E5' => 'Índigo',
-                            ] as $hex => $name)
-                                <option value="{{ $hex }}" {{ old('color') == $hex ? 'selected' : '' }}
-                                    data-color="{{ $hex }}">
-                                    {{ $name }}
-                                </option>
-                            @endforeach
-                        </select>
+                            ];
+                        @endphp
+                        <x-select
+                            name="color"
+                            label="Color *"
+                            :options="collect([['value' => '', 'label' => 'Seleccione un color', 'selected' => !old('color')]])
+                                ->concat(collect($lineColors)->map(fn ($name, $hex) => [
+                                    'value' => $hex,
+                                    'label' => $name,
+                                    'swatch' => $hex,
+                                    'selected' => old('color') == $hex,
+                                ])->values())"
+                        />
                         @error('color')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
@@ -107,34 +111,25 @@
 
                 <div class="row mb-3">
                     <div class="col-md-12">
-                        <label class="field-label">Estaciones de Trabajo Disponibles</label>
-                        <div class="check-container">
-                            <div class="row">
-                                @foreach ($workCenters->chunk(ceil($workCenters->count() / 3)) as $column)
-                                    <div class="col-md-4">
-                                        @foreach ($column as $workCenter)
-                                            <div class="form-check mb-2">
-                                                <input class="form-check-input" type="checkbox"
-                                                    name="work_centers[]"
-                                                    id="wc_{{ $workCenter->id }}"
-                                                    value="{{ $workCenter->id }}"
-                                                    {{ is_array(old('work_centers')) && in_array($workCenter->id, old('work_centers')) ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="wc_{{ $workCenter->id }}">
-                                                    {{ $workCenter->number }} - {{ $workCenter->name }}
-                                                </label>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
+                        <x-multi-select
+                            name="work_centers"
+                            label="Estaciones de Trabajo Disponibles"
+                            placeholder="Ninguna estación seleccionada"
+                            search-placeholder="Buscar estación..."
+                            empty-message="No hay estaciones disponibles."
+                            :options="$workCenters->map(fn ($wc) => [
+                                'value' => $wc->id,
+                                'label' => $wc->number . ' — ' . $wc->name,
+                                'selected' => is_array(old('work_centers')) && in_array($wc->id, old('work_centers')),
+                            ])"
+                        />
                         @error('work_centers')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end" style="gap: 0.5rem; margin-top: 1.5rem;">
+                <div class="d-flex justify-content-end gap-2 mt-4">
                     <a href="{{ route('lines.index') }}" class="btn-action btn-action-secondary">
                         <i class="fas fa-times"></i>
                         <span>Cancelar</span>
@@ -155,36 +150,9 @@
 
 @section('css')
     @include('partials.theme-styles')
+    @include('partials.theme-buttons-outline')
 @stop
 
 @section('js')
     @include('partials.theme-scripts')
-    <script>
-        $(document).ready(function() {
-            // Formatear opciones del select de color con su muestra
-            function formatColorOption(option) {
-                if (!option.id) {
-                    return option.text;
-                }
-
-                var color = $(option.element).data('color');
-                if (color) {
-                    return $(
-                        '<span><span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background-color: ' +
-                        color + '; margin-right: 10px; border: 1px solid #e2e8f0; vertical-align: text-bottom;"></span>' +
-                        option.text + '</span>'
-                    );
-                }
-                return option.text;
-            }
-
-            $('#area_id, #color').select2({
-                placeholder: 'Seleccione una opción',
-                allowClear: false,
-                width: '100%',
-                templateResult: formatColorOption,
-                templateSelection: formatColorOption
-            });
-        });
-    </script>
 @stop
