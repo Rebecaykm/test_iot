@@ -52,11 +52,22 @@ class StoreProductionPlanJob implements ShouldQueue
 
         $plannedQuantityInt = intval($this->planned_quantity);
 
+        // Un registro con una orden DISTINTA a la que se está procesando no es "el
+        // mismo" registro para efectos de este job: puede haber varias órdenes de
+        // Infor para el mismo material/fecha/turno, y cada una necesita su propio
+        // registro. Solo cuenta como match si está sin orden (disponible) o si ya es
+        // exactamente esta misma orden (de una corrida anterior).
         $existingRecord = ProductionRecord::where([
             'part_number_id' => $partNumber->id,
             'planned_date' => $this->planned_date,
             'shift_id' => $shift->id,
-        ])->first();
+        ])
+            ->where(function ($query) {
+                $query->whereNull('shop_order_number')
+                    ->orWhere('shop_order_number', '')
+                    ->orWhere('shop_order_number', $this->shop_order_number);
+            })
+            ->first();
 
         $accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
         $inProgressStatus = Status::where('name', 'LIKE', 'En progreso')->first();
@@ -198,14 +209,33 @@ class StoreProductionPlanJob implements ShouldQueue
 
                         Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) cubrió el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}; se creó un registro Completado. El restante ({$excessQuantity}) {$remainderLocation}.");
                     } else {
-                        $accumulator->update([
+                        $accumulatorUpdate = [
                             'planned_date' => $this->planned_date,
                             'shift_id' => $shift->id,
                             'shop_order_number' => $this->shop_order_number,
                             'planned_quantity' => $plannedQuantityInt,
-                        ]);
+                        ];
 
-                        Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) tenía la fecha equivocada. Se movió a {$this->planned_date}/{$this->planned_shift} con la orden {$this->shop_order_number} y plan {$plannedQuantityInt}.");
+                        if ($producedQuantity >= $plannedQuantityInt) {
+                            // Cubrió el plan completo: queda Completado.
+                            $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
+                            if ($completedStatus) {
+                                $accumulatorUpdate['status_id'] = $completedStatus->id;
+                            }
+                        } elseif (!$accumulatorWasInProgress) {
+                            // No alcanzó el plan y no estaba "En progreso" (o sea, estaba
+                            // "No planeado"): ya no va a seguir recibiendo producción, se
+                            // marca Detenido. Si estaba "En progreso" se deja igual, sigue
+                            // produciendo.
+                            $stoppedStatus = Status::where('name', 'LIKE', 'Detenid%')->first();
+                            if ($stoppedStatus) {
+                                $accumulatorUpdate['status_id'] = $stoppedStatus->id;
+                            }
+                        }
+
+                        $accumulator->update($accumulatorUpdate);
+
+                        Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) tenía la fecha equivocada. Se movió a {$this->planned_date}/{$this->planned_shift} con la orden {$this->shop_order_number} y plan {$plannedQuantityInt} (producido {$producedQuantity}).");
                     }
 
                     return;

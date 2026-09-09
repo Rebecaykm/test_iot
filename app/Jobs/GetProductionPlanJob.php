@@ -31,10 +31,8 @@ class GetProductionPlanJob implements ShouldQueue
     {
         $today = Carbon::today();
 
-        // $startDate = $today->copy()->startOfWeek()->format('Ymd');
-        // $endDate = $today->copy()->addWeek()->endOfWeek()->format('Ymd');
-        $startDate = $today->copy()->format('Ymd');
-        $endDate = $today->copy()->format('Ymd');
+        $startDate = $today->copy()->subWeek()->startOfWeek()->format('Ymd');
+        $endDate = $today->copy()->addWeek()->endOfWeek()->format('Ymd');
 
 
         $partNumbers = PartNumber::query()
@@ -53,6 +51,8 @@ class GetProductionPlanJob implements ShouldQueue
             )
             ->whereIn(DB::raw('TRIM(SPROD)'), $partNumbers)
             ->whereBetween('SRDTE', [$startDate, $endDate])
+            ->orderBy('SRDTE')
+            ->orderBy('SORD')
             ->get();
 
         foreach ($productionPlans as $productionPlan) {

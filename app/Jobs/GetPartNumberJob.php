@@ -32,8 +32,8 @@ class GetPartNumberJob implements ShouldQueue
 
         foreach ($itemMaster as $key => $item) {
             StorePartNumberJob::dispatch(
-                preg_replace('/[^a-zA-Z0-9\/\-\s]/', '', trim($item->partNumber)),
-                preg_replace('/[^a-zA-Z0-9\/\-\s]/', '', trim($item->partName)),
+                preg_replace('/[^a-zA-Z0-9\/\-\s()]/', '', trim($item->partNumber)),
+                preg_replace('/[^a-zA-Z0-9\/\-\s()]/', '', trim($item->partName)),
                 trim($item->class),
                 $item->project,
                 $item->isObsolete,

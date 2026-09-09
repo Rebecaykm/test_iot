@@ -157,7 +157,7 @@ class PartNumberController extends Controller
             }
         }
 
-        $successMessage = !empty($messages) ? 'Actualizado: ' . implode(' y ', $messages) : 'No se realizaron cambios.';
+        $successMessage = !empty($messages) ? 'Guardado: ' . implode(' y ', $messages) : 'No se realizaron cambios.';
 
         return redirect()->back()->with('success', $successMessage);
     }
