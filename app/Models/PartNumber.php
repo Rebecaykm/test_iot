@@ -5,9 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class PartNumber extends Model
 {
@@ -113,6 +116,186 @@ class PartNumber extends Model
     public function workCenter(): BelongsTo
     {
         return $this->belongsTo(WorkCenter::class, 'work_center_id');
+    }
+
+    /**
+     * Números de parte hijos (componentes) con los que se fabrica este número
+     * de parte. Es el "proceso anterior": lo que se produce/ensambla antes de
+     * llegar a este material. Estructura tomada de Infor LX (tabla MBM).
+     */
+    public function previousProcesses(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            PartNumber::class,
+            'part_number_relations',
+            'parent_part_number_id',
+            'child_part_number_id'
+        )
+            ->using(PartNumberRelation::class)
+            ->withPivot(['sequence_order', 'effective_date', 'discontinue_date', 'is_active', 'last_synced_at'])
+            ->wherePivot('is_active', true)
+            ->orderBy('part_number_relations.sequence_order');
+    }
+
+    /**
+     * Números de parte padres (ensambles) en los que se utiliza este número de
+     * parte. Es el "proceso siguiente": en qué se convierte/dónde se usa
+     * después. Un mismo componente puede tener varios padres (se comparte
+     * entre distintos ensambles).
+     */
+    public function nextProcesses(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            PartNumber::class,
+            'part_number_relations',
+            'child_part_number_id',
+            'parent_part_number_id'
+        )
+            ->using(PartNumberRelation::class)
+            ->withPivot(['sequence_order', 'effective_date', 'discontinue_date', 'is_active', 'last_synced_at'])
+            ->wherePivot('is_active', true)
+            ->orderBy('part_number_relations.sequence_order');
+    }
+
+    /**
+     * Cadena completa hacia atrás (todos los componentes/hijos, multinivel:
+     * hijos, nietos, bisnietos...) de este número de parte. Se cachea porque
+     * recorrer un árbol BOM grande en cada carga de pantalla es costoso.
+     */
+    public function getFullPreviousChain(int $maxDepth = 20): array
+    {
+        return Cache::remember(
+            "part_number_relations.previous_chain.{$this->id}",
+            now()->addMinutes(30),
+            fn () => $this->traversePartNumberRelations('parent_part_number_id', 'child_part_number_id', $maxDepth)
+        );
+    }
+
+    /**
+     * Cadena completa hacia adelante (todos los ensambles/padres, multinivel)
+     * en los que termina usándose este número de parte.
+     */
+    public function getFullNextChain(int $maxDepth = 20): array
+    {
+        return Cache::remember(
+            "part_number_relations.next_chain.{$this->id}",
+            now()->addMinutes(30),
+            fn () => $this->traversePartNumberRelations('child_part_number_id', 'parent_part_number_id', $maxDepth)
+        );
+    }
+
+    /**
+     * Árbol (anidado, no plano) de los procesos anteriores de este número de
+     * parte, con los datos que necesita la vista de consulta pública:
+     * nombre de estación, clase y cantidad de standard pack de cada nodo.
+     */
+    public function previousProcessTree(int $maxDepth = 20): array
+    {
+        return $this->buildProcessTree($this->getFullPreviousChain($maxDepth));
+    }
+
+    /**
+     * Árbol (anidado) de los procesos siguientes de este número de parte.
+     */
+    public function nextProcessTree(int $maxDepth = 20): array
+    {
+        return $this->buildProcessTree($this->getFullNextChain($maxDepth));
+    }
+
+    /**
+     * Convierte la lista plana de aristas (from -> to por nivel) en un árbol
+     * anidado, cargando los datos de cada número de parte en una sola query
+     * (whereIn) en vez de una por nodo.
+     */
+    protected function buildProcessTree(array $edges): array
+    {
+        $partIds = collect($edges)->pluck('part_number_id')->push($this->id)->unique()->values()->all();
+
+        $details = static::with(['itemClass', 'workCenter'])
+            ->whereIn('id', $partIds)
+            ->get()
+            ->keyBy('id');
+
+        $childrenByParent = collect($edges)->groupBy('from_part_number_id');
+
+        $buildNode = function ($id, array $ancestry) use (&$buildNode, $childrenByParent, $details) {
+            $detail = $details->get($id);
+
+            $node = [
+                'id' => $id,
+                'number' => $detail->number ?? null,
+                'name' => $detail->name ?? null,
+                'item_class' => optional($detail?->itemClass)->abbreviation,
+                'item_class_id' => isset($detail->item_class_id) ? (int) $detail->item_class_id : null,
+                'station' => optional($detail?->workCenter)->name,
+                'station_number' => optional($detail?->workCenter)->number,
+                'standard_pack_quantity' => $detail->standard_pack_quantity ?? null,
+                'children' => [],
+            ];
+
+            // Protección extra contra ciclos en los datos de origen: si el nodo
+            // ya está en la ascendencia actual, se corta aquí en vez de
+            // recursionar infinitamente.
+            if (in_array($id, $ancestry, true)) {
+                return $node;
+            }
+
+            $ancestry[] = $id;
+
+            foreach ($childrenByParent->get($id, []) as $edge) {
+                $node['children'][] = $buildNode($edge['part_number_id'], $ancestry);
+            }
+
+            return $node;
+        };
+
+        return $buildNode($this->id, []);
+    }
+
+    /**
+     * Recorre part_number_relations nivel por nivel (BFS): una sola consulta
+     * por nivel en vez de una por nodo, con protección contra ciclos y un
+     * límite de profundidad de seguridad.
+     */
+    protected function traversePartNumberRelations(string $fromColumn, string $toColumn, int $maxDepth): array
+    {
+        $visited = [$this->id => true];
+        $frontier = [$this->id];
+        $chain = [];
+        $level = 0;
+
+        while (!empty($frontier) && $level < $maxDepth) {
+            $level++;
+
+            $edges = DB::table('part_number_relations AS r')
+                ->join('part_numbers AS p', 'p.id', '=', "r.$toColumn")
+                ->whereIn("r.$fromColumn", $frontier)
+                ->where('r.is_active', true)
+                ->select("r.$fromColumn AS from_part_number_id", "r.$toColumn AS part_number_id", 'p.number', 'p.name', 'r.sequence_order')
+                ->orderBy('r.sequence_order')
+                ->get();
+
+            $nextFrontier = [];
+
+            foreach ($edges as $edge) {
+                $chain[] = [
+                    'level' => $level,
+                    'from_part_number_id' => $edge->from_part_number_id,
+                    'part_number_id' => $edge->part_number_id,
+                    'number' => $edge->number,
+                    'name' => $edge->name,
+                ];
+
+                if (!isset($visited[$edge->part_number_id])) {
+                    $visited[$edge->part_number_id] = true;
+                    $nextFrontier[] = $edge->part_number_id;
+                }
+            }
+
+            $frontier = $nextFrontier;
+        }
+
+        return $chain;
     }
 
     /**

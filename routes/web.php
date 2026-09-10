@@ -152,3 +152,7 @@ Route::get('guest/production-records/{workCenterId}', function ($workCenterId) {
 Route::get('guest/work-center-dashboard', function () {
     return view('guest.work-center-dashboard');
 });
+
+Route::get('guest/part-number-relations', function () {
+    return view('guest.part-number-relations');
+})->name('guest.part-number-relations');
