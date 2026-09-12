@@ -112,6 +112,8 @@ class PressProductionTable extends Component
 
         $this->diferencia = $this->totalProducido - $this->planActual;
 
+        // Solo estatus "En progreso" (id 7), sin importar el día ni el turno en
+        // que se planeó: se muestra lo que se está produciendo ahora mismo.
         $this->data = ProductionRecord::query()
             ->select([
                 'part_numbers.number AS part_number',
@@ -119,10 +121,7 @@ class PressProductionTable extends Component
             ])
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers',  'part_numbers.work_center_id',       '=', 'work_centers.id')
-            ->join('shifts',        'production_records.shift_id',        '=', 'shifts.id')
             ->join('statuses',      'production_records.status_id',       '=', 'statuses.id')
-            ->where('production_records.planned_date', $now->toDateString())
-            ->where('shifts.id', $shift->id)
             ->where('work_centers.name', 'LIKE', $this->workCenter)
             ->where('statuses.id', 7)
             ->orderBy('part_numbers.production_order')
