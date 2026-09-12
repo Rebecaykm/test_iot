@@ -254,14 +254,6 @@ class PressProductionTimeline extends Component
                 : 0.0;
         }
 
-        // Respetar el orden de producción: production_order asc (sin orden al final), luego MDI asc
-        uasort($dies, function ($a, $b) {
-            if ($a['order'] !== $b['order']) {
-                return $a['order'] <=> $b['order'];
-            }
-            return strcmp($a['label'], $b['label']);
-        });
-
         // ----- Golpes REALES por MDI (histories) -----
         // Eventos por troquel convertidos a golpes: quantity / divisor del part
         $eventsByDie = [];
@@ -286,6 +278,41 @@ class PressProductionTimeline extends Component
                 ];
             }
         }
+
+        // Momento en que cada MDI empezó a producirse (primer evento real)
+        $firstEventTimeByDie = [];
+        foreach ($eventsByDie as $key => $events) {
+            $firstEventTimeByDie[$key] = min(array_map(fn ($e) => $e['time']->getTimestamp(), $events));
+        }
+
+        // Orden de las filas: primero los MDI que ya se produjeron, en el orden real
+        // en que se empezaron a producir; al final los que aún no producen, en el
+        // orden de plan de siempre (production_order asc, sin orden al final, luego MDI asc).
+        $orderedKeys = array_keys($dies);
+        usort($orderedKeys, function ($keyA, $keyB) use ($dies, $firstEventTimeByDie) {
+            $aTime = $firstEventTimeByDie[$keyA] ?? null;
+            $bTime = $firstEventTimeByDie[$keyB] ?? null;
+
+            if ($aTime !== null && $bTime !== null) {
+                return $aTime <=> $bTime;
+            }
+            if ($aTime !== null || $bTime !== null) {
+                return $aTime !== null ? -1 : 1;
+            }
+
+            $a = $dies[$keyA];
+            $b = $dies[$keyB];
+            if ($a['order'] !== $b['order']) {
+                return $a['order'] <=> $b['order'];
+            }
+            return strcmp($a['label'], $b['label']);
+        });
+
+        $sortedDies = [];
+        foreach ($orderedKeys as $key) {
+            $sortedDies[$key] = $dies[$key];
+        }
+        $dies = $sortedDies;
 
         // "Ahora" en horas desde el inicio del turno (sin acotar: si el turno ya pasó,
         // el plan completo cuenta como vencido y se muestra su total)
