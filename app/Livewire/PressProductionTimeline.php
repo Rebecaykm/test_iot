@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\History;
 use App\Models\PartNumber;
+use App\Models\PressTimelineNote;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
 use Carbon\Carbon;
@@ -72,6 +73,18 @@ class PressProductionTimeline extends Component
     /** Golpes totales del MDI por segmento real (tooltip) */
     public array $realTotals = [];
 
+    /** Número de notas por fila, paralelo a $labels (para el badge del MDI) */
+    public array $noteCounts = [];
+
+    /** Notas del turno/fecha actual, agrupadas por MDI (label => array<PressTimelineNote>) */
+    public array $notesByMdi = [];
+
+    /** MDI cuyo panel de notas está abierto (null = ninguno) */
+    public ?string $openNoteMdi = null;
+
+    /** Texto de la nota que se está redactando */
+    public string $noteDraft = '';
+
     /** Ancho total del eje X en horas */
     public float $durationHours = 12;
 
@@ -119,12 +132,70 @@ class PressProductionTimeline extends Component
     /** Recargar al cambiar la fecha o el turno desde la vista */
     public function updatedSelectedDate(): void
     {
+        $this->openNoteMdi = null;
         $this->refreshTimeline();
     }
 
     public function updatedSelectedShiftId(): void
     {
+        $this->openNoteMdi = null;
         $this->refreshTimeline();
+    }
+
+    /** Abre (o cambia a) el panel de notas de un MDI, para el turno/fecha actual */
+    public function openNotesFor(string $mdi): void
+    {
+        $this->openNoteMdi = $mdi;
+        $this->noteDraft = '';
+    }
+
+    public function closeNotes(): void
+    {
+        $this->openNoteMdi = null;
+    }
+
+    /** Guarda la nota redactada para el MDI con el panel abierto */
+    public function saveNote(): void
+    {
+        if (!$this->openNoteMdi || !$this->selectedShiftId || !$this->selectedDate) {
+            return;
+        }
+
+        $this->validate([
+            'noteDraft' => 'required|string|max:2000',
+        ]);
+
+        PressTimelineNote::create([
+            'work_center' => $this->workCenter,
+            'mdi' => $this->openNoteMdi,
+            'shift_id' => $this->selectedShiftId,
+            'date' => $this->selectedDate,
+            'body' => $this->noteDraft,
+        ]);
+
+        $this->noteDraft = '';
+        $this->refreshTimeline();
+    }
+
+    /** Carga las notas del turno/fecha actual y el contador paralelo a $labels */
+    private function loadNotes(): void
+    {
+        $shift = $this->selectedShiftId ? Shift::find($this->selectedShiftId) : null;
+        $date = $this->selectedDate ? Carbon::parse($this->selectedDate) : null;
+
+        // Se convierte a arreglo plano (label => array de modelos): Livewire no
+        // sincroniza bien una Collection de Eloquent cuyos items son a su vez
+        // Collections (lo que produce groupBy), como pasaría si se guardara tal cual.
+        $this->notesByMdi = ($shift && $date)
+            ? PressTimelineNote::forContext($this->workCenter, $shift->id, $date)
+                ->map(fn ($group) => $group->all())
+                ->all()
+            : [];
+
+        $this->noteCounts = array_map(
+            fn ($label) => count($this->notesByMdi[$label] ?? []),
+            $this->labels
+        );
     }
 
     #[On('refresh-timeline')]
@@ -152,6 +223,8 @@ class PressProductionTimeline extends Component
         // Selección inválida: mandar todo vacío
         if (!$range) {
             $this->isLive = false;
+            $this->notesByMdi = [];
+            $this->noteCounts = [];
             $this->dispatchTimeline();
             return;
         }
@@ -179,6 +252,7 @@ class PressProductionTimeline extends Component
         $histories = History::getProducedTimeline($this->workCenter, $baseStart, $timelineEnd);
 
         $this->buildBars($planParts, $histories, $baseStart, $now);
+        $this->loadNotes();
 
         $this->dispatchTimeline();
     }
@@ -463,6 +537,7 @@ class PressProductionTimeline extends Component
             'timeLabels' => $this->timeLabels,
             'barStatuses' => $this->barStatuses,
             'realTotals' => $this->realTotals,
+            'noteCounts' => $this->noteCounts,
             'durationHours' => $this->durationHours,
             'shiftStartIso' => $this->shiftStartIso,
             'isLive' => $this->isLive,

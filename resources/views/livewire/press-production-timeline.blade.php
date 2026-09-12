@@ -145,14 +145,73 @@
         </div>
 
         {{-- Chart --}}
-        <div x-data="pressTimelineChart" wire:ignore class="px-4 py-4 sm:px-6 flex-1">
-            <div class="relative" :style="`height: ${chartHeight}px`">
+        <div x-data="pressTimelineChart" class="relative px-4 py-4 sm:px-6 flex-1">
+            <div wire:ignore class="relative" :style="`height: ${chartHeight}px`">
                 <canvas id="{{ $chartId }}"></canvas>
             </div>
             <p x-show="isEmpty" x-cloak
                class="text-center py-8 text-gray-500 dark:text-gray-400">
                 No hay producción registrada en este turno.
             </p>
+
+            {{-- Panel de notas del MDI (click en la columna del eje Y para abrir) --}}
+            <div x-show="noteOpen" x-cloak @click.away="noteOpen = false"
+                x-transition:enter="transition ease-out duration-100"
+                x-transition:enter-start="transform opacity-0 scale-95"
+                x-transition:enter-end="transform opacity-100 scale-100"
+                class="fixed z-40 w-80 max-w-[85vw] bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden"
+                :style="`top: ${noteTop}px; left: ${noteLeft}px;`">
+
+                <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.447.894L10 15.118l-4.553 1.776A1 1 0 014 16V4zm2 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+                            Notas · {{ $openNoteMdi }}
+                        </span>
+                    </div>
+                    <button type="button" wire:click="closeNotes" @click="noteOpen = false"
+                        class="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                {{-- Lista de notas existentes: ~2 visibles, el resto con scroll --}}
+                <div class="max-h-32 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                    @forelse(($openNoteMdi ? ($notesByMdi[$openNoteMdi] ?? []) : []) as $note)
+                        <div class="px-3 py-2 text-xs">
+                            <div class="flex items-center justify-end mb-0.5">
+                                <span class="text-gray-400 dark:text-gray-500">
+                                    {{ $note->created_at->format('d-m H:i') }}
+                                </span>
+                            </div>
+                            <p class="text-gray-700 dark:text-gray-200 whitespace-pre-line break-words">{{ $note->body }}</p>
+                        </div>
+                    @empty
+                        <p class="px-3 py-3 text-xs text-gray-400 dark:text-gray-500 text-center">
+                            Sin notas para este MDI en este turno.
+                        </p>
+                    @endforelse
+                </div>
+
+                {{-- Nueva nota --}}
+                <div class="p-2.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/20 space-y-1.5">
+                    <textarea wire:model="noteDraft" rows="2" placeholder="Escribe tu nota aquí..."
+                        class="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                    @error('noteDraft')
+                        <p class="text-xs text-red-500">{{ $message }}</p>
+                    @enderror
+                    <div class="flex justify-end">
+                        <button type="button" wire:click="saveNote"
+                            class="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors">
+                            Guardar nota
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- Pie: última actualización / histórico --}}
@@ -236,6 +295,7 @@
                 timeLabels: @json($timeLabels),
                 barStatuses: @json($barStatuses),
                 realTotals: @json($realTotals),
+                noteCounts: @json($noteCounts),
                 shiftStartIso: @json($shiftStartIso),
                 labelCount: @json(count($labels)),
             };
@@ -273,6 +333,11 @@
                 isEmpty: @json(count($labels) === 0),
                 chartHeight: 480,
 
+                // Panel de notas del MDI (posición calculada al hacer click en su renglón)
+                noteOpen: false,
+                noteTop: 0,
+                noteLeft: 0,
+
                 // Alto de la gráfica ajustado a la pantalla: llena el alto visible de la
                 // ventana; si hay muchos MDIs, crece (mínimo por fila) y la página hace scroll.
                 fitHeight() {
@@ -282,9 +347,64 @@
                     this.chartHeight = Math.max(320, minPerRow, available);
                 },
 
+                // Click en la columna de etiquetas del MDI (eje Y) abre el panel de
+                // notas de ese renglón; click sobre las barras no hace nada aquí.
+                attachLabelClickHandler() {
+                    const canvas = document.getElementById('{{ $chartId }}');
+
+                    canvas.addEventListener('mousemove', (evt) => {
+                        if (!chart) return;
+                        const canvasRect = canvas.getBoundingClientRect();
+                        const overLabels = (evt.clientX - canvasRect.left) <= chart.scales.y.right;
+                        canvas.style.cursor = overLabels ? 'pointer' : '';
+                    });
+
+                    canvas.addEventListener('click', (evt) => {
+                        if (!chart) return;
+
+                        const count = chart.data.labels.length;
+                        if (!count) return;
+
+                        const y = chart.scales.y;
+                        const canvasRect = canvas.getBoundingClientRect();
+                        const clickX = evt.clientX - canvasRect.left;
+                        const clickY = evt.clientY - canvasRect.top;
+
+                        if (clickX > y.right) return; // click en el área de barras, no en la columna del MDI
+
+                        // Evita que el mismo click cierre el popover vía @click.away
+                        // (ese listener escucha en document y vería este click como "afuera").
+                        evt.stopPropagation();
+
+                        const slotHeight = (y.bottom - y.top) / count;
+                        const index = Math.floor((clickY - y.top) / slotHeight);
+                        if (index < 0 || index >= count) return;
+
+                        const label = chart.data.labels[index];
+                        // Posición en el viewport (el panel es "fixed"), así no se recorta
+                        // por el overflow-hidden del contenedor de la tarjeta aunque el
+                        // MDI esté hasta el final de la gráfica.
+                        const popoverWidth = 320;
+                        const popoverHeightEstimate = 340;
+
+                        let top = canvasRect.top + y.getPixelForValue(index) - 24;
+                        let left = canvasRect.left + y.right + 10;
+
+                        top = Math.max(8, Math.min(top, window.innerHeight - popoverHeightEstimate - 8));
+                        left = Math.max(8, Math.min(left, window.innerWidth - popoverWidth - 8));
+
+                        this.noteTop = top;
+                        this.noteLeft = left;
+                        this.noteOpen = true;
+
+                        $wire.openNotesFor(label);
+                    });
+                },
+
                 init() {
                     this.fitHeight();
                     this.createChart();
+                    this.attachLabelClickHandler();
 
                     $wire.on('update-timeline', (data) => {
                         this.updateChart(data[0]);
@@ -408,9 +528,45 @@
                         }
                     };
 
+                    // Plugin: círculo con el número de notas del MDI, pegado al margen
+                    // izquierdo de la columna de etiquetas (reservado vía afterFit en el
+                    // eje Y). Solo se dibuja si el MDI tiene al menos una nota.
+                    const noteBadgePlugin = {
+                        id: 'noteBadge',
+                        afterDraw(chart) {
+                            const { ctx, scales: { y } } = chart;
+                            const count = chart.data.labels.length;
+                            if (!count) return;
+
+                            const dark = isDark();
+                            ctx.save();
+                            ctx.font = 'bold 10px sans-serif';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+
+                            for (let i = 0; i < count; i++) {
+                                const n = state.noteCounts[i] || 0;
+                                if (!n) continue;
+
+                                const cy = y.getPixelForValue(i);
+                                const cx = y.left + 18;
+                                const r = 8;
+
+                                ctx.beginPath();
+                                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                                ctx.fillStyle = dark ? '#f59e0b' : '#d97706';
+                                ctx.fill();
+
+                                ctx.fillStyle = '#ffffff';
+                                ctx.fillText(n > 9 ? '9+' : String(n), cx, cy + 0.5);
+                            }
+                            ctx.restore();
+                        }
+                    };
+
                     chart = new Chart(ctx, {
                         type: 'bar',
-                        plugins: [rowLabelBoxPlugin, centerLabelsPlugin, nowLinePlugin],
+                        plugins: [rowLabelBoxPlugin, centerLabelsPlugin, nowLinePlugin, noteBadgePlugin],
                         data: {
                             labels: @json($labels),
                             datasets: [{
@@ -462,6 +618,9 @@
                                 },
                                 y: {
                                     type: 'category',
+                                    // Reserva ~32px extra a la izquierda del texto para el
+                                    // círculo con el contador de notas (noteBadgePlugin).
+                                    afterFit: (scale) => { scale.width += 32; },
                                     ticks: {
                                         font: { size: 13, weight: 'bold' },
                                         // MDI con punto y color según su avance (verde/rojo)
@@ -531,6 +690,7 @@
                     state.timeLabels = data.timeLabels;
                     state.barStatuses = data.barStatuses;
                     state.realTotals = data.realTotals;
+                    state.noteCounts = data.noteCounts;
                     state.shiftStartIso = data.shiftStartIso;
                     state.labelCount = data.labels ? data.labels.length : 0;
 
