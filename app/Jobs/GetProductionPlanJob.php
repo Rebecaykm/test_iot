@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\FSO;
 use App\Models\PartNumber;
+use App\Models\ProductionRecord;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,14 +16,6 @@ use Illuminate\Support\Facades\Log;
 class GetProductionPlanJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
-
-    /**
-     * Fecha a partir de la cual se reconstruyen los acumulados hacia atrás.
-     * El job nunca revisa órdenes previas a esta fecha, aunque la semana
-     * calculada normalmente empiece antes. Más adelante, cuando se habilite
-     * ver semanas anteriores, este tope se podrá mover o quitar.
-     */
-    private const HISTORY_FLOOR_DATE = '2026-09-21';
 
     /**
      * Create a new job instance.
@@ -38,7 +31,7 @@ class GetProductionPlanJob implements ShouldQueue
     public function handle(): void
     {
         $today = Carbon::today();
-        $historyFloor = Carbon::parse(self::HISTORY_FLOOR_DATE);
+        $historyFloor = Carbon::parse(ProductionRecord::HISTORY_FLOOR_DATE);
 
         $startDate = $today->copy()->subWeek()->startOfWeek();
         if ($startDate->lt($historyFloor)) {

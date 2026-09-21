@@ -22,6 +22,16 @@ class ProductionRecord extends Model
      */
     const PRODUCTION_CACHE_TTL = 20;
 
+    /**
+     * Fecha a partir de la cual el sistema reconstruye plan y acumulados.
+     * Todo lo anterior a esta fecha se ignora tanto al traer órdenes de Infor
+     * (GetProductionPlanJob) como al buscar acumuladores para conciliar
+     * (StoreProductionPlanJob), para que ambos arranquen desde el mismo punto
+     * y no se mezclen acumuladores viejos con órdenes nuevas. Más adelante,
+     * cuando se habilite ver semanas anteriores, este tope se podrá mover o quitar.
+     */
+    const HISTORY_FLOOR_DATE = '2026-09-21';
+
     protected $fillable = [
         'part_number_id',
         'planned_quantity',

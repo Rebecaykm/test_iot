@@ -93,7 +93,22 @@ class StoreProductionPlanJob implements ShouldQueue
         // "acumulador" no tienen orden ni plan, solo producción, y están en status
         // "No planeado" o "En progreso" (el PLC puede seguir escribiendo sobre su ID
         // en cualquiera de los dos). Se busca solo por número de parte, sin límite de
-        // fecha, ya que pueden llevar varios días sin que Infor los alcance.
+        // fecha hacia adelante, ya que pueden llevar varios días sin que Infor los
+        // alcance. Hacia atrás sí se excluye todo lo anterior a HISTORY_FLOOR_DATE
+        // (por planned_date y por production_start): acumuladores más viejos quedan
+        // fuera de la reconstrucción actual del plan y no deben mezclarse con las
+        // órdenes nuevas.
+        //
+        // El único registro que NO cuenta como candidato es $existingRecord mismo (el
+        // slot exacto fecha+turno que se está procesando): todo lo demás del mismo
+        // part number sí, aunque sea la MISMA fecha en otro turno. Antes se excluía
+        // cualquier acumulador con la misma fecha (sin importar el turno), lo que
+        // hacía que un acumulador ya movido al turno D de un día nunca pudiera
+        // conciliarse con el turno N de ESE MISMO día en la siguiente corrida: se
+        // saltaba directo al D del día siguiente. Al excluir solo por ID se respeta
+        // el orden real en que Infor entrega las órdenes (D, luego N, luego el D del
+        // día siguiente...) y el acumulador se va repartiendo turno por turno en ese
+        // mismo orden de llegada.
         $accumulatorStatusIds = array_filter([
             optional($accumulatorStatus)->id,
             optional($inProgressStatus)->id,
@@ -107,7 +122,12 @@ class StoreProductionPlanJob implements ShouldQueue
                 })
                 ->where('planned_quantity', 0)
                 ->where('produced_quantity', '>', 0)
-                ->where('planned_date', '!=', $this->planned_date)
+                ->when($existingRecord, fn ($query) => $query->where('id', '!=', $existingRecord->id))
+                ->where('planned_date', '>=', ProductionRecord::HISTORY_FLOOR_DATE)
+                ->where(function ($query) {
+                    $query->whereNull('production_start')
+                        ->orWhere('production_start', '>=', ProductionRecord::HISTORY_FLOOR_DATE);
+                })
                 ->get();
 
             if ($accumulatorCandidates->count() > 1) {
