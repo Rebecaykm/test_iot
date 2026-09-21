@@ -134,7 +134,7 @@ class SyncProductionRecordsLive implements ShouldQueue
             ->whereNotNull('production_records.shop_order_number')
             ->whereIn('work_centers.number', $workCenterNumbers)
             ->whereBetween('production_records.planned_date', [
-                Carbon::now()->subWeek()->startOfWeek(),
+                ProductionRecord::applyHistoryFloor(Carbon::now()->subWeek()->startOfWeek()),
                 Carbon::now()->addWeek()->endOfWeek()
             ])
             ->get();

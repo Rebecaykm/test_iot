@@ -41,13 +41,11 @@ class StoreProductionPlanJob implements ShouldQueue
     public function handle(): void
     {
         $partNumber = PartNumber::query()->where('number', $this->part_number)->first();
-
         if (!$partNumber) {
             return;
         }
 
         $shift = Shift::query()->where('abbreviation', $this->planned_shift)->first();
-
         if (!$shift) {
             return;
         }
@@ -321,11 +319,17 @@ class StoreProductionPlanJob implements ShouldQueue
 
                     Log::info("Registro #{$existingRecord->id} (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) en progreso cubrió el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}; se creó un registro Completado. El restante ({$excessQuantity}) se quedó en este registro, sin orden ni plan.");
                 } else {
+                    $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
+
                     $existingRecordUpdate = [
                         'shop_order_number' => $this->shop_order_number,
                         'planned_quantity' => $plannedQuantityInt,
                         'produced_quantity' => $plannedQuantityInt,
                     ];
+
+                    if ($completedStatus) {
+                        $existingRecordUpdate['status_id'] = $completedStatus->id;
+                    }
 
                     if ($shouldRefreshOrder) {
                         $existingRecordUpdate['production_order'] = $productionOrderForRecord;

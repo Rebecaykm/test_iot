@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use DateTime;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,6 +32,19 @@ class ProductionRecord extends Model
      * cuando se habilite ver semanas anteriores, este tope se podrá mover o quitar.
      */
     const HISTORY_FLOOR_DATE = '2026-09-21';
+
+    /**
+     * Recorta una fecha de inicio de ventana para que nunca quede antes de
+     * HISTORY_FLOOR_DATE. La usan GetProductionPlanJob, SyncProductionRecordsLive
+     * y SyncProductionRecordsProto para que las tres ventanas arranquen del mismo
+     * punto sin importar cómo cada una calcule su límite inferior normalmente.
+     */
+    public static function applyHistoryFloor(Carbon $date): Carbon
+    {
+        $floor = Carbon::parse(self::HISTORY_FLOOR_DATE);
+
+        return $date->lt($floor) ? $floor->copy() : $date;
+    }
 
     protected $fillable = [
         'part_number_id',

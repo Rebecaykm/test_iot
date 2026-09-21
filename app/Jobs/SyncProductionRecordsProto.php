@@ -131,12 +131,12 @@ class SyncProductionRecordsProto implements ShouldQueue
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->where('production_records.synced_to_infor', false)
             ->where('production_records.produced_quantity', '>', 0)
-            ->where('statuses.name', 'Detenido')
+            ->where('statuses.name', 'Completado')
             // ->whereNotNull('production_records.shop_order_number')
             ->whereIn('work_centers.number', $workCenterNumbers)
             ->whereBetween('production_records.planned_date', [
-                Carbon::now()->startOfWeek(),
-                Carbon::now()->endOfWeek()
+                ProductionRecord::applyHistoryFloor(Carbon::now()->subWeek()->startOfWeek()),
+                Carbon::now()->addWeek()->endOfWeek()
             ])
             ->get();
     }

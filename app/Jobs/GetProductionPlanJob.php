@@ -31,16 +31,9 @@ class GetProductionPlanJob implements ShouldQueue
     public function handle(): void
     {
         $today = Carbon::today();
-        $historyFloor = Carbon::parse(ProductionRecord::HISTORY_FLOOR_DATE);
 
-        $startDate = $today->copy()->subWeek()->startOfWeek();
-        if ($startDate->lt($historyFloor)) {
-            $startDate = $historyFloor->copy();
-        }
-        $startDate = $startDate->format('Ymd');
-
+        $startDate = ProductionRecord::applyHistoryFloor($today->copy()->subWeek()->startOfWeek())->format('Ymd');
         $endDate = $today->copy()->addWeek()->endOfWeek()->format('Ymd');
-
 
         $partNumbers = PartNumber::query()
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
