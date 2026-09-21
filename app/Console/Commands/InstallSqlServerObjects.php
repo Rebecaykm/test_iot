@@ -112,13 +112,11 @@ class InstallSqlServerObjects extends Command
             throw new RuntimeException("El archivo {$path} no contiene un CREATE PROCEDURE valido.");
         }
 
-        $sql = preg_replace('/^CREATE\\s+PROCEDURE\\b/i', 'CREATE OR ALTER PROCEDURE', ltrim($sql), 1);
+        $dropSql = "DROP PROCEDURE IF EXISTS {$name};\n";
 
-        if ($sql === null) {
-            throw new RuntimeException("No se pudo preparar {$name} para SQL Server.");
-        }
+        $finalSql = $dropSql.ltrim($sql);
 
-        $connection->unprepared($sql);
+        $connection->unprepared($finalSql);
         $this->info("{$name}: instalado/actualizado.");
     }
 }
