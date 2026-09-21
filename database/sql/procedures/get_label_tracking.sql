@@ -17,7 +17,7 @@ BEGIN
              ROW_NUMBER() OVER (PARTITION BY pn.work_center_id, pr.planned_date ORDER BY COALESCE (MAX(pl.production_order), pn.production_order, 99), pn.number, MAX(pr.created_at)) AS ProductionSequence
     FROM     dbo.production_records AS pr
              INNER JOIN
-             @ProductionRecords AS fpr
+             @productionRecordList AS fpr
              ON fpr.ProductionRecordId = pr.id
              INNER JOIN
              dbo.part_numbers AS pn
@@ -39,7 +39,7 @@ BEGIN
              pr.planned_date AS PlannedDate,
              pn.number AS ProductCode,
              COALESCE (pl.production_order, pn.production_order, 99) AS ProductionOrder,
-             pl.production_label_id AS LabelId,
+             pl.id AS LabelId,
              pl.label_sequence AS LabelSequence,
              CONCAT(ISNULL(pr.shop_order_number, 'XXXXXXX'), '-', RIGHT('000' + CAST (pl.label_sequence AS VARCHAR (10)), 3)) AS LabelCode,
              pl.label_quantity AS LabelQuantity,
@@ -52,7 +52,7 @@ BEGIN
              ROW_NUMBER() OVER (PARTITION BY pn.number ORDER BY pl.expected_completion_at, pl.label_sequence) AS ProductOrder
     FROM     dbo.production_labels AS pl
              INNER JOIN
-             @ProductionRecords AS fpr
+             @productionRecordList AS fpr
              ON fpr.ProductionRecordId = pl.production_record_id
              INNER JOIN
              dbo.production_records AS pr

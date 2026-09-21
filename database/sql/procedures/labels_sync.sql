@@ -69,7 +69,7 @@ BEGIN
             ProductionRecordId BIGINT NOT NULL,
             ProductId BIGINT NOT NULL,
             ProductionOrder SMALLINT NOT NULL,
-            ShopOrderNumber NVARCHAR (50) NOT NULL,
+            ShopOrderNumber NVARCHAR (8) NULL,
             LabelSequence SMALLINT NOT NULL,
             LabelQuantity DECIMAL (11, 3) NOT NULL,
             StartQuantity DECIMAL (11, 3) NOT NULL,
@@ -191,8 +191,8 @@ BEGIN
         -- Insert calculated labels into the production_labels table
         DECLARE @Inserted TABLE (
             ProductionLabelId BIGINT NOT NULL);
-        INSERT INTO dbo.production_labels (production_record_id, product_id, production_order, label_sequence, label_quantity, produced_quantity, starting_quantity, ending_quantity, standard_pack_quantity, is_produced, created_at, updated_at, label_schedule_id, expected_completion_at, global_sequence)
-        OUTPUT INSERTED.production_label_id INTO @Inserted (ProductionLabelId)
+        INSERT INTO dbo.production_labels (production_record_id, product_id, production_order, label_sequence, label_quantity, produced_quantity, starting_quantity, ending_quantity, standard_pack_quantity, is_produced, created_at, updated_at, expected_completion_at, global_sequence)
+        OUTPUT INSERTED.id INTO @Inserted (ProductionLabelId)
         SELECT l.ProductionRecordId,
                l.ProductId,
                l.ProductionOrder,
@@ -205,7 +205,6 @@ BEGIN
                CONVERT (BIT, 0),
                SYSDATETIME(),
                SYSDATETIME(),
-               NULL,
                l.ExpectedCompletionAt,
                l.GlobalSequence
         FROM   #Labels AS l

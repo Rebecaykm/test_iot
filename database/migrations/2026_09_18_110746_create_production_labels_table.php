@@ -40,16 +40,16 @@ return new class extends Migration
                 ->on('part_numbers');
 
             $table->unique(['production_record_id', 'label_sequence'], 'UQ_labels_record_sequence');
-
-            if (DB::getDriverName() === 'sqlsrv') {
-                DB::statement('
-                    CREATE NONCLUSTERED INDEX IX_production_labels_is_not_produced
-                    ON dbo.production_labels (production_record_id)
-                    INCLUDE (produced_quantity, starting_quantity, ending_quantity, label_quantity)
-                    WHERE is_produced = 0;
-                ');
-            }
         });
+
+        if (DB::getDriverName() === 'sqlsrv' && Schema::hasTable('production_labels')) {
+            DB::statement('
+                CREATE NONCLUSTERED INDEX IX_production_labels_is_not_produced
+                ON dbo.production_labels (production_record_id)
+                INCLUDE (produced_quantity, starting_quantity, ending_quantity, label_quantity)
+                WHERE is_produced = 0;
+            ');
+        }
     }
 
     /**
