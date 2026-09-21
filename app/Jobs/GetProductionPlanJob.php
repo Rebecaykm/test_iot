@@ -17,6 +17,14 @@ class GetProductionPlanJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable;
 
     /**
+     * Fecha a partir de la cual se reconstruyen los acumulados hacia atrás.
+     * El job nunca revisa órdenes previas a esta fecha, aunque la semana
+     * calculada normalmente empiece antes. Más adelante, cuando se habilite
+     * ver semanas anteriores, este tope se podrá mover o quitar.
+     */
+    private const HISTORY_FLOOR_DATE = '2026-09-21';
+
+    /**
      * Create a new job instance.
      */
     public function __construct()
@@ -30,8 +38,14 @@ class GetProductionPlanJob implements ShouldQueue
     public function handle(): void
     {
         $today = Carbon::today();
+        $historyFloor = Carbon::parse(self::HISTORY_FLOOR_DATE);
 
-        $startDate = $today->copy()->subWeek()->startOfWeek()->format('Ymd');
+        $startDate = $today->copy()->subWeek()->startOfWeek();
+        if ($startDate->lt($historyFloor)) {
+            $startDate = $historyFloor->copy();
+        }
+        $startDate = $startDate->format('Ymd');
+
         $endDate = $today->copy()->addWeek()->endOfWeek()->format('Ymd');
 
 
