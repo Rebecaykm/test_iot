@@ -11,11 +11,11 @@ Artisan::command('inspire', function () {
 Schedule::command('iot:work-center')->cron('0 0 2-30/2 * *')->withoutOverlapping();
 Schedule::command('iot:item-class')->cron('0 1 2-30/2 * *')->withoutOverlapping();
 Schedule::command('iot:standard-pack')->dailyAt('00:40')->withoutOverlapping();
-Schedule::command('iot:part-number')->cron('0 2 2-30/2 * *')->withoutOverlapping();
-Schedule::command('iot:part-number-relations')->dailyAt('01:30')->withoutOverlapping();
-Schedule::command('iot:die-identifier')->cron('0 0 * * *')->withoutOverlapping();
-Schedule::command('iot:part-shots')->cron('5 0 * * *')->withoutOverlapping();
-Schedule::command('iot:production-plan')->everyThirtyMinutes()->withoutOverlapping();
+Schedule::command('iot:part-number')->dailyAt('02:00')->withoutOverlapping();
+Schedule::command('iot:die-identifier')->dailyAt('03:00')->withoutOverlapping();
+Schedule::command('iot:part-shots')->dailyAt('03:10')->withoutOverlapping();
+Schedule::command('iot:part-number-relations')->dailyAt('03:20')->withoutOverlapping();
+Schedule::command('iot:production-plan')->hourly()->withoutOverlapping();
 
 // Schedule::command('iot:recover-production-order-numbers-live')->hourly()->withoutOverlapping();
 // Schedule::command('iot:recover-production-order-numbers-proto')->hourly()->withoutOverlapping();

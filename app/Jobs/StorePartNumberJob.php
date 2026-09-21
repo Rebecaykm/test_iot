@@ -8,7 +8,6 @@ use App\Models\Project;
 use App\Models\StandardPack;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class StorePartNumberJob implements ShouldQueue
@@ -22,11 +21,16 @@ class StorePartNumberJob implements ShouldQueue
     protected $isObsolete;
     protected $standardPack;
     protected $quantityStandardPack;
+    protected $routingMaster;
 
     /**
      * Create a new job instance.
+     *
+     * $routingMaster llega ya resuelto desde GetPartNumberJob (consultado en
+     * lote junto con el resto del chunk) en vez de consultarse aquí por cada
+     * número de parte, para no abrir una conexión a Infor por job.
      */
-    public function __construct($partNumber, $partName, $itemClass, $project, $isObsolete, $standardPack, $quantityStandardPack)
+    public function __construct($partNumber, $partName, $itemClass, $project, $isObsolete, $standardPack, $quantityStandardPack, $routingMaster = null)
     {
         $this->partNumber =  $partNumber;
         $this->partName =  $partName;
@@ -35,6 +39,7 @@ class StorePartNumberJob implements ShouldQueue
         $this->isObsolete = $isObsolete;
         $this->standardPack =  $standardPack;
         $this->quantityStandardPack = $quantityStandardPack;
+        $this->routingMaster = $routingMaster;
     }
 
     /**
@@ -45,23 +50,8 @@ class StorePartNumberJob implements ShouldQueue
         $itemClass = ItemClass::query()->where('abbreviation', $this->itemClass)->first();
         $standardPack = StandardPack::query()->where('name', $this->standardPack)->first();
         $isObsolete = $this->isObsolete == "OBSOLETE  ";
-        $facility = "YK1";
 
-        $routingMaster = DB::connection('infor-live')
-            ->table('LX834F01.FRT')
-            ->select([
-                'LX834F01.LWK.WWRKC AS workNumber',
-                'LX834F01.LWK.WDESC AS workName',
-                'LX834F01.FRT.RLAB AS productionRate',
-                'LX834F01.FRT.RTWHS AS facility'
-            ])
-            ->join('LX834F01.IIM', 'LX834F01.IIM.IPROD', '=', 'LX834F01.FRT.RPROD')
-            ->join('LX834F01.LWK', 'LX834F01.LWK.WWRKC', '=', 'LX834F01.FRT.RWRKC')
-            ->where('LX834F01.IIM.IPROD', '=', $this->partNumber)
-            ->where('LX834F01.FRT.RTWHS', '=', $facility)
-            ->first();
-
-        $partNumber = PartNumber::storeFromInfor($this->partNumber, $this->partName, $itemClass, $isObsolete, $routingMaster);
+        $partNumber = PartNumber::storeFromInfor($this->partNumber, $this->partName, $itemClass, $isObsolete, $this->routingMaster);
         $partNumber->update([
             'standard_pack_id' => $standardPack ? $standardPack->id : null,
             'standard_pack_quantity' => $this->quantityStandardPack ?? null,
