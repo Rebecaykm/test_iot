@@ -154,15 +154,21 @@ class StoreProductionPlanJob implements ShouldQueue
                     $targetPlan = (int) $existingRecord->planned_quantity;
                     $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
 
+                    // Igual que en el resto del proceso: mientras el registro destino siga
+                    // "En progreso" el PLC puede seguir escribiendo sobre él, así que no se
+                    // le toca el status aquí.
+                    $existingRecordIsInProgress = $inProgressStatus && (int) $existingRecord->status_id === $inProgressStatus->id;
+
                     if ($accumulatorProduced > $targetPlan) {
                         $excessQuantity = $accumulatorProduced - $targetPlan;
 
                         // Se cubrió el plan por completo, el resto se va al acumulador:
-                        // el registro destino queda Completado.
-                        $existingRecord->update([
-                            'produced_quantity' => $targetPlan,
-                            'status_id' => $completedStatus ? $completedStatus->id : $existingRecord->status_id,
-                        ]);
+                        // el registro destino queda Completado (salvo que siga "En progreso").
+                        $existingRecordUpdate = ['produced_quantity' => $targetPlan];
+                        if (!$existingRecordIsInProgress && $completedStatus) {
+                            $existingRecordUpdate['status_id'] = $completedStatus->id;
+                        }
+                        $existingRecord->update($existingRecordUpdate);
 
                         $accumulator->update([
                             'planned_date' => $this->planned_date,
@@ -174,10 +180,18 @@ class StoreProductionPlanJob implements ShouldQueue
                     } else {
                         $existingRecordUpdate = ['produced_quantity' => $accumulatorProduced];
 
-                        // Solo se marca Completado si con esto se cubrió el plan completo;
-                        // si quedó por debajo, sigue con su status actual.
-                        if ($completedStatus && $accumulatorProduced >= $targetPlan) {
-                            $existingRecordUpdate['status_id'] = $completedStatus->id;
+                        // Se marca Completado si con esto se cubrió el plan completo, o
+                        // Detenido si quedó por debajo y ya no va a seguir creciendo sola
+                        // (salvo que el registro siga "En progreso": ahí no se toca el status).
+                        if (!$existingRecordIsInProgress) {
+                            if ($completedStatus && $accumulatorProduced >= $targetPlan) {
+                                $existingRecordUpdate['status_id'] = $completedStatus->id;
+                            } elseif ($accumulatorProduced > 0) {
+                                $stoppedStatus = Status::where('name', 'LIKE', 'Detenid%')->first();
+                                if ($stoppedStatus) {
+                                    $existingRecordUpdate['status_id'] = $stoppedStatus->id;
+                                }
+                            }
                         }
 
                         $existingRecord->update($existingRecordUpdate);
@@ -361,6 +375,26 @@ class StoreProductionPlanJob implements ShouldQueue
 
                 if ($shouldRefreshOrder) {
                     $existingRecordUpdate['production_order'] = $productionOrderForRecord;
+                }
+
+                // Mientras sigue "En progreso" el PLC puede seguir escribiendo producción
+                // sobre este ID, así que aquí solo se le asigna la orden y el plan, sin
+                // tocar su status (igual que antes). Para cualquier otro status la
+                // producción ya no va a seguir creciendo sola: si ya alcanzó el plan queda
+                // Completado, y si tuvo producción propia pero no lo alcanzó, Detenido. Un
+                // placeholder recién creado (producido=0) se deja igual (Pendiente).
+                if (!$isInProgress) {
+                    if ($producedQuantity >= $plannedQuantityInt) {
+                        $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
+                        if ($completedStatus) {
+                            $existingRecordUpdate['status_id'] = $completedStatus->id;
+                        }
+                    } elseif ($producedQuantity > 0) {
+                        $stoppedStatus = Status::where('name', 'LIKE', 'Detenid%')->first();
+                        if ($stoppedStatus) {
+                            $existingRecordUpdate['status_id'] = $stoppedStatus->id;
+                        }
+                    }
                 }
 
                 $existingRecord->update($existingRecordUpdate);
