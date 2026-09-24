@@ -388,6 +388,41 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Avance de producción semanal (vista de invitados): solo registros con
+     * shop order y cantidad planeada mayor a 0, con el nombre de su estatus.
+     */
+    public static function getWeeklyProductionProgress(string $workCenter, $startDate, $endDate): Collection
+    {
+        return ProductionRecord::query()
+            ->select([
+                'production_records.shop_order_number AS order_number',
+                'part_numbers.number AS part_number',
+                'production_records.planned_date AS planned_date',
+                'shifts.abbreviation AS shift',
+                'shifts.name AS shift_name',
+                'production_records.planned_quantity AS planned_quantity',
+                'production_records.produced_quantity AS produced_quantity',
+                'statuses.name AS status_name',
+            ])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->leftJoin('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->whereBetween('production_records.planned_date', [
+                \Carbon\Carbon::parse($startDate)->toDateString(),
+                \Carbon\Carbon::parse($endDate)->toDateString(),
+            ])
+            ->where('work_centers.name', 'LIKE', $workCenter)
+            ->whereNotNull('production_records.shop_order_number')
+            ->where('production_records.shop_order_number', '<>', '')
+            ->where('production_records.planned_quantity', '>', 0)
+            ->orderBy('production_records.planned_date', 'asc')
+            ->orderBy('shifts.abbreviation', 'asc')
+            ->orderBy('part_numbers.number', 'asc')
+            ->get();
+    }
+
+    /**
      * Método para obtener el siguiente part number que debe producirse
      * basado en el orden de producción
      */

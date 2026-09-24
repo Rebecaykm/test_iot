@@ -153,6 +153,12 @@ Route::get('guest/work-center-dashboard', function () {
     return view('guest.work-center-dashboard');
 });
 
+Route::get('guest/production-progress/{workCenter}', function ($workCenter) {
+    return view('guest.production-progress', [
+        'workCenter' => $workCenter,
+    ]);
+})->name('guest.production-progress');
+
 Route::get('guest/part-number-relations', function () {
     return view('guest.part-number-relations');
 })->name('guest.part-number-relations');
