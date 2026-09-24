@@ -52,12 +52,8 @@ class StoreProductionPlanJob implements ShouldQueue
 
         $plannedQuantityInt = intval($this->planned_quantity);
 
-        // Orden de producción a grabar en el/los registro(s) de este plan. Si
-        // planned_date ya pasó, se congela: se toma el valor que ya estaba vigente
-        // ESE día (vía production_order_histories) en vez del valor actual de
-        // part_numbers, que puede haber cambiado desde entonces. Si planned_date es
-        // hoy o futuro, se usa el valor en vivo y se seguirá refrescando en cada
-        // corrida de este job mientras el día no haya pasado.
+        // Si la fecha ya pasó, se usa la orden que estaba vigente ESE día (no la
+        // actual, que pudo cambiar). Si es hoy o futuro, se usa la vigente ahora.
         $plannedDateStr = Carbon::parse($this->planned_date)->toDateString();
         $shouldRefreshOrder = $plannedDateStr >= Carbon::today()->toDateString();
 
@@ -65,54 +61,45 @@ class StoreProductionPlanJob implements ShouldQueue
             ? $partNumber->production_order
             : (ProductionOrderHistory::orderOnDate($partNumber->id, $plannedDateStr) ?? $partNumber->production_order);
 
-        // Un registro con una orden DISTINTA a la que se está procesando no es "el
-        // mismo" registro para efectos de este job: puede haber varias órdenes de
-        // Infor para el mismo material/fecha/turno, y cada una necesita su propio
-        // registro. Solo cuenta como match si está sin orden (disponible) o si ya es
-        // exactamente esta misma orden (de una corrida anterior).
-        $existingRecord = ProductionRecord::where([
+        // Primero el registro que ya tiene esta orden; si no hay, uno libre (sin
+        // orden). Así un acumulador vacío en el mismo slot no se toma por la orden.
+        $slotQuery = fn () => ProductionRecord::where([
             'part_number_id' => $partNumber->id,
             'planned_date' => $this->planned_date,
             'shift_id' => $shift->id,
-        ])
-            ->where(function ($query) {
-                $query->whereNull('shop_order_number')
-                    ->orWhere('shop_order_number', '')
-                    ->orWhere('shop_order_number', $this->shop_order_number);
-            })
-            ->first();
+        ]);
+
+        $existingRecord = $slotQuery()
+            ->where('shop_order_number', $this->shop_order_number)
+            ->orderBy('id')
+            ->first()
+            ?? $slotQuery()
+                ->where(fn ($query) => $query->whereNull('shop_order_number')->orWhere('shop_order_number', ''))
+                ->orderBy('id')
+                ->first();
 
         $accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
         $inProgressStatus = Status::where('name', 'LIKE', 'En progreso')->first();
+        $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
 
-        // El recolector del PLC puede empezar a acumular producción bajo una fecha
-        // (y turno) distinta a la que finalmente trae Infor para esa orden (arrancó
-        // antes o después de la fecha real del plan, o en otro turno). Estos registros
-        // "acumulador" no tienen orden ni plan, solo producción, y están en status
-        // "No planeado" o "En progreso" (el PLC puede seguir escribiendo sobre su ID
-        // en cualquiera de los dos). Se busca solo por número de parte, sin límite de
-        // fecha hacia adelante, ya que pueden llevar varios días sin que Infor los
-        // alcance. Hacia atrás sí se excluye todo lo anterior a HISTORY_FLOOR_DATE
-        // (por planned_date y por production_start): acumuladores más viejos quedan
-        // fuera de la reconstrucción actual del plan y no deben mezclarse con las
-        // órdenes nuevas.
-        //
-        // El único registro que NO cuenta como candidato es $existingRecord mismo (el
-        // slot exacto fecha+turno que se está procesando): todo lo demás del mismo
-        // part number sí, aunque sea la MISMA fecha en otro turno. Antes se excluía
-        // cualquier acumulador con la misma fecha (sin importar el turno), lo que
-        // hacía que un acumulador ya movido al turno D de un día nunca pudiera
-        // conciliarse con el turno N de ESE MISMO día en la siguiente corrida: se
-        // saltaba directo al D del día siguiente. Al excluir solo por ID se respeta
-        // el orden real en que Infor entrega las órdenes (D, luego N, luego el D del
-        // día siguiente...) y el acumulador se va repartiendo turno por turno en ese
-        // mismo orden de llegada.
+        // Orden ya Completada: no se le vuelve a pasar producción de acumuladores.
+        $orderAlreadyCompleted = $existingRecord !== null
+            && (string) $existingRecord->shop_order_number === (string) $this->shop_order_number
+            && $completedStatus
+            && (int) $existingRecord->status_id === $completedStatus->id;
+
+        // "Acumulador": producción del PLC sin orden/plan todavía (status "No
+        // planeado" o "En progreso"). Se busca por parte, sin tope hacia adelante, y
+        // se excluye todo lo anterior a HISTORY_FLOOR_DATE. Solo se excluye por ID
+        // (no por fecha) para que se pueda repartir entre turnos del mismo día en el
+        // orden real en que Infor entrega las órdenes (D, luego N, luego el D
+        // siguiente...), en vez de saltarse el turno N y caer solo en días futuros.
         $accumulatorStatusIds = array_filter([
             optional($accumulatorStatus)->id,
             optional($inProgressStatus)->id,
         ]);
 
-        if (!empty($accumulatorStatusIds)) {
+        if (!empty($accumulatorStatusIds) && !$orderAlreadyCompleted) {
             $accumulatorCandidates = ProductionRecord::where('part_number_id', $partNumber->id)
                 ->whereIn('status_id', $accumulatorStatusIds)
                 ->where(function ($query) {
@@ -133,13 +120,10 @@ class StoreProductionPlanJob implements ShouldQueue
             } elseif ($accumulatorCandidates->count() === 1) {
                 $accumulator = $accumulatorCandidates->first();
 
-                // El registro en la fecha exacta ya tiene producción propia (no solo la
-                // del acumulador): no se puede fusionar sin perder datos.
+                // No se fusiona si el registro ya tiene producción propia (se perdería).
                 $existingRecordHasOwnProduction = $existingRecord !== null && (int) $existingRecord->produced_quantity > 0;
 
-                // Ya trae orden y/o plan propios (p. ej. quedó Pendiente de una corrida
-                // anterior): no es un placeholder vacío, conserva su ID y se le fusiona
-                // la producción del acumulador.
+                // Ya tiene orden/plan de una corrida anterior: se le fusiona el acumulador.
                 $existingRecordHasOwnOrderOrPlan = $existingRecord !== null && (
                     !empty($existingRecord->shop_order_number) || (int) $existingRecord->planned_quantity > 0
                 );
@@ -154,16 +138,13 @@ class StoreProductionPlanJob implements ShouldQueue
                     $targetPlan = (int) $existingRecord->planned_quantity;
                     $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
 
-                    // Igual que en el resto del proceso: mientras el registro destino siga
-                    // "En progreso" el PLC puede seguir escribiendo sobre él, así que no se
-                    // le toca el status aquí.
+                    // "En progreso" no se toca (el PLC puede seguir escribiendo sobre él).
                     $existingRecordIsInProgress = $inProgressStatus && (int) $existingRecord->status_id === $inProgressStatus->id;
 
                     if ($accumulatorProduced > $targetPlan) {
                         $excessQuantity = $accumulatorProduced - $targetPlan;
 
-                        // Se cubrió el plan por completo, el resto se va al acumulador:
-                        // el registro destino queda Completado (salvo que siga "En progreso").
+                        // Cubrió el plan: Completado (salvo "En progreso").
                         $existingRecordUpdate = ['produced_quantity' => $targetPlan];
                         if (!$existingRecordIsInProgress && $completedStatus) {
                             $existingRecordUpdate['status_id'] = $completedStatus->id;
@@ -180,9 +161,7 @@ class StoreProductionPlanJob implements ShouldQueue
                     } else {
                         $existingRecordUpdate = ['produced_quantity' => $accumulatorProduced];
 
-                        // Se marca Completado si con esto se cubrió el plan completo, o
-                        // Detenido si quedó por debajo y ya no va a seguir creciendo sola
-                        // (salvo que el registro siga "En progreso": ahí no se toca el status).
+                        // Completado si alcanzó el plan, Detenido si no (salvo "En progreso").
                         if (!$existingRecordIsInProgress) {
                             if ($completedStatus && $accumulatorProduced >= $targetPlan) {
                                 $existingRecordUpdate['status_id'] = $completedStatus->id;
@@ -239,11 +218,8 @@ class StoreProductionPlanJob implements ShouldQueue
                             'produced_quantity' => $excessQuantity,
                         ];
 
-                        // Si el acumulador estaba "En progreso", el PLC sigue produciendo
-                        // ahora mismo bajo la fecha/turno reales, así que se corrigen para
-                        // reflejarlo. Si estaba "No planeado", el restante no pertenece a
-                        // esta orden y conserva su fecha/turno original (donde realmente
-                        // se produjo).
+                        // "En progreso": el restante se mueve a la fecha/turno actual (ahí
+                        // sigue produciendo). Si no, conserva su ubicación original.
                         if ($accumulatorWasInProgress) {
                             $accumulatorUpdate['planned_date'] = $this->planned_date;
                             $accumulatorUpdate['shift_id'] = $shift->id;
@@ -265,16 +241,13 @@ class StoreProductionPlanJob implements ShouldQueue
                         ];
 
                         if ($producedQuantity >= $plannedQuantityInt) {
-                            // Cubrió el plan completo: queda Completado.
+                            // Cubrió el plan: Completado.
                             $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
                             if ($completedStatus) {
                                 $accumulatorUpdate['status_id'] = $completedStatus->id;
                             }
                         } elseif (!$accumulatorWasInProgress) {
-                            // No alcanzó el plan y no estaba "En progreso" (o sea, estaba
-                            // "No planeado"): ya no va a seguir recibiendo producción, se
-                            // marca Detenido. Si estaba "En progreso" se deja igual, sigue
-                            // produciendo.
+                            // No alcanzó el plan y no seguía en progreso: Detenido.
                             $stoppedStatus = Status::where('name', 'LIKE', 'Detenid%')->first();
                             if ($stoppedStatus) {
                                 $accumulatorUpdate['status_id'] = $stoppedStatus->id;
@@ -296,13 +269,9 @@ class StoreProductionPlanJob implements ShouldQueue
 
             $isInProgress = $inProgressStatus && (int) $existingRecord->status_id === $inProgressStatus->id;
 
-            // Mientras el registro sigue "En progreso", el recolector del PLC sigue
-            // escribiendo producción sobre su ID. Por eso, en ese estado, en cuanto la
-            // orden se cubre por completo (producido >= plan, no solo cuando se rebasa)
-            // esa orden se congela en un registro nuevo y este registro se libera
-            // (sin orden/plan) para seguir acumulando lo que seguirá llegando del PLC.
-            // En cualquier otro estado no hay ese riesgo, así que solo se divide si
-            // realmente se rebasa (producido > plan).
+            // "En progreso": al cubrir el plan (producido >= plan) se congela en un
+            // registro nuevo y este se libera para seguir acumulando. Si no, solo se
+            // divide si de verdad se rebasa (producido > plan).
             $isOverflow = $isInProgress
                 ? $producedQuantity >= $plannedQuantityInt
                 : $producedQuantity > $plannedQuantityInt;
@@ -377,12 +346,9 @@ class StoreProductionPlanJob implements ShouldQueue
                     $existingRecordUpdate['production_order'] = $productionOrderForRecord;
                 }
 
-                // Mientras sigue "En progreso" el PLC puede seguir escribiendo producción
-                // sobre este ID, así que aquí solo se le asigna la orden y el plan, sin
-                // tocar su status (igual que antes). Para cualquier otro status la
-                // producción ya no va a seguir creciendo sola: si ya alcanzó el plan queda
-                // Completado, y si tuvo producción propia pero no lo alcanzó, Detenido. Un
-                // placeholder recién creado (producido=0) se deja igual (Pendiente).
+                // "En progreso": no se toca el status, solo orden y plan. Si no: Completado
+                // si alcanzó el plan, Detenido si tuvo producción y no alcanzó (un
+                // placeholder nuevo con producido=0 se deja Pendiente).
                 if (!$isInProgress) {
                     if ($producedQuantity >= $plannedQuantityInt) {
                         $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();

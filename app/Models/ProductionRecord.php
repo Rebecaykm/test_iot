@@ -24,21 +24,12 @@ class ProductionRecord extends Model
     const PRODUCTION_CACHE_TTL = 20;
 
     /**
-     * Fecha a partir de la cual el sistema reconstruye plan y acumulados.
-     * Todo lo anterior a esta fecha se ignora tanto al traer órdenes de Infor
-     * (GetProductionPlanJob) como al buscar acumuladores para conciliar
-     * (StoreProductionPlanJob), para que ambos arranquen desde el mismo punto
-     * y no se mezclen acumuladores viejos con órdenes nuevas. Más adelante,
-     * cuando se habilite ver semanas anteriores, este tope se podrá mover o quitar.
+     * Fecha desde la que se reconstruye plan y acumulados; lo anterior se
+     * ignora para no mezclar acumuladores viejos con órdenes nuevas.
      */
     const HISTORY_FLOOR_DATE = '2026-09-21';
 
-    /**
-     * Recorta una fecha de inicio de ventana para que nunca quede antes de
-     * HISTORY_FLOOR_DATE. La usan GetProductionPlanJob, SyncProductionRecordsLive
-     * y SyncProductionRecordsProto para que las tres ventanas arranquen del mismo
-     * punto sin importar cómo cada una calcule su límite inferior normalmente.
-     */
+    /** Recorta una fecha para que nunca quede antes de HISTORY_FLOOR_DATE. */
     public static function applyHistoryFloor(Carbon $date): Carbon
     {
         $floor = Carbon::parse(self::HISTORY_FLOOR_DATE);
