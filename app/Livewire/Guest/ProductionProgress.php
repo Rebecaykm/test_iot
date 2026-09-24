@@ -16,6 +16,9 @@ class ProductionProgress extends Component
     /** Búsqueda por número de parte */
     public string $search = '';
 
+    /** Mostrar solo los renglones con alguna orden "En progreso" */
+    public bool $onlyInProgress = false;
+
     public function mount($workCenter): void
     {
         $this->workCenter = $workCenter;
@@ -105,13 +108,19 @@ class ProductionProgress extends Component
             ksort($shifts); // D antes que N
             $shiftRows = [];
             foreach ($shifts as $abbr => $info) {
+                // Solo en producción: el renglón debe tener alguna orden "En progreso"
+                if ($this->onlyInProgress && !collect($info['cells'])->flatten(1)->contains('inProgress', true)) {
+                    continue;
+                }
                 $shiftRows[] = [
                     'shift' => $abbr,
                     'shift_name' => $info['shift_name'],
                     'cells' => $info['cells'],
                 ];
             }
-            $parts[] = ['part_number' => $partNumber, 'shifts' => $shiftRows];
+            if (!empty($shiftRows)) {
+                $parts[] = ['part_number' => $partNumber, 'shifts' => $shiftRows];
+            }
         }
 
         $currentWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->toDateString();
