@@ -1,8 +1,8 @@
 <div>
     <div x-data="table" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- Columna izquierda - Turno anterior -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/50">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 bg-blue-50 dark:bg-blue-900/50">
                 @if($previousData && $previousData->isNotEmpty())
                     @foreach($previousData as $plannedDate => $shifts)
                         @foreach($shifts as $shiftName => $records)
@@ -10,8 +10,8 @@
                                 <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Anterior</h2>
                                 <div class="flex flex-wrap gap-2 text-sm font-medium">
                                     <span class="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded-full uppercase">{{ $workCenter->name }}</span>
-                                    <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $plannedDate }}</span>
-                                    <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $shiftName }}</span>
+                                    <span class="bg-zinc-600 dark:bg-zinc-600 text-white px-3 py-1 rounded-full">{{ $plannedDate }}</span>
+                                    <span class="bg-zinc-600 dark:bg-zinc-600 text-white px-3 py-1 rounded-full">{{ $shiftName }}</span>
                                 </div>
                             </div>
                         @endforeach
@@ -24,10 +24,10 @@
                 @if($previousData && $previousData->isNotEmpty())
                     @foreach($previousData as $plannedDate => $shifts)
                         @foreach($shifts as $shiftName => $records)
-                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-sm overflow-hidden">
+                            <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-sm overflow-hidden">
                                 <div class="overflow-x-auto">
                                     <table class="min-w-full text-sm">
-                                        <thead class="bg-gray-200 dark:bg-gray-700 text-xs uppercase text-gray-700 dark:text-gray-300">
+                                        <thead class="bg-zinc-200 dark:bg-zinc-800 text-xs uppercase text-zinc-700 dark:text-zinc-300">
                                         <tr>
                                             <th class="px-4 py-3 text-left font-semibold">Número de Orden</th>
                                             <th class="px-4 py-3 text-left font-semibold">Número de Parte</th>
@@ -36,22 +36,22 @@
                                             <th class="px-4 py-3 text-center font-semibold">Diferencia</th>
                                         </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-gray-200 dark:divide-gray-600">
+                                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                                         @foreach($records as $record)
                                             <tr class="{{ $record['status_row_class'] }} transition-colors">
                                                 <td class="px-4 py-3">
                                                     <span class="inline-flex items-center gap-2">
                                                         <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $record['status_dot_class'] }}" title="{{ $record['status'] }}"></span>
-                                                        <span class="text-gray-800 dark:text-gray-200 font-medium">{{ $record['order_number'] }}</span>
+                                                        <span class="text-zinc-800 dark:text-zinc-200 font-medium">{{ $record['order_number'] }}</span>
                                                     </span>
                                                 </td>
-                                                <td class="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{{ $record['part_number'] }}</td>
-                                                <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ $record['planned_quantity'] }}</td>
-                                                <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ $record['produced_quantity'] }}</td>
+                                                <td class="px-4 py-3 text-zinc-800 dark:text-zinc-200 font-medium">{{ $record['part_number'] }}</td>
+                                                <td class="px-4 py-3 text-center text-zinc-700 dark:text-zinc-300">{{ $record['planned_quantity'] }}</td>
+                                                <td class="px-4 py-3 text-center text-zinc-700 dark:text-zinc-300">{{ $record['produced_quantity'] }}</td>
                                                 <td class="px-4 py-3 text-center">
                                                     @php $diff = $record['difference']; @endphp
                                                     <span class="px-2 py-1 rounded-full font-semibold text-xs
-                                                    {{ $diff < 0 ? 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/50' : ($diff > 0 ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/50' : 'text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-600') }}">
+                                                    {{ $diff < 0 ? 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/50' : ($diff > 0 ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/50' : 'text-zinc-700 bg-zinc-100 dark:text-zinc-300 dark:bg-zinc-700') }}">
                                                     {{ $diff > 0 ? '+' : '' }}{{ $diff }}
                                                 </span>
                                                 </td>
@@ -64,8 +64,8 @@
                         @endforeach
                     @endforeach
                 @else
-                    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
-                        <svg class="mx-auto h-12 w-12 text-gray-300 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                        <svg class="mx-auto h-12 w-12 text-zinc-300 dark:text-zinc-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         <p>No hay datos disponibles para el turno anterior</p>
@@ -75,8 +75,8 @@
         </div>
 
         <!-- Columna derecha - Turno actual -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/50">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 bg-blue-50 dark:bg-blue-900/50">
                 @if($currentData && $currentData->isNotEmpty())
                     @foreach($currentData as $plannedDate => $shifts)
                         @foreach($shifts as $shiftName => $records)
@@ -84,8 +84,8 @@
                                 <h2 class="text-xl font-bold text-blue-800 dark:text-blue-200">Turno Actual</h2>
                                 <div class="flex flex-wrap gap-2 text-sm font-medium">
                                     <span class="bg-blue-600 dark:bg-blue-500 text-white px-3 py-1 rounded-full uppercase">{{ $workCenter->name }}</span>
-                                    <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $plannedDate }}</span>
-                                    <span class="bg-gray-600 dark:bg-gray-500 text-white px-3 py-1 rounded-full">{{ $shiftName }}</span>
+                                    <span class="bg-zinc-600 dark:bg-zinc-600 text-white px-3 py-1 rounded-full">{{ $plannedDate }}</span>
+                                    <span class="bg-zinc-600 dark:bg-zinc-600 text-white px-3 py-1 rounded-full">{{ $shiftName }}</span>
                                 </div>
                             </div>
                         @endforeach
@@ -98,10 +98,10 @@
                 @if($currentData && $currentData->isNotEmpty())
                     @foreach($currentData as $plannedDate => $shifts)
                         @foreach($shifts as $shiftName => $records)
-                            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-sm overflow-hidden">
+                            <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-sm overflow-hidden">
                                 <div class="overflow-x-auto">
                                     <table class="min-w-full text-sm">
-                                        <thead class="bg-gray-200 dark:bg-gray-700 text-xs uppercase text-gray-700 dark:text-gray-300">
+                                        <thead class="bg-zinc-200 dark:bg-zinc-800 text-xs uppercase text-zinc-700 dark:text-zinc-300">
                                         <tr>
                                             <th class="px-4 py-3 text-left font-semibold">Número de Orden</th>
                                             <th class="px-4 py-3 text-left font-semibold">Número de Parte</th>
@@ -110,22 +110,22 @@
                                             <th class="px-4 py-3 text-center font-semibold">Diferencia</th>
                                         </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-gray-200 dark:divide-gray-600">
+                                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                                             @foreach($records as $record)
                                                 <tr class="{{ $record['status_row_class'] }} transition-colors">
                                                     <td class="px-4 py-3">
                                                         <span class="inline-flex items-center gap-2">
                                                             <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $record['status_dot_class'] }}" title="{{ $record['status'] }}"></span>
-                                                            <span class="text-gray-800 dark:text-gray-200 font-medium">{{ $record['order_number'] }}</span>
+                                                            <span class="text-zinc-800 dark:text-zinc-200 font-medium">{{ $record['order_number'] }}</span>
                                                         </span>
                                                     </td>
-                                                    <td class="px-4 py-3 text-gray-800 dark:text-gray-200 font-medium">{{ $record['part_number'] }}</td>
-                                                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ $record['planned_quantity'] }}</td>
-                                                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ $record['produced_quantity'] }}</td>
+                                                    <td class="px-4 py-3 text-zinc-800 dark:text-zinc-200 font-medium">{{ $record['part_number'] }}</td>
+                                                    <td class="px-4 py-3 text-center text-zinc-700 dark:text-zinc-300">{{ $record['planned_quantity'] }}</td>
+                                                    <td class="px-4 py-3 text-center text-zinc-700 dark:text-zinc-300">{{ $record['produced_quantity'] }}</td>
                                                     <td class="px-4 py-3 text-center">
                                                         @php $diff = $record['difference']; @endphp
                                                         <span class="px-2 py-1 rounded-full font-semibold text-xs
-                                                        {{ $diff < 0 ? 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/50' : ($diff > 0 ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/50' : 'text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-600') }}">
+                                                        {{ $diff < 0 ? 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/50' : ($diff > 0 ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/50' : 'text-zinc-700 bg-zinc-100 dark:text-zinc-300 dark:bg-zinc-700') }}">
                                                         {{ $diff > 0 ? '+' : '' }}{{ $diff }}
                                                     </span>
                                                     </td>
@@ -138,8 +138,8 @@
                         @endforeach
                     @endforeach
                 @else
-                    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
-                        <svg class="mx-auto h-12 w-12 text-gray-300 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                        <svg class="mx-auto h-12 w-12 text-zinc-300 dark:text-zinc-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         <p>No hay datos disponibles para el turno actual</p>

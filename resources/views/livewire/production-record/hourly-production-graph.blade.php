@@ -6,7 +6,7 @@
                 <div class="bg-white shadow-lg rounded-lg overflow-hidden">
                     <div class="p-6">
                         <div class="chart-wrapper mb-5">
-                            <h3 class="text-center text-2xl font-semibold text-gray-800 uppercase">
+                            <h3 class="text-center text-2xl font-semibold text-zinc-800 uppercase">
                                 {{ $chart['work_name'] }} - {{ $chart['part_number'] }}
                             </h3>
                             <div class="w-full h-96">

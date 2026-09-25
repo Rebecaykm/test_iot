@@ -1,5 +1,5 @@
 <div class="w-full">
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
 
         {{-- Chart --}}
         <div x-data="productionChart" wire:ignore class="px-4 py-5 sm:px-6">
@@ -41,17 +41,17 @@
                     const isDark = document.documentElement.classList.contains('dark');
 
                     const colors = {
-                        text:       isDark ? '#e5e7eb' : '#374151',
-                        textMuted:  isDark ? '#9ca3af' : '#6b7280',
-                        grid:       isDark ? 'rgba(75,85,99,0.25)' : 'rgba(0,0,0,0.06)',
-                        tooltipBg:  isDark ? 'rgba(17,24,39,0.95)' : 'rgba(255,255,255,0.97)',
-                        tooltipBorder: isDark ? '#374151' : '#e5e7eb',
+                        text:       isDark ? '#e4e4e7' : '#3f3f46',
+                        textMuted:  isDark ? '#a1a1aa' : '#71717a',
+                        grid:       isDark ? 'rgba(82,82,91,0.25)' : 'rgba(0,0,0,0.06)',
+                        tooltipBg:  isDark ? 'rgba(24,24,27,0.95)' : 'rgba(255,255,255,0.97)',
+                        tooltipBorder: isDark ? '#3f3f46' : '#e4e4e7',
 
-                        planLine:   isDark ? '#93c5fd' : '#2563eb',
-                        planPoint:  isDark ? '#60a5fa' : '#1d4ed8',
+                        planLine:   isDark ? '#3b82f6' : '#2563eb',
+                        planPoint:  isDark ? '#3b82f6' : '#1d4ed8',
 
-                        realFill:   isDark ? 'rgba(52,211,153,0.35)' : 'rgba(16,185,129,0.15)',
-                        realBorder: isDark ? '#34d399' : '#059669',
+                        realFill:   isDark ? 'rgba(16,185,129,0.35)' : 'rgba(16,185,129,0.15)',
+                        realBorder: isDark ? '#059669' : '#059669',
 
                         shortFill:   isDark ? 'rgba(248,113,113,0.35)' : 'rgba(239,68,68,0.15)',
                         shortBorder: isDark ? '#f87171' : '#dc2626',
@@ -73,7 +73,7 @@
                                     data: pData,
                                     borderColor: colors.planLine,
                                     pointBackgroundColor: colors.planPoint,
-                                    pointBorderColor: isDark ? '#1e293b' : '#ffffff',
+                                    pointBorderColor: isDark ? '#18181b' : '#ffffff',
                                     pointBorderWidth: 2,
                                     borderWidth: 2.5,
                                     pointRadius: 5,

@@ -14,7 +14,7 @@
     <button
         @click="toggleTheme()"
         type="button"
-        class="flex items-center justify-center h-11 w-11 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl text-gray-600 dark:text-gray-300 transition-all"
+        class="flex items-center justify-center h-11 w-11 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg hover:shadow-xl text-zinc-600 dark:text-zinc-300 transition-all"
         :aria-label="dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
         :title="dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
     >

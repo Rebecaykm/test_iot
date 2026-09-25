@@ -34,7 +34,7 @@
         <!-- Styles -->
         @livewireStyles
     </head>
-    <body class="font-sans antialiased bg-gray-50">
+    <body class="font-sans antialiased bg-zinc-50">
         <x-banner />
 
         <div class="min-h-screen">

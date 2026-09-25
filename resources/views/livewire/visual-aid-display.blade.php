@@ -1,25 +1,25 @@
 <div>
-    <div x-data="display" class="h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div x-data="display" class="h-screen bg-zinc-50 flex items-center justify-center p-4">
         <div class="w-full h-full flex items-center justify-center">
 
             {{-- ✅ ESTADO 1: Hay ayuda visual activa --}}
             @if($visualAidPath)
                 <div class="relative w-full h-full flex flex-col">
                     {{-- Header con info del part number --}}
-                    <div class="flex items-center justify-between bg-white border-b border-gray-200 px-6 py-3 shadow-sm">
+                    <div class="flex items-center justify-between bg-white border-b border-zinc-200 px-6 py-3 shadow-sm">
                         <div class="flex items-center space-x-3">
                             <span class="flex h-3 w-3">
                                 <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-green-400 opacity-75"></span>
                                 <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                             </span>
                             <div>
-                                <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Número de Parte en Producción</p>
-                                <p class="text-lg font-bold text-gray-800">{{ $currentPartNumber ?? '—' }}</p>
+                                <p class="text-xs text-zinc-500 uppercase tracking-wide font-medium">Número de Parte en Producción</p>
+                                <p class="text-lg font-bold text-zinc-800">{{ $currentPartNumber ?? '—' }}</p>
                             </div>
                         </div>
                         <div class="text-right">
-                            <p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Estación</p>
-                            <p class="text-lg font-bold text-gray-800">{{ $workCenter }}</p>
+                            <p class="text-xs text-zinc-500 uppercase tracking-wide font-medium">Estación</p>
+                            <p class="text-lg font-bold text-zinc-800">{{ $workCenter }}</p>
                         </div>
                     </div>
 
@@ -51,11 +51,11 @@
                     </div>
 
                     <div class="space-y-2">
-                        <h2 class="text-2xl font-bold text-gray-800">
+                        <h2 class="text-2xl font-bold text-zinc-800">
                             Ayuda Visual No Disponible
                         </h2>
-                        <p class="text-gray-600 text-base leading-relaxed">
-                            La estación <span class="font-semibold text-gray-800">{{ $workCenter }}</span>
+                        <p class="text-zinc-600 text-base leading-relaxed">
+                            La estación <span class="font-semibold text-zinc-800">{{ $workCenter }}</span>
                             se encuentra en producción con el número de parte
                             <span class="font-semibold text-amber-600">{{ $currentPartNumber ?? '—' }}</span>,
                             pero no tiene una ayuda visual activa asignada.
@@ -78,19 +78,19 @@
             {{-- 🔴 ESTADO 3: No hay producción activa en esta estación --}}
             @else
                 <div class="flex flex-col items-center justify-center space-y-6 max-w-lg text-center px-8">
-                    <div class="w-28 h-28 rounded-full bg-gray-100 flex items-center justify-center">
-                        <svg class="w-14 h-14 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-28 h-28 rounded-full bg-zinc-100 flex items-center justify-center">
+                        <svg class="w-14 h-14 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                   d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z"/>
                         </svg>
                     </div>
 
                     <div class="space-y-2">
-                        <h2 class="text-2xl font-bold text-gray-700">
+                        <h2 class="text-2xl font-bold text-zinc-700">
                             Estación Sin Producción Activa
                         </h2>
-                        <p class="text-gray-500 text-base leading-relaxed">
-                            La estación <span class="font-semibold text-gray-700">{{ $workCenter }}</span>
+                        <p class="text-zinc-500 text-base leading-relaxed">
+                            La estación <span class="font-semibold text-zinc-700">{{ $workCenter }}</span>
                             no tiene ningún número de parte en proceso para el turno actual.
                         </p>
                     </div>

@@ -1,4 +1,4 @@
-<div class="w-full h-full bg-gray-100">
+<div class="w-full h-full bg-zinc-100">
     <div class="flex flex-col w-full h-full">
         <!-- Contenedor con scroll -->
         <div id="map-container" class="flex-1 relative overflow-auto cursor-grab">
@@ -19,7 +19,7 @@
                     <button wire:click="zoomOut" class="px-3 py-2 bg-blue-500 text-white rounded">
                         <i class="fas fa-search-minus"></i>
                     </button>
-                    <button wire:click="resetView" class="px-3 py-2 bg-gray-500 text-white rounded">
+                    <button wire:click="resetView" class="px-3 py-2 bg-zinc-500 text-white rounded">
                         <i class="fas fa-expand"></i>
                     </button>
                 </div>
@@ -56,7 +56,7 @@
                         <div class="font-bold truncate my-1">{{ $workCenter->name }}</div>
 
                         <!-- Nombre de la línea (donde antes estaba el número) -->
-                        <div class="text-gray-600 my-1 text-xs truncate">{{ $workCenter->line->name ?? 'Sin línea' }}</div>
+                        <div class="text-zinc-600 my-1 text-xs truncate">{{ $workCenter->line->name ?? 'Sin línea' }}</div>
 
                         <!-- Estado de producción (donde antes estaba el nombre de la línea) -->
                         <div class="mt-auto">

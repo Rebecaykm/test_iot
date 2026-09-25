@@ -4,13 +4,13 @@
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white shadow-md rounded-lg overflow-hidden">
                     <div class="px-6 py-4 border-b">
-                        <h1 class="text-2xl font-semibold text-gray-800">Números de Parte</h1>
+                        <h1 class="text-2xl font-semibold text-zinc-800">Números de Parte</h1>
                     </div>
 
                     <div class="overflow-x-auto">
                         <!-- Tabla -->
                         <table class="min-w-full table-auto">
-                            <thead class="bg-gray-100 text-gray-600">
+                            <thead class="bg-zinc-100 text-zinc-600">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-sm font-medium">Número</th>
                                     <th class="px-6 py-3 text-left text-sm font-medium">Nombre</th>
@@ -19,9 +19,9 @@
                                     <th class="px-6 py-3 text-left text-sm font-medium">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody class="text-sm text-gray-700">
+                            <tbody class="text-sm text-zinc-700">
                                 @foreach ($partNumbers as $partNumber)
-                                <tr class="border-t hover:bg-gray-50">
+                                <tr class="border-t hover:bg-zinc-50">
                                     <td class="px-6 py-3">{{ $partNumber->number }}</td>
                                     <td class="px-6 py-3">{{ $partNumber->name }}</td>
                                     <td class="px-6 py-3">{{ $partNumber->workCenter->name ?? 'N/A' }}</td>

@@ -1,10 +1,10 @@
 <div class="w-full h-full">
-    <div class="bg-white dark:bg-gray-800 rounded-xl border-2 border-blue-500/50 dark:border-blue-400/50 shadow-sm overflow-hidden flex flex-col">
+    <div class="bg-white dark:bg-zinc-900 rounded-xl border-2 border-blue-500/50 dark:border-blue-400/50 shadow-sm overflow-hidden flex flex-col">
 
         {{-- Encabezado: estación a la izquierda; filtros y menú en la esquina derecha --}}
-        <div class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-600 flex-shrink-0">
+        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
             <div class="flex items-center justify-between gap-2">
-                <h1 class="text-xl font-bold text-gray-800 dark:text-white flex items-center">
+                <h1 class="text-xl font-bold text-zinc-800 dark:text-white flex items-center">
                     <span class="w-2.5 h-2.5 bg-blue-500 rounded-full inline-block mr-2.5"></span>
                     {{ $workCenter }}
                 </h1>
@@ -12,11 +12,11 @@
                     {{-- Calendario (date picker) --}}
                     <div x-data="pressDatePicker(@js($selectedDate))" @click.away="open = false" class="relative">
                         <button @click="open = !open" type="button"
-                            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-sm hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                             </svg>
-                            <span x-text="label" class="text-gray-700 dark:text-gray-200 font-medium capitalize"></span>
+                            <span x-text="label" class="text-zinc-700 dark:text-zinc-200 font-medium capitalize"></span>
                         </button>
 
                         <div x-show="open"
@@ -26,20 +26,20 @@
                             x-transition:leave="transition ease-in duration-75"
                             x-transition:leave-start="transform opacity-100 scale-100"
                             x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 mt-1.5 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 p-3"
+                            class="absolute right-0 mt-1.5 w-72 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 z-50 p-3"
                             style="display: none;">
                             {{-- Navegación de mes --}}
                             <div class="flex items-center justify-between mb-2">
-                                <button type="button" @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300">
+                                <button type="button" @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-300">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                                 </button>
-                                <span x-text="monthLabel" class="text-sm font-semibold text-gray-700 dark:text-gray-200 capitalize"></span>
-                                <button type="button" @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300">
+                                <span x-text="monthLabel" class="text-sm font-semibold text-zinc-700 dark:text-zinc-200 capitalize"></span>
+                                <button type="button" @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-300">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                                 </button>
                             </div>
                             {{-- Días de la semana --}}
-                            <div class="grid grid-cols-7 gap-1 mb-1 text-center text-xs font-medium text-gray-400 dark:text-gray-500">
+                            <div class="grid grid-cols-7 gap-1 mb-1 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
                                 <template x-for="d in ['Do','Lu','Ma','Mi','Ju','Vi','Sa']" :key="d"><span x-text="d"></span></template>
                             </div>
                             {{-- Días del mes --}}
@@ -49,9 +49,9 @@
                                         :class="{
                                             'invisible': !d,
                                             'bg-blue-600 text-white font-semibold': isSelected(d),
-                                            'text-gray-300 dark:text-gray-600 cursor-not-allowed': d && isFuture(d),
-                                            'ring-1 ring-blue-400 text-gray-700 dark:text-gray-200': isToday(d) && !isSelected(d),
-                                            'hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200': d && !isFuture(d) && !isSelected(d) && !isToday(d)
+                                            'text-zinc-300 dark:text-zinc-500 cursor-not-allowed': d && isFuture(d),
+                                            'ring-1 ring-blue-400 text-zinc-700 dark:text-zinc-200': isToday(d) && !isSelected(d),
+                                            'hover:bg-blue-50 dark:hover:bg-blue-900/30 text-zinc-700 dark:text-zinc-200': d && !isFuture(d) && !isSelected(d) && !isToday(d)
                                         }"
                                         class="h-8 w-8 rounded-lg text-sm flex items-center justify-center transition-colors"></button>
                                 </template>
@@ -61,7 +61,7 @@
 
                     {{-- Select de turnos --}}
                     <select wire:model.live="selectedShiftId"
-                        class="pl-2.5 pr-8 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer">
+                        class="pl-2.5 pr-8 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-sm text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer">
                         @foreach($shiftOptions as $opt)
                             <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
                         @endforeach
@@ -70,8 +70,8 @@
                     {{-- Menú de tres puntos junto a los filtros --}}
                     <div class="relative" x-data="{ open: false }">
                         <button @click="open = !open" @click.away="open = false"
-                            class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                            class="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
                                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                             </svg>
                         </button>
@@ -83,12 +83,12 @@
                             x-transition:leave="transition ease-in duration-75"
                             x-transition:leave-start="transform opacity-100 scale-100"
                             x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+                            class="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 py-1 z-50"
                             style="display: none;">
 
                             <a href="{{ url('/') }}"
-                                class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
                                     <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                                 </svg>
                                 <span>Inicio</span>
@@ -101,8 +101,8 @@
 
                             @if($workCenterId)
                                 <a href="{{ route('guest.production-records', $workCenterId) }}"
-                                    class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                    class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
                                     </svg>
                                     <span>Detalles de Producción</span>
@@ -110,28 +110,28 @@
                             @endif
 
                             <a href="{{ route('press-production', $workCenter) }}"
-                                class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
                                     <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                                 </svg>
                                 <span>Gráfica de Producción</span>
                             </a>
 
-                            <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                            <div class="border-t border-zinc-200 dark:border-zinc-800 my-1"></div>
 
                             @if (Route::has('login'))
                                 @auth
                                     <a href="{{ url('/home') }}"
-                                        class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                        class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clip-rule="evenodd" />
                                         </svg>
                                         <span>Panel Administrativo</span>
                                     </a>
                                 @else
                                     <a href="{{ route('login') }}"
-                                        class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-600 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                        class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clip-rule="evenodd" />
                                         </svg>
                                         <span>Iniciar Sesión</span>
@@ -150,7 +150,7 @@
                 <canvas id="{{ $chartId }}"></canvas>
             </div>
             <p x-show="isEmpty" x-cloak
-               class="text-center py-8 text-gray-500 dark:text-gray-400">
+               class="text-center py-8 text-zinc-500 dark:text-zinc-400">
                 No hay producción registrada en este turno.
             </p>
 
@@ -159,20 +159,20 @@
                 x-transition:enter="transition ease-out duration-100"
                 x-transition:enter-start="transform opacity-0 scale-95"
                 x-transition:enter-end="transform opacity-100 scale-100"
-                class="fixed z-40 w-80 max-w-[85vw] bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden"
+                class="fixed z-40 w-80 max-w-[85vw] bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 flex flex-col overflow-hidden"
                 :style="`top: ${noteTop}px; left: ${noteLeft}px;`">
 
-                <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40">
+                <div class="flex items-center justify-between px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
                     <div class="flex items-center gap-1.5 min-w-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.447.894L10 15.118l-4.553 1.776A1 1 0 014 16V4zm2 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
                         </svg>
-                        <span class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+                        <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">
                             Notas · {{ $openNoteMdi }}
                         </span>
                     </div>
                     <button type="button" wire:click="closeNotes" @click="noteOpen = false"
-                        class="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex-shrink-0">
+                        class="p-1 rounded-full text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -180,27 +180,27 @@
                 </div>
 
                 {{-- Lista de notas existentes: ~2 visibles, el resto con scroll --}}
-                <div class="max-h-32 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                <div class="max-h-32 overflow-y-auto divide-y divide-zinc-200 dark:divide-zinc-800">
                     @forelse(($openNoteMdi ? ($notesByMdi[$openNoteMdi] ?? []) : []) as $note)
                         <div class="px-3 py-2 text-xs">
                             <div class="flex items-center justify-end mb-0.5">
-                                <span class="text-gray-400 dark:text-gray-500">
+                                <span class="text-zinc-500 dark:text-zinc-400">
                                     {{ $note->created_at->format('d-m H:i') }}
                                 </span>
                             </div>
-                            <p class="text-gray-700 dark:text-gray-200 whitespace-pre-line break-words">{{ $note->body }}</p>
+                            <p class="text-zinc-700 dark:text-zinc-200 whitespace-pre-line break-words">{{ $note->body }}</p>
                         </div>
                     @empty
-                        <p class="px-3 py-3 text-xs text-gray-400 dark:text-gray-500 text-center">
+                        <p class="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-400 text-center">
                             Sin notas para este MDI en este turno.
                         </p>
                     @endforelse
                 </div>
 
                 {{-- Nueva nota --}}
-                <div class="p-2.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/20 space-y-1.5">
+                <div class="p-2.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-950/20 space-y-1.5">
                     <textarea wire:model="noteDraft" rows="2" placeholder="Escribe tu nota aquí..."
-                        class="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                        class="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
                     @error('noteDraft')
                         <p class="text-xs text-red-500">{{ $message }}</p>
                     @enderror
@@ -215,7 +215,7 @@
         </div>
 
         {{-- Pie: última actualización / histórico --}}
-        <div class="px-6 py-2.5 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+        <div class="px-6 py-2.5 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">
             <span>Golpes por MDI</span>
 
             <span>
@@ -310,13 +310,13 @@
                     good: { fill: 'rgba(52,211,153,0.20)', border: '#34d399', text: '#34d399', rowFill: 'rgba(52,211,153,0.18)' },
                     mid:  { fill: 'rgba(251,191,36,0.20)', border: '#fbbf24', text: '#fbbf24', rowFill: 'rgba(251,191,36,0.18)' },
                     bad:  { fill: 'rgba(248,113,113,0.20)', border: '#f87171', text: '#f87171', rowFill: 'rgba(248,113,113,0.18)' },
-                    none: { fill: 'rgba(156,163,175,0.20)', border: '#9ca3af', text: '#e5e7eb', rowFill: 'rgba(156,163,175,0.14)' },
+                    none: { fill: 'rgba(161,161,170,0.20)', border: '#a1a1aa', text: '#e4e4e7', rowFill: 'rgba(161,161,170,0.14)' },
                 }
                 : {
                     good: { fill: 'rgba(16,185,129,0.15)', border: '#059669', text: '#059669', rowFill: 'rgba(16,185,129,0.14)' },
                     mid:  { fill: 'rgba(245,158,11,0.15)', border: '#d97706', text: '#d97706', rowFill: 'rgba(245,158,11,0.14)' },
                     bad:  { fill: 'rgba(239,68,68,0.15)', border: '#dc2626', text: '#dc2626', rowFill: 'rgba(239,68,68,0.14)' },
-                    none: { fill: 'rgba(107,114,128,0.15)', border: '#6b7280', text: '#374151', rowFill: 'rgba(107,114,128,0.10)' },
+                    none: { fill: 'rgba(113,113,122,0.15)', border: '#71717a', text: '#3f3f46', rowFill: 'rgba(113,113,122,0.10)' },
                 };
 
             const statusOf = (s) => statusColors()[s] || statusColors().none;
@@ -427,13 +427,13 @@
                     const dark = isDark();
 
                     const colors = {
-                        text:          dark ? '#e5e7eb' : '#374151',
-                        textMuted:     dark ? '#9ca3af' : '#6b7280',
-                        grid:          dark ? 'rgba(75,85,99,0.30)' : 'rgba(0,0,0,0.08)',
-                        tooltipBg:     dark ? 'rgba(17,24,39,0.95)' : 'rgba(255,255,255,0.97)',
-                        tooltipBorder: dark ? '#374151' : '#e5e7eb',
+                        text:          dark ? '#e4e4e7' : '#3f3f46',
+                        textMuted:     dark ? '#a1a1aa' : '#71717a',
+                        grid:          dark ? 'rgba(82,82,91,0.30)' : 'rgba(0,0,0,0.08)',
+                        tooltipBg:     dark ? 'rgba(24,24,27,0.95)' : 'rgba(255,255,255,0.97)',
+                        tooltipBorder: dark ? '#3f3f46' : '#e4e4e7',
                         planFill:      dark ? 'rgba(59,130,246,0.20)' : 'rgba(37,99,235,0.15)',
-                        planBorder:    dark ? '#60a5fa' : '#2563eb',
+                        planBorder:    dark ? '#3b82f6' : '#2563eb',
                     };
 
                     // Línea "Ahora": azul rey, distinta del azul del plan y del verde/rojo del real
@@ -516,7 +516,7 @@
                                     // Halo de contraste detrás del número para que se lea completo
                                     // aunque se salga de la barra o quede sobre el recuadro de fondo.
                                     ctx.lineWidth = 3.5;
-                                    ctx.strokeStyle = isDark() ? 'rgba(17,24,39,0.9)' : 'rgba(255,255,255,0.95)';
+                                    ctx.strokeStyle = isDark() ? 'rgba(24,24,27,0.9)' : 'rgba(255,255,255,0.95)';
                                     ctx.strokeText(text, cx, el.y);
 
                                     ctx.fillStyle = color;
@@ -630,7 +630,7 @@
                                         },
                                     },
                                     // Cuadrícula horizontal más marcada: separa mejor la fila de cada MDI
-                                    grid: { display: true, color: dark ? 'rgba(148,163,184,0.35)' : 'rgba(55,65,81,0.22)', lineWidth: 1.5, offset: true },
+                                    grid: { display: true, color: dark ? 'rgba(148,163,184,0.35)' : 'rgba(63,63,70,0.22)', lineWidth: 1.5, offset: true },
                                     border: { display: false }
                                 }
                             },

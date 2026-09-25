@@ -1,14 +1,14 @@
 <div>
     <div class="w-full" x-data="productionChart">
-        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
             @if (!$hasData)
                 <div class="flex items-center justify-center p-8 h-[450px]">
                     <div class="text-center">
-                        <svg class="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="mx-auto h-16 w-16 text-zinc-300 dark:text-zinc-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">No hay datos de producción</h3>
-                        <p class="text-gray-500 dark:text-gray-400">No se encontraron registros para mostrar</p>
+                        <h3 class="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-1">No hay datos de producción</h3>
+                        <p class="text-zinc-500 dark:text-zinc-400">No se encontraron registros para mostrar</p>
                     </div>
                 </div>
             @else
@@ -123,7 +123,7 @@
                                         datalabels: {
                                             anchor: 'start',
                                             align: 'center',
-                                            color: isDarkMode ? '#f9fafb' : '#000',
+                                            color: isDarkMode ? '#fafafa' : '#000',
                                             font: {
                                                 weight: 'bold',
                                                 size: 16
@@ -136,7 +136,7 @@
                                             display: true,
                                             position: 'top',
                                             labels: {
-                                                color: isDarkMode ? '#e5e7eb' : '#374151',
+                                                color: isDarkMode ? '#e4e4e7' : '#3f3f46',
                                                 font: {
                                                     size: 14,
                                                     weight: 'bold'
@@ -149,13 +149,13 @@
                                             beginAtZero: true,
                                             grid: {
                                                 drawBorder: false,
-                                                color: isDarkMode ? 'rgba(75, 85, 99, 0.3)' : 'rgba(0, 0, 0, 0.05)'
+                                                color: isDarkMode ? 'rgba(82,82,91, 0.3)' : 'rgba(0, 0, 0, 0.05)'
                                             },
                                             ticks: {
                                                 font: {
                                                     weight: 'bold'
                                                 },
-                                                color: isDarkMode ? '#9ca3af' : '#6b7280'
+                                                color: isDarkMode ? '#a1a1aa' : '#71717a'
                                             }
                                         },
                                         y: {
@@ -167,7 +167,7 @@
                                                 font: {
                                                     weight: 'bold'
                                                 },
-                                                color: isDarkMode ? '#9ca3af' : '#6b7280',
+                                                color: isDarkMode ? '#a1a1aa' : '#71717a',
                                                 maxRotation: 90,
                                                 minRotation: 90,
                                             }

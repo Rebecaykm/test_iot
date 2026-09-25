@@ -2,7 +2,7 @@
     <div class="container mx-auto p-4">
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-                <h1 class="text-2xl font-bold text-gray-800">Mapa de Estaciones de Trabajo</h1>
+                <h1 class="text-2xl font-bold text-zinc-800">Mapa de Estaciones de Trabajo</h1>
 
                 <div class="flex flex-col sm:flex-row gap-4">
                     <select wire:model="selectedLine"
@@ -26,13 +26,13 @@
                 </div>
             </div>
 
-            <div class="relative border-2 border-gray-300 bg-gray-50 overflow-hidden rounded-lg"
+            <div class="relative border-2 border-zinc-300 bg-zinc-50 overflow-hidden rounded-lg"
                  style="width: 100%; height: 70vh; min-height: 500px;"
                  id="plant-container">
                 <!-- Grid de fondo -->
                 <div class="absolute inset-0 bg-grid" style="
-                    background-image: linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                                      linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+                    background-image: linear-gradient(to right, #e4e4e7 1px, transparent 1px),
+                                      linear-gradient(to bottom, #e4e4e7 1px, transparent 1px);
                     background-size: 40px 40px;
                     opacity: 0.3;
                 "></div>
@@ -50,11 +50,11 @@
                             data-id="{{ $workCenter->id }}"
                             wire:key="workcenter-{{ $workCenter->id }}"
                         >
-                            <div class="font-bold text-md text-center text-gray-800">{{ $workCenter->name }}</div>
-                            <div class="text-xs text-bold text-gray-600 truncate">{{ $workCenter->number }}</div>
+                            <div class="font-bold text-md text-center text-zinc-800">{{ $workCenter->name }}</div>
+                            <div class="text-xs text-bold text-zinc-600 truncate">{{ $workCenter->number }}</div>
                             @if($workCenter->line)
                                 <div class="text-xs mt-1 px-1 py-0.5 rounded text-white text-center"
-                                     style="background-color: {{ $workCenter->line->color ?? '#6b7280' }}">
+                                     style="background-color: {{ $workCenter->line->color ?? '#71717a' }}">
                                     {{ $workCenter->line->name }}
                                 </div>
                             @endif

@@ -1,18 +1,18 @@
 <div class="w-full h-full">
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col">
 
         {{-- Encabezado --}}
-        <div class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-600 flex-shrink-0">
+        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
             <div class="flex items-center justify-end gap-2">
                 <div class="flex items-center gap-2">
                     {{-- Calendario (date picker) --}}
                     <div x-data="datePicker(@js($selectedDate))" @click.away="open = false" class="relative">
                         <button @click="open = !open" type="button"
-                            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-sm hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                             </svg>
-                            <span x-text="label" class="text-gray-700 dark:text-gray-200 font-medium capitalize"></span>
+                            <span x-text="label" class="text-zinc-700 dark:text-zinc-200 font-medium capitalize"></span>
                         </button>
 
                         <div x-show="open"
@@ -22,20 +22,20 @@
                             x-transition:leave="transition ease-in duration-75"
                             x-transition:leave-start="transform opacity-100 scale-100"
                             x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 mt-1.5 w-72 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 p-3"
+                            class="absolute right-0 mt-1.5 w-72 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 z-50 p-3"
                             style="display: none;">
                             {{-- Navegación de mes --}}
                             <div class="flex items-center justify-between mb-2">
-                                <button type="button" @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300">
+                                <button type="button" @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-300">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                                 </button>
-                                <span x-text="monthLabel" class="text-sm font-semibold text-gray-700 dark:text-gray-200 capitalize"></span>
-                                <button type="button" @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300">
+                                <span x-text="monthLabel" class="text-sm font-semibold text-zinc-700 dark:text-zinc-200 capitalize"></span>
+                                <button type="button" @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-300">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                                 </button>
                             </div>
                             {{-- Días de la semana --}}
-                            <div class="grid grid-cols-7 gap-1 mb-1 text-center text-xs font-medium text-gray-400 dark:text-gray-500">
+                            <div class="grid grid-cols-7 gap-1 mb-1 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
                                 <template x-for="d in ['Do','Lu','Ma','Mi','Ju','Vi','Sa']" :key="d"><span x-text="d"></span></template>
                             </div>
                             {{-- Días del mes --}}
@@ -45,9 +45,9 @@
                                         :class="{
                                             'invisible': !d,
                                             'bg-blue-600 text-white font-semibold': isSelected(d),
-                                            'text-gray-300 dark:text-gray-600 cursor-not-allowed': d && isFuture(d),
-                                            'ring-1 ring-blue-400 text-gray-700 dark:text-gray-200': isToday(d) && !isSelected(d),
-                                            'hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-700 dark:text-gray-200': d && !isFuture(d) && !isSelected(d) && !isToday(d)
+                                            'text-zinc-300 dark:text-zinc-500 cursor-not-allowed': d && isFuture(d),
+                                            'ring-1 ring-blue-400 text-zinc-700 dark:text-zinc-200': isToday(d) && !isSelected(d),
+                                            'hover:bg-blue-50 dark:hover:bg-blue-900/30 text-zinc-700 dark:text-zinc-200': d && !isFuture(d) && !isSelected(d) && !isToday(d)
                                         }"
                                         class="h-8 w-8 rounded-lg text-sm flex items-center justify-center transition-colors"></button>
                                 </template>
@@ -57,7 +57,7 @@
 
                     {{-- Select de turnos --}}
                     <select wire:model.live="selectedShiftId"
-                        class="pl-2.5 pr-8 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer">
+                        class="pl-2.5 pr-8 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-sm text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer">
                         @foreach($shiftOptions as $opt)
                             <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
                         @endforeach
@@ -72,13 +72,13 @@
                 <canvas id="{{ $chartId }}"></canvas>
             </div>
             <p x-show="isEmpty" x-cloak
-               class="text-center py-8 text-gray-500 dark:text-gray-400">
+               class="text-center py-8 text-zinc-500 dark:text-zinc-400">
                 No hay producción registrada en este turno.
             </p>
         </div>
 
         {{-- Pie: leyenda "Real" (izquierda) y última actualización / histórico (derecha) --}}
-        <div class="px-6 py-2.5 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+        <div class="px-6 py-2.5 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">
             {{-- La leyenda Plan/Real ahora vive dentro de la gráfica (interactiva) --}}
             <span></span>
 
@@ -192,22 +192,22 @@
                     const isDark = document.documentElement.classList.contains('dark');
 
                     const colors = {
-                        text:          isDark ? '#e5e7eb' : '#374151',
-                        textMuted:     isDark ? '#9ca3af' : '#6b7280',
-                        grid:          isDark ? 'rgba(75,85,99,0.25)' : 'rgba(0,0,0,0.06)',
-                        tooltipBg:     isDark ? 'rgba(17,24,39,0.95)' : 'rgba(255,255,255,0.97)',
-                        tooltipBorder: isDark ? '#374151' : '#e5e7eb',
-                        barFill:       isDark ? 'rgba(52,211,153,0.18)' : 'rgba(16,185,129,0.15)',
-                        barBorder:     isDark ? '#34d399' : '#059669',
-                        planFill:      isDark ? 'rgba(59,130,246,0.18)' : 'rgba(37,99,235,0.15)',
-                        planBorder:    isDark ? '#60a5fa' : '#2563eb',
-                        label:         isDark ? '#ffffff' : '#111827',
+                        text:          isDark ? '#e4e4e7' : '#3f3f46',
+                        textMuted:     isDark ? '#a1a1aa' : '#71717a',
+                        grid:          isDark ? 'rgba(82,82,91,0.25)' : 'rgba(0,0,0,0.06)',
+                        tooltipBg:     isDark ? 'rgba(24,24,27,0.95)' : 'rgba(255,255,255,0.97)',
+                        tooltipBorder: isDark ? '#3f3f46' : '#e4e4e7',
+                        barFill:       isDark ? 'rgba(16,185,129,0.22)' : 'rgba(16,185,129,0.15)',
+                        barBorder:     isDark ? '#059669' : '#059669',
+                        planFill:      isDark ? 'rgba(59,130,246,0.16)' : 'rgba(37,99,235,0.15)',
+                        planBorder:    isDark ? '#3b82f6' : '#2563eb',
+                        label:         isDark ? '#ffffff' : '#18181b',
                     };
 
                     // Color de la cruz (+) que sigue el cursor: negra en claro, blanca en oscuro
                     const crosshairColor = isDark ? '#ffffff' : '#000000';
                     // Texto de la etiqueta: tonos suaves para no ser tan duros a la vista
-                    const crosshairTextColor = isDark ? '#1f2937' : '#f9fafb';
+                    const crosshairTextColor = isDark ? '#27272a' : '#fafafa';
                     // Línea "Ahora": violeta, agradable y distinto del azul (plan) y verde (real)
                     const nowLineColor = isDark ? '#a78bfa' : '#8b5cf6';
 
