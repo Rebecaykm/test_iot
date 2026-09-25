@@ -6,7 +6,7 @@ use App\Models\ProductionRecord;
 use Carbon\Carbon;
 use Livewire\Component;
 
-class ProductionProgress extends Component
+class WorkCenterProgress extends Component
 {
     public $workCenter;
 
@@ -60,7 +60,7 @@ class ProductionProgress extends Component
             ];
         }
 
-        $records = ProductionRecord::getWeeklyProductionProgress(
+        $records = ProductionRecord::getWorkCenterWeeklyProgress(
             $this->workCenter,
             $start->toDateString(),
             $end->toDateString()
@@ -125,7 +125,7 @@ class ProductionProgress extends Component
 
         $currentWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->toDateString();
 
-        return view('livewire.guest.production-progress', [
+        return view('livewire.guest.work-center-progress', [
             'days' => $days,
             'parts' => $parts,
             'weekLabel' => $start->day . ' ' . $meses[$start->month - 1] . ' – ' . $end->day . ' ' . $meses[$end->month - 1] . ' ' . $end->year,

@@ -388,10 +388,10 @@ class ProductionRecord extends Model
     }
 
     /**
-     * Avance de producción semanal (vista de invitados): solo registros con
+     * Avance de producción semanal de un work center (vista de invitados): solo registros con
      * shop order y cantidad planeada mayor a 0, con el nombre de su estatus.
      */
-    public static function getWeeklyProductionProgress(string $workCenter, $startDate, $endDate): Collection
+    public static function getWorkCenterWeeklyProgress(string $workCenter, $startDate, $endDate): Collection
     {
         return ProductionRecord::query()
             ->select([
@@ -419,6 +419,57 @@ class ProductionRecord extends Model
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.abbreviation', 'asc')
             ->orderBy('part_numbers.number', 'asc')
+            ->get();
+    }
+
+    /**
+     * Avance de producción semanal por línea (vista de invitados): totales por
+     * work center, turno y fecha planeada.
+     *  - plan:       cantidad planeada de los registros con shop order
+     *  - with_order: producido en registros con shop order
+     *  - no_order:   producido en registros sin shop order (acumuladores "Sin Orden")
+     *  - in_progress: > 0 si algún registro del grupo está "En progreso"
+     */
+    public static function getLineWeeklyProgress(array $lineIds, $startDate, $endDate): Collection
+    {
+        $hasOrder = "COALESCE(production_records.shop_order_number, '') <> ''";
+
+        $query = ProductionRecord::query()
+            ->selectRaw("
+                areas.name AS area_name,
+                lines.id AS line_id,
+                lines.name AS line_name,
+                lines.color AS line_color,
+                work_centers.id AS work_center_id,
+                work_centers.name AS work_center_name,
+                shifts.abbreviation AS shift,
+                production_records.planned_date AS planned_date,
+                SUM(CASE WHEN {$hasOrder} THEN production_records.planned_quantity ELSE 0 END) AS [plan],
+                SUM(CASE WHEN {$hasOrder} THEN production_records.produced_quantity ELSE 0 END) AS with_order,
+                SUM(CASE WHEN {$hasOrder} THEN 0 ELSE production_records.produced_quantity END) AS no_order,
+                SUM(CASE WHEN statuses.name = 'En progreso' THEN 1 ELSE 0 END) AS in_progress
+            ")
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->leftJoin('areas', 'lines.area_id', '=', 'areas.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->leftJoin('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->whereBetween('production_records.planned_date', [
+                \Carbon\Carbon::parse($startDate)->toDateString(),
+                \Carbon\Carbon::parse($endDate)->toDateString(),
+            ]);
+
+        if (!empty($lineIds)) {
+            $query->whereIn('lines.id', $lineIds);
+        }
+
+        return $query
+            ->groupBy(
+                'areas.name', 'lines.id', 'lines.name', 'lines.color',
+                'work_centers.id', 'work_centers.name', 'shifts.abbreviation',
+                'production_records.planned_date'
+            )
             ->get();
     }
 

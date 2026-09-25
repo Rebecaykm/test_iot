@@ -153,11 +153,22 @@ Route::get('guest/work-center-dashboard', function () {
     return view('guest.work-center-dashboard');
 });
 
-Route::get('guest/production-progress/{workCenter}', function ($workCenter) {
-    return view('guest.production-progress', [
+// Avance de producción semanal por work center
+Route::get('guest/wc-progress/{workCenter}', function ($workCenter) {
+    return view('guest.work-center-progress', [
         'workCenter' => $workCenter,
     ]);
-})->name('guest.production-progress');
+})->name('guest.work-center-progress');
+
+// Avance de producción semanal por línea (todas las líneas, agrupadas por área)
+Route::get('guest/line-progress', function () {
+    return view('guest.line-progress');
+})->name('guest.line-progress');
+
+// URL anterior: se conserva como redirección para pantallas/enlaces que ya la usan
+Route::get('guest/production-progress/{workCenter}', function ($workCenter) {
+    return redirect()->route('guest.work-center-progress', $workCenter, 301);
+});
 
 Route::get('guest/part-number-relations', function () {
     return view('guest.part-number-relations');

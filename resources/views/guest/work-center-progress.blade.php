@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between flex-shrink-0">
             <h1 class="text-xl font-bold text-zinc-800 dark:text-zinc-50 flex items-center">
                 <span class="w-2.5 h-2.5 bg-[#2563eb] dark:bg-[#3b82f6] rounded-full inline-block mr-2.5"></span>
-                Avance de Producción · {{ $workCenter }}
+                Work Center Production Progress · {{ $workCenter }}
             </h1>
 
             <a href="{{ url('/') }}"
@@ -15,6 +15,6 @@
             </a>
         </div>
 
-        <livewire:guest.production-progress :work-center="$workCenter" />
+        <livewire:guest.work-center-progress :work-center="$workCenter" />
     </div>
 </x-guest-layout>
