@@ -1,14 +1,27 @@
-<x-guest-layout>
-    <div class="pt-4 pb-4 bg-zinc-100 dark:bg-zinc-950">
-        <div class="min-h-screen flex flex-col items-center pt-6 sm:pt-0">
-            <div class="w-full max-w-[1920px] px-6 lg:px-8">
-                <div class="grid grid-cols-1 gap-4">
+<x-guest-layout :floating-theme-toggle="false">
+    <div class="h-screen flex flex-col bg-zinc-100 dark:bg-zinc-950">
+        <x-guest-header />
 
-                    @include('clock')
+        <main class="flex-1 min-h-0 flex flex-col gap-3 p-3 sm:p-4">
+            <div class="flex items-center justify-between gap-4 flex-shrink-0">
+                {{--
+                    Volver: a la página anterior si se llegó desde este sistema;
+                    si se abrió directo (sin historial), a la vista de la estación.
+                --}}
+                <a href="{{ route('guest.work-center-progress', $workCenter) }}"
+                    onclick="if (document.referrer && new URL(document.referrer).origin === window.location.origin && history.length > 1) { history.back(); return false; }"
+                    title="Volver"
+                    class="inline-flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 pl-2.5 pr-3.5 text-sm font-semibold text-zinc-700 dark:text-zinc-200 shadow-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                    </svg>
+                    Volver
+                </a>
 
-                    <livewire:press-production-timeline :work-center="$workCenter" />
-                </div>
+                <x-clock />
             </div>
-        </div>
+
+            <livewire:press-production-timeline :work-center="$workCenter" />
+        </main>
     </div>
 </x-guest-layout>

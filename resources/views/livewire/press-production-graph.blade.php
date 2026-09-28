@@ -1,9 +1,9 @@
-<div class="w-full">
-    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+<div class="flex flex-col flex-1 min-h-[360px]">
+    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
 
         {{-- Chart --}}
-        <div x-data="productionChart" wire:ignore class="px-4 py-5 sm:px-6">
-            <div class="relative h-[420px]">
+        <div x-data="productionChart" wire:ignore class="px-4 py-4 sm:px-6 flex-1 min-h-0">
+            <div class="relative h-full">
                 <canvas id="{{ $chartId }}"></canvas>
             </div>
         </div>
@@ -197,6 +197,7 @@
                                         generateLabels(chart) {
                                             return chart.data.datasets.map((ds, i) => ({
                                                 text: ds.label,
+                                                fontColor: colors.text,
                                                 fillStyle: ds.backgroundColor,
                                                 strokeStyle: ds.borderColor,
                                                 lineWidth: ds.borderWidth,

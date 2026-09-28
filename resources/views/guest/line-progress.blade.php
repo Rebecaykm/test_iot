@@ -1,20 +1,38 @@
-<x-guest-layout>
-    <div class="h-screen flex flex-col gap-3 p-3 sm:p-4 bg-zinc-100 dark:bg-zinc-950">
-        <div class="flex items-center justify-between flex-shrink-0">
-            <h1 class="text-xl font-bold text-zinc-800 dark:text-zinc-50 flex items-center">
-                <span class="w-2.5 h-2.5 bg-[#2563eb] dark:bg-[#3b82f6] rounded-full inline-block mr-2.5"></span>
-                Line Production Progress
-            </h1>
+<x-guest-layout :floating-theme-toggle="false">
+    <div class="h-screen flex flex-col bg-zinc-100 dark:bg-zinc-950">
+        <x-guest-header />
 
-            <a href="{{ url('/') }}"
-                class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700/70 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                </svg>
-                Inicio
-            </a>
-        </div>
+        <main class="flex-1 min-h-0 flex flex-col p-3 sm:p-4">
+            {{-- Catálogos de los filtros: se entregan una vez aquí para que no viajen en cada refresco del componente --}}
+            <script>window.lineProgressCatalog = @json(\App\Livewire\Guest\LineProgress::catalog());</script>
 
-        <livewire:guest.line-progress />
+            {{--
+                Filtros guardados en este navegador: se aplican ANTES de pintar la tabla, redirigiendo a la
+                URL con ?lines= / ?wcs=. Antes se recuperaban después de cargar y se veía toda la planta
+                por un momento. Si la URL ya trae filtros, mandan los de la URL.
+            --}}
+            <script>
+                (function () {
+                    const params = new URLSearchParams(window.location.search);
+                    const inUrl = name => [...params.keys()].some(k => k === name || k.startsWith(name + '['));
+                    if (inUrl('lines') || inUrl('wcs')) return;
+
+                    try {
+                        const catalog = window.lineProgressCatalog;
+                        const stored = (key, list) => JSON.parse(localStorage.getItem(key) || '[]')
+                            .filter(id => list.some(item => item.id === id));
+                        const lines = stored('lineProgress.lines', catalog.lines);
+                        const wcs = stored('lineProgress.wcs', catalog.workCenters);
+                        if (!lines.length && !wcs.length) return;
+
+                        lines.forEach((id, i) => params.append(`lines[${i}]`, id));
+                        wcs.forEach((id, i) => params.append(`wcs[${i}]`, id));
+                        window.location.replace(window.location.pathname + '?' + params.toString());
+                    } catch (e) { /* almacenamiento no disponible: se muestra toda la planta */ }
+                })();
+            </script>
+
+            <livewire:guest.line-progress />
+        </main>
     </div>
 </x-guest-layout>

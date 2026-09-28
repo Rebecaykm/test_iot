@@ -1,13 +1,11 @@
 <div x-data="pressProductionTable" class="w-full h-full">
     <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden h-full flex flex-col">
-        <div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
+        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700/70">
             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                <h2 class="text-lg font-bold text-blue-800 dark:text-blue-200 flex items-center">
-                    @if($shiftActive)
-                        <span class="w-2 h-2 bg-blue-500 rounded-full inline-block mr-2"></span>
-                    @endif
+                <h1 class="truncate text-xl font-bold text-zinc-800 dark:text-zinc-50 flex items-center">
+                    <span class="w-2.5 h-2.5 flex-shrink-0 bg-[#2563eb] dark:bg-[#3b82f6] rounded-full inline-block mr-2.5"></span>
                     {{ $workCenter }}
-                </h2>
+                </h1>
                 <div class="flex items-center gap-2">
                     @if($shiftActive)
                         <div class="flex flex-wrap gap-2 text-sm font-medium">
@@ -24,83 +22,6 @@
                             @endif --}}
                         </div>
                     @endif
-
-                    <!-- Menú de opciones -->
-                    <div class="relative"
-                        x-data="{
-                            open: false,
-                            top: 0,
-                            left: 0,
-                            toggle(e) {
-                                this.open = !this.open;
-                                if (this.open) {
-                                    const r = e.currentTarget.getBoundingClientRect();
-                                    this.top = r.bottom + 4;
-                                    this.left = Math.max(8, Math.min(r.right - 192, window.innerWidth - 192 - 8));
-                                }
-                            }
-                        }">
-                        <button @click="toggle($event)" @click.away="open = false"
-                            class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-full transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                            </svg>
-                        </button>
-
-                        <!-- Dropdown menu: fixed (no absolute) para que no lo recorte el
-                             overflow-hidden de la tarjeta que lo contiene -->
-                        <div x-show="open"
-                            x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="transform opacity-0 scale-95"
-                            x-transition:enter-end="transform opacity-100 scale-100"
-                            x-transition:leave="transition ease-in duration-75"
-                            x-transition:leave-start="transform opacity-100 scale-100"
-                            x-transition:leave-end="transform opacity-0 scale-95"
-                            class="fixed w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 py-1 z-50"
-                            :style="`top: ${top}px; left: ${left}px;`"
-                            style="display: none;">
-
-                            <a href="{{ url('/') }}"
-                                class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                                </svg>
-                                <span>Inicio</span>
-                            </a>
-
-                            @if($workCenterId)
-                                <a href="{{ route('guest.production-records', $workCenterId) }}"
-                                    class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
-                                    </svg>
-                                    <span>Detalles de Producción</span>
-                                </a>
-                            @endif
-
-                            <div class="border-t border-zinc-200 dark:border-zinc-800 my-1"></div>
-
-                            @if (Route::has('login'))
-                                @auth
-                                    <a href="{{ url('/home') }}"
-                                        class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                        <span>Panel Administrativo</span>
-                                    </a>
-                                @else
-                                    <a href="{{ route('login') }}"
-                                        class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                        <span>Iniciar Sesión</span>
-                                    </a>
-                                @endauth
-                            @endif
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

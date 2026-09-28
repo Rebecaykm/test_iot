@@ -3,7 +3,9 @@
 namespace App\Livewire\Guest;
 
 use App\Models\ProductionRecord;
+use App\Models\WorkCenter;
 use Carbon\Carbon;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class WorkCenterProgress extends Component
@@ -16,13 +18,20 @@ class WorkCenterProgress extends Component
     /** Búsqueda por número de parte */
     public string $search = '';
 
-    /** Mostrar solo los renglones con alguna orden "En progreso" */
-    public bool $onlyInProgress = false;
+    /**
+     * Estación de estampado: solo a estas se les muestra el botón de "Tiempo de producción"
+     * (/press-production-timeline), con la misma condición que /guest/production-records.
+     */
+    #[Locked]
+    public bool $isStamping = false;
 
     public function mount($workCenter): void
     {
         $this->workCenter = $workCenter;
         $this->weekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->toDateString();
+
+        $wc = WorkCenter::with('line.area')->where('name', $workCenter)->first();
+        $this->isStamping = strtolower((string) $wc?->line?->area?->name) === 'estampado';
     }
 
     public function prevWeek(): void
@@ -107,20 +116,17 @@ class WorkCenterProgress extends Component
         foreach ($map as $partNumber => $shifts) {
             ksort($shifts); // D antes que N
             $shiftRows = [];
+            $inProgress = false;
             foreach ($shifts as $abbr => $info) {
-                // Solo en producción: el renglón debe tener alguna orden "En progreso"
-                if ($this->onlyInProgress && !collect($info['cells'])->flatten(1)->contains('inProgress', true)) {
-                    continue;
-                }
+                $inProgress = $inProgress || collect($info['cells'])->flatten(1)->contains('inProgress', true);
                 $shiftRows[] = [
                     'shift' => $abbr,
                     'shift_name' => $info['shift_name'],
                     'cells' => $info['cells'],
                 ];
             }
-            if (!empty($shiftRows)) {
-                $parts[] = ['part_number' => $partNumber, 'shifts' => $shiftRows];
-            }
+            // inProgress: alguna orden de la parte está "En progreso" (etiqueta bajo el número de parte)
+            $parts[] = ['part_number' => $partNumber, 'inProgress' => $inProgress, 'shifts' => $shiftRows];
         }
 
         $currentWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->toDateString();

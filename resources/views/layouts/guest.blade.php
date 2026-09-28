@@ -31,7 +31,9 @@
             {{ $slot }}
         </div>
 
-        <x-theme-toggle />
+        @if ($floatingThemeToggle)
+            <x-theme-toggle />
+        @endif
 
         @livewireScripts
     </body>

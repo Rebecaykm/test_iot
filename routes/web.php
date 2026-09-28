@@ -26,9 +26,10 @@ use App\Http\Controllers\VisualAidController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
 
+// Inicio: avance de producción semanal por línea (antes: dashboard por turno, que sigue en /guest/work-center-dashboard)
 Route::get('/', function () {
-    return view('welcome');
-});
+    return view('guest.line-progress');
+})->name('guest.line-progress');
 
 Route::middleware([
     'auth:sanctum',
@@ -161,9 +162,12 @@ Route::get('guest/wc-progress/{workCenter}', function ($workCenter) {
 })->name('guest.work-center-progress');
 
 // Avance de producción semanal por línea (todas las líneas, agrupadas por área)
+// URL anterior de la vista de líneas: redirige a / conservando los filtros (?lines=, ?wcs=)
 Route::get('guest/line-progress', function () {
-    return view('guest.line-progress');
-})->name('guest.line-progress');
+    $query = request()->getQueryString();
+
+    return redirect('/' . ($query ? '?' . $query : ''), 301);
+});
 
 // URL anterior: se conserva como redirección para pantallas/enlaces que ya la usan
 Route::get('guest/production-progress/{workCenter}', function ($workCenter) {

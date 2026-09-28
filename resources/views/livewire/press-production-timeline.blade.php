@@ -1,11 +1,11 @@
-<div class="w-full h-full">
-    <div class="bg-white dark:bg-zinc-900 rounded-xl border-2 border-blue-500/50 dark:border-blue-400/50 shadow-sm overflow-hidden flex flex-col">
+<div class="flex flex-col flex-1 min-h-0">
+    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col flex-1 min-h-0">
 
-        {{-- Encabezado: estación a la izquierda; filtros y menú en la esquina derecha --}}
-        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
+        {{-- Encabezado: estación a la izquierda; fecha y turno a la derecha --}}
+        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700/70 flex-shrink-0">
             <div class="flex items-center justify-between gap-2">
-                <h1 class="text-xl font-bold text-zinc-800 dark:text-white flex items-center">
-                    <span class="w-2.5 h-2.5 bg-blue-500 rounded-full inline-block mr-2.5"></span>
+                <h1 class="truncate text-xl font-bold text-zinc-800 dark:text-zinc-50 flex items-center">
+                    <span class="w-2.5 h-2.5 flex-shrink-0 bg-[#2563eb] dark:bg-[#3b82f6] rounded-full inline-block mr-2.5"></span>
                     {{ $workCenter }}
                 </h1>
                 <div class="flex items-center gap-2">
@@ -66,86 +66,12 @@
                             <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
                         @endforeach
                     </select>
-
-                    {{-- Menú de tres puntos junto a los filtros --}}
-                    <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" @click.away="open = false"
-                            class="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                            </svg>
-                        </button>
-
-                        <div x-show="open"
-                            x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="transform opacity-0 scale-95"
-                            x-transition:enter-end="transform opacity-100 scale-100"
-                            x-transition:leave="transition ease-in duration-75"
-                            x-transition:leave-start="transform opacity-100 scale-100"
-                            x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 py-1 z-50"
-                            style="display: none;">
-
-                            <a href="{{ url('/') }}"
-                                class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-                                </svg>
-                                <span>Inicio</span>
-                            </a>
-
-                            @php
-                                $workCenterModel = \App\Models\WorkCenter::where('name', $workCenter)->first();
-                                $workCenterId = $workCenterModel ? $workCenterModel->id : null;
-                            @endphp
-
-                            @if($workCenterId)
-                                <a href="{{ route('guest.production-records', $workCenterId) }}"
-                                    class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
-                                    </svg>
-                                    <span>Detalles de Producción</span>
-                                </a>
-                            @endif
-
-                            <a href="{{ route('press-production', $workCenter) }}"
-                                class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-                                </svg>
-                                <span>Gráfica de Producción</span>
-                            </a>
-
-                            <div class="border-t border-zinc-200 dark:border-zinc-800 my-1"></div>
-
-                            @if (Route::has('login'))
-                                @auth
-                                    <a href="{{ url('/home') }}"
-                                        class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                        <span>Panel Administrativo</span>
-                                    </a>
-                                @else
-                                    <a href="{{ route('login') }}"
-                                        class="flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-zinc-600 dark:text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm7.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l1.293 1.293a1 1 0 01-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                        <span>Iniciar Sesión</span>
-                                    </a>
-                                @endauth
-                            @endif
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
 
         {{-- Chart --}}
-        <div x-data="pressTimelineChart" class="relative px-4 py-4 sm:px-6 flex-1">
+        <div x-data="pressTimelineChart" class="relative px-4 pt-4 sm:px-6 flex-1 min-h-0 overflow-y-auto">
             <div wire:ignore class="relative" :style="`height: ${chartHeight}px`">
                 <canvas id="{{ $chartId }}"></canvas>
             </div>
@@ -338,11 +264,10 @@
                 noteTop: 0,
                 noteLeft: 0,
 
-                // Alto de la gráfica ajustado a la pantalla: llena el alto visible de la
-                // ventana; si hay muchos MDIs, crece (mínimo por fila) y la página hace scroll.
+                // Alto de la gráfica: llena el espacio de la tarjeta (16 px = relleno superior);
+                // si hay muchos MDIs, crece (mínimo por fila) y hace scroll dentro de la tarjeta.
                 fitHeight() {
-                    const wrap = this.$el.querySelector('.relative');
-                    const available = window.innerHeight - (wrap ? wrap.getBoundingClientRect().top : 200) - 70;
+                    const available = this.$el.clientHeight - 16;
                     const minPerRow = Math.max(1, state.labelCount) * 52 + 70;
                     this.chartHeight = Math.max(320, minPerRow, available);
                 },

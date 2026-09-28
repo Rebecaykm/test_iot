@@ -11,17 +11,28 @@
                 <input type="text" wire:model.live.debounce.300ms="search" placeholder="Buscar número de parte..."
                     class="w-full sm:w-72 pl-8 pr-3 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700/70 rounded-lg bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 placeholder-zinc-500 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                 </div>
-
-                {{-- Switch: solo renglones con órdenes en producción --}}
-                <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-                    <input type="checkbox" wire:model.live="onlyInProgress" class="peer sr-only">
-                    <span class="relative h-5 w-9 flex-shrink-0 rounded-full bg-zinc-500 dark:bg-zinc-500 transition-colors peer-checked:bg-[#2563eb] dark:peer-checked:bg-[#3b82f6] peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-zinc-900
-                        after:absolute after:top-0.5 after:left-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-4"></span>
-                    <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200 whitespace-nowrap">En Proceso</span>
-                </label>
             </div>
 
             <div class="flex items-center justify-end gap-1.5">
+                {{-- Gráfica de producción: solo estaciones de estampado (/press-production/{estación}) --}}
+                @if($isStamping)
+                    <a href="{{ route('press-production', $workCenter) }}" title="Gráfica de producción" aria-label="Gráfica de producción"
+                        class="p-1 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-4 3 3 5-6" />
+                        </svg>
+                    </a>
+                @endif
+
+                {{-- Gráfica de tiempo de producción: solo estaciones de estampado (/press-production-timeline/{estación}) --}}
+                @if($isStamping)
+                    <a href="{{ route('press-production-timeline', $workCenter) }}" title="Tiempo de producción" aria-label="Tiempo de producción"
+                        class="p-1 mr-1 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                    </a>
+                @endif
                 @unless($isCurrentWeek)
                     <button wire:click="currentWeek" type="button"
                         class="px-2.5 py-1 mr-1 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
@@ -73,9 +84,12 @@
                                 {{-- Número de parte (agrupa los turnos con rowspan) --}}
                                 @if($i === 0)
                                     <td rowspan="{{ count($part['shifts']) }}"
-                                        class="sticky left-0 z-10 bg-white dark:bg-zinc-900 px-4 py-1.5 align-middle text-sm font-semibold text-zinc-800 dark:text-zinc-100 tracking-wide border-r border-zinc-200 dark:border-zinc-800 truncate"
+                                        class="sticky left-0 z-10 bg-white dark:bg-zinc-900 px-4 py-1.5 align-middle border-r border-zinc-200 dark:border-zinc-800"
                                         title="{{ $part['part_number'] }}">
-                                        {{ $part['part_number'] }}
+                                        <div class="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100 tracking-wide">{{ $part['part_number'] }}</div>
+                                        @if($part['inProgress'])
+                                            <span class="lp-wc-live"><span class="lp-dot"></span>En Proceso</span>
+                                        @endif
                                     </td>
                                 @endif
 
@@ -100,17 +114,8 @@
                                             <div class="flex divide-x divide-zinc-200 dark:divide-zinc-800">
                                                 @foreach($cell as $rec)
                                                     {{-- Orden en producción ("En progreso"): contorno azul, el mismo del plan --}}
-                                                    <div class="flex-1 min-w-0 px-2 py-1.5 bg-white dark:bg-zinc-900 {{ $rec['inProgress'] ? 'ring-2 ring-inset ring-[#2563eb] dark:ring-[#3b82f6]' : '' }}"
-                                                        title="Orden {{ $rec['order'] }} · Plan {{ number_format($rec['plan']) }} · Real {{ number_format($rec['real']) }} ({{ $rec['percent'] }}%){{ $rec['inProgress'] ? ' · En producción' : '' }}">
-                                                        @if($rec['inProgress'])
-                                                            <div class="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#2563eb] dark:text-[#60a5fa] whitespace-nowrap">
-                                                                <span class="relative flex h-2 w-2">
-                                                                    <span class="absolute inline-flex h-full w-full rounded-full bg-[#2563eb] dark:bg-[#3b82f6] opacity-75 animate-ping"></span>
-                                                                    <span class="relative inline-flex h-2 w-2 rounded-full bg-[#2563eb] dark:bg-[#3b82f6]"></span>
-                                                                </span>
-                                                                En Proceso
-                                                            </div>
-                                                        @endif
+                                                    <div class="relative flex-1 min-w-0 px-2 py-1.5 bg-white dark:bg-zinc-900 {{ $rec['inProgress'] ? 'ring-2 ring-inset ring-[#2563eb] dark:ring-[#3b82f6]' : '' }}"
+                                                        title="Orden {{ $rec['order'] }} · Plan {{ number_format($rec['plan']) }} · Real {{ number_format($rec['real']) }} ({{ $rec['percent'] }}%){{ $rec['inProgress'] ? ' · En Proceso' : '' }}">
                                                         {{-- Barra: el total (azul) es lo planeado, el relleno (verde) es lo real --}}
                                                         {{-- Mismos colores que /shift-production-timeline: relleno translúcido + contorno sólido --}}
                                                         <div class="relative h-6 w-full rounded-[3px] border border-[#2563eb] bg-[rgba(37,99,235,0.15)] dark:border-[#3b82f6] dark:bg-[rgba(59,130,246,0.16)]">
@@ -143,7 +148,7 @@
                                 <svg class="mx-auto h-10 w-10 text-zinc-300 dark:text-zinc-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                {{ $onlyInProgress ? 'No hay órdenes en producción en esta semana.' : 'No hay órdenes planeadas en esta semana.' }}
+                                No hay órdenes planeadas en esta semana.
                             </td>
                         </tr>
                     @endforelse
@@ -152,7 +157,7 @@
         </div>
 
         {{-- Pie: última actualización --}}
-        <div class="px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-end text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">
+        <div class="pl-4 pr-16 py-2 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-end text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">
             <div class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-[#059669] animate-pulse"></span>
                 Actualización automática · {{ $lastUpdated }}
