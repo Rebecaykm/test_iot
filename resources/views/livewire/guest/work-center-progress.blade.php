@@ -123,9 +123,12 @@
                                             {{-- Varias órdenes el mismo día van lado a lado: el renglón no crece en alto --}}
                                             <div class="flex divide-x divide-zinc-200 dark:divide-zinc-800">
                                                 @foreach($cell as $rec)
-                                                    {{-- Orden en producción ("En progreso"): contorno azul, el mismo del plan --}}
-                                                    <div class="relative flex-1 min-w-0 px-2 py-1.5 bg-white dark:bg-zinc-900 {{ $rec['inProgress'] ? 'ring-2 ring-inset ring-[#2563eb] dark:ring-[#3b82f6]' : '' }}"
+                                                    {{-- Orden en producción ("En progreso"): contorno azul + punto que parpadea, igual que en / --}}
+                                                    <div class="relative flex-1 min-w-0 px-2 py-1.5 bg-white dark:bg-zinc-900 {{ $rec['inProgress'] ? 'pr-4 ring-2 ring-inset ring-[#2563eb] dark:ring-[#3b82f6]' : '' }}"
                                                         title="Orden {{ $rec['order'] }} · Plan {{ number_format($rec['plan']) }} · Real {{ number_format($rec['real']) }} ({{ $rec['percent'] }}%){{ $rec['inProgress'] ? ' · En Proceso' : '' }}">
+                                                        @if($rec['inProgress'])
+                                                            <span class="lp-dot"></span>
+                                                        @endif
                                                         {{-- Barra: el total (azul) es lo planeado, el relleno (verde) es lo real --}}
                                                         {{-- Mismos colores que /shift-production-timeline: relleno translúcido + contorno sólido --}}
                                                         <div class="relative h-6 w-full rounded-[3px] border border-[#2563eb] bg-[rgba(37,99,235,0.15)] dark:border-[#3b82f6] dark:bg-[rgba(59,130,246,0.16)]">
