@@ -24,6 +24,24 @@ class ProductionRecord extends Model
     const PRODUCTION_CACHE_TTL = 20;
 
     /**
+     * Clases de número de parte que muestran las vistas de avance (/ y /guest/wc-progress):
+     * manufacturados M1 (Press), M2 (Sub Assy), M3 (Assy), M4 (Paint) y F1 (Completion).
+     * F1 va incluida porque muchas estaciones (p. ej. MM11) producen sus partes principales en F1.
+     */
+    const PROGRESS_ITEM_CLASSES = ['M1', 'M2', 'M3', 'M4', 'F1'];
+
+    /**
+     * Limita la consulta (que ya une part_numbers) a las clases de PROGRESS_ITEM_CLASSES.
+     */
+    public static function applyProgressItemClasses($query)
+    {
+        return $query->whereIn(
+            'part_numbers.item_class_id',
+            ItemClass::query()->select('id')->whereIn('abbreviation', self::PROGRESS_ITEM_CLASSES)
+        );
+    }
+
+    /**
      * Fecha desde la que se reconstruye plan y acumulados; lo anterior se
      * ignora para no mezclar acumuladores viejos con órdenes nuevas.
      */
@@ -390,6 +408,7 @@ class ProductionRecord extends Model
     /**
      * Avance de producción semanal de un work center (vista de invitados): solo registros con
      * shop order y cantidad planeada mayor a 0, con el nombre de su estatus.
+     * Solo partes de clase PROGRESS_ITEM_CLASSES.
      */
     public static function getWorkCenterWeeklyProgress(string $workCenter, $startDate, $endDate): Collection
     {
@@ -416,6 +435,7 @@ class ProductionRecord extends Model
             ->whereNotNull('production_records.shop_order_number')
             ->where('production_records.shop_order_number', '<>', '')
             ->where('production_records.planned_quantity', '>', 0)
+            ->tap(fn ($q) => self::applyProgressItemClasses($q))
             ->orderBy('production_records.planned_date', 'asc')
             ->orderBy('shifts.abbreviation', 'asc')
             ->orderBy('part_numbers.number', 'asc')
@@ -429,6 +449,7 @@ class ProductionRecord extends Model
      *  - with_order: producido en registros con shop order
      *  - no_order:   producido en registros sin shop order (acumuladores "Sin Orden")
      *  - in_progress: > 0 si algún registro del grupo está "En progreso"
+     * Solo partes de clase PROGRESS_ITEM_CLASSES.
      */
     public static function getLineWeeklyProgress(array $lineIds, $startDate, $endDate): Collection
     {
@@ -464,6 +485,8 @@ class ProductionRecord extends Model
             $query->whereIn('lines.id', $lineIds);
         }
 
+        self::applyProgressItemClasses($query);
+
         return $query
             ->groupBy(
                 'areas.name', 'lines.id', 'lines.name', 'lines.color',
@@ -476,6 +499,7 @@ class ProductionRecord extends Model
     /**
      * Piezas producidas sin orden (acumuladores) de un work center y turno en un
      * rango de fechas planeadas, agrupadas por número de parte (modal de la vista de líneas).
+     * Solo partes de clase PROGRESS_ITEM_CLASSES, igual que la tabla.
      */
     public static function getNoOrderPartsByWorkCenter(int $workCenterId, string $shift, $startDate, $endDate): Collection
     {
@@ -490,6 +514,7 @@ class ProductionRecord extends Model
                 \Carbon\Carbon::parse($endDate)->toDateString(),
             ])
             ->whereRaw("COALESCE(production_records.shop_order_number, '') = ''")
+            ->tap(fn ($q) => self::applyProgressItemClasses($q))
             ->groupBy('part_numbers.number', 'part_numbers.name')
             ->havingRaw('SUM(production_records.produced_quantity) > 0')
             ->orderByRaw('SUM(production_records.produced_quantity) DESC')

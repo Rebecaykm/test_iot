@@ -125,6 +125,7 @@ class PressProductionTable extends Component
             ->where('work_centers.name', 'LIKE', $this->workCenter)
             ->where('statuses.id', 7)
             ->orderBy('part_numbers.production_order')
+            ->orderBy('part_numbers.number') // desempate estable cuando dos partes comparten orden
             ->get()
             ->map(fn($r) => [
                 'part_number'       => $r->part_number,

@@ -170,10 +170,12 @@ class LineProgress extends Component
      * Totales de TODA la planta para la semana, como arreglos simples (no modelos:
      * serializados pesan ~10 veces menos). Una sola entrada de caché compartida
      * por todas las pantallas; cada una filtra sus líneas/estaciones después.
+     * "v2": llaves nuevas al agregar el filtro de clases (M1–M4 y F1), para no
+     * servir cachés guardados antes de ese filtro.
      */
     private function weekRows(Carbon $start, Carbon $end): array
     {
-        return $this->cached("line_progress:week:{$start->toDateString()}", $end, function () use ($start, $end) {
+        return $this->cached("line_progress:v2:week:{$start->toDateString()}", $end, function () use ($start, $end) {
             return ProductionRecord::getLineWeeklyProgress([], $start->toDateString(), $end->toDateString())
                 ->map(fn ($r) => [
                     'area' => $r->area_name ?: 'Sin área',
@@ -349,7 +351,7 @@ class LineProgress extends Component
         if ($this->noOrderWorkCenterId && $this->noOrderShift) {
             $wcId = $this->noOrderWorkCenterId;
             $shift = $this->noOrderShift;
-            $parts = $this->cached("line_progress:no_order:{$start->toDateString()}:{$wcId}:{$shift}", $end, fn () =>
+            $parts = $this->cached("line_progress:v2:no_order:{$start->toDateString()}:{$wcId}:{$shift}", $end, fn () =>
                 ProductionRecord::getNoOrderPartsByWorkCenter($wcId, $shift, $start->toDateString(), $end->toDateString())
                     ->map(fn ($p) => ['number' => $p->part_number, 'name' => $p->part_name, 'quantity' => (int) $p->quantity])
                     ->all()

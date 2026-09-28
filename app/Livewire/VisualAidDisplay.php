@@ -16,6 +16,9 @@ class VisualAidDisplay extends Component
     public ?string $visualAidPath = null;
     public ?string $visualAidAlt = null;
     public ?string $currentPartNumber = null;
+
+    /** MID (troquel) del número de parte en producción; null si la parte no lo tiene registrado */
+    public ?string $currentMid = null;
     public bool $isProducing = false;
     public $currentTime;
 
@@ -37,22 +40,26 @@ class VisualAidDisplay extends Component
     public function loadVisualAid(): void
     {
         try {
-            $currentShift = Shift::getShift($this->currentTime);
-
-            if (!$currentShift) {
-                $this->resetState();
-                return;
-            }
-
             WorkCenter::query()
                 ->where('name', $this->workCenter)
                 ->firstOrFail();
 
-            $productionRecord = ProductionRecord::getCachedWorkCenterProductionRecord(
-                $this->workCenter,
-                $currentShift->id,
-                $this->currentTime
-            )->first();
+            // Igual que /press-production: el registro "En progreso" (estatus 7) de la estación,
+            // sin importar el día ni el turno en que se planeó. Antes se buscaba solo en el turno
+            // actual, y si se producía material de otro turno la vista decía "Sin producción".
+            $productionRecord = cache()->remember(
+                "visual_aid_in_progress_{$this->workCenter}",
+                ProductionRecord::PRODUCTION_CACHE_TTL,
+                fn () => ProductionRecord::query()
+                    ->select(['part_numbers.id AS part_number_id', 'part_numbers.number AS part_number'])
+                    ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+                    ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+                    ->where('work_centers.name', 'LIKE', $this->workCenter)
+                    ->where('production_records.status_id', 7)
+                    ->orderBy('part_numbers.production_order')
+                    ->orderBy('part_numbers.number') // desempate: mismo orden que /press-production
+                    ->first()
+            );
 
             if (!$productionRecord) {
                 $this->resetState();
@@ -62,9 +69,10 @@ class VisualAidDisplay extends Component
             $this->isProducing = true;
             $this->currentPartNumber = $productionRecord->part_number;
 
-            $partNumber = PartNumber::query()
-                ->where('number', $productionRecord->part_number)
-                ->first();
+            // Por id (no por número): el mismo número de parte puede existir en otra estación
+            $partNumber = PartNumber::find($productionRecord->part_number_id);
+
+            $this->currentMid = $partNumber?->getCustomAttributeValue('mid') ?: null;
 
             $visualAid = $partNumber?->visualAids()
                 ->where('is_active', true)
@@ -85,6 +93,7 @@ class VisualAidDisplay extends Component
         $this->visualAidPath    = null;
         $this->visualAidAlt     = null;
         $this->currentPartNumber = null;
+        $this->currentMid        = null;
     }
 
     public function render()
