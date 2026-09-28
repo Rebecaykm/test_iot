@@ -49,13 +49,6 @@
                         </div>
                     </div>
                 </div>
-
-                {{-- Leyenda: 3 series, el color no puede ir solo --}}
-                <div class="flex items-center gap-3 text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                    <span class="flex items-center gap-1.5"><span class="w-3 h-2.5 rounded-[2px] border border-[#2563eb] bg-[rgba(37,99,235,0.15)] dark:border-[#3b82f6] dark:bg-[rgba(59,130,246,0.16)]"></span>Plan</span>
-                    <span class="flex items-center gap-1.5"><span class="w-3 h-2.5 rounded-[2px] border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]"></span>Con orden</span>
-                    <span class="flex items-center gap-1.5"><span class="w-3 h-2.5 rounded-[2px] border border-[#ea580c] bg-[rgba(234,88,12,0.15)] dark:bg-[rgba(234,88,12,0.22)]"></span>Sin orden</span>
-                </div>
             </div>
 
             <div class="flex items-center justify-end gap-1.5">
@@ -86,6 +79,7 @@
                     @foreach($days as $day)
                         <col>
                     @endforeach
+                    <col class="w-28">
                 </colgroup>
                 <thead>
                     <tr>
@@ -101,6 +95,9 @@
                                 <div class="text-[11px] font-normal {{ $day['isToday'] ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400' }}">{{ $day['label'] }}</div>
                             </th>
                         @endforeach
+                        <th class="sticky top-0 z-20 bg-zinc-50 dark:bg-zinc-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 border-b border-l border-zinc-200 dark:border-zinc-700/70">
+                            Cant. Sin Orden
+                        </th>
                     </tr>
                 </thead>
 
@@ -108,7 +105,7 @@
                     <tbody wire:key="area-{{ $area['name'] }}">
                         {{-- Área --}}
                         <tr>
-                            <td colspan="{{ count($days) + 2 }}" class="bg-zinc-100 dark:bg-zinc-950 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
+                            <td colspan="{{ count($days) + 3 }}" class="bg-zinc-100 dark:bg-zinc-950 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800">
                                 <span class="sticky left-4 text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">{{ $area['name'] }}</span>
                             </td>
                         </tr>
@@ -116,7 +113,7 @@
                         @foreach($area['lines'] as $line)
                             {{-- Línea: con su color, igual que en / --}}
                             <tr wire:key="line-{{ $line['id'] }}">
-                                <td colspan="{{ count($days) + 2 }}" class="bg-white dark:bg-zinc-900 px-4 pt-3 pb-2 border-b border-zinc-200 dark:border-zinc-800">
+                                <td colspan="{{ count($days) + 3 }}" class="bg-white dark:bg-zinc-900 px-4 pt-3 pb-2 border-b border-zinc-200 dark:border-zinc-800">
                                     <span class="sticky left-4 inline-flex items-center gap-2.5">
                                         <span class="w-1 h-5 rounded-full" style="background-color: {{ $line['color'] ?: '#71717a' }}"></span>
                                         <span class="text-base font-semibold text-zinc-800 dark:text-zinc-100">{{ $line['name'] }}</span>
@@ -159,15 +156,15 @@
                                             </span>
                                         </td>
 
-                                        {{-- Celdas por día: barra de plan arriba, barra de real (con orden + sin orden) abajo, misma escala --}}
+                                        {{-- Celdas por día: medidor semicircular (plan / real) --}}
                                         @foreach($days as $day)
                                             @php $c = $row['cells'][$day['date']] ?? null; @endphp
                                             <td class="p-0 align-middle border-l border-zinc-200 dark:border-zinc-800 {{ $i > 0 ? 'border-t border-t-zinc-100 dark:border-t-zinc-800/60' : '' }}">
                                                 @if(!$c || ($c['plan'] === 0 && $c['real'] === 0 && !$c['inProgress']))
                                                     <div class="py-2 text-center text-zinc-300 dark:text-zinc-700 text-[11px]">–</div>
                                                 @else
-                                                    <div class="relative px-2 py-1.5 {{ $c['inProgress'] ? 'ring-2 ring-inset ring-[#2563eb] dark:ring-[#3b82f6]' : '' }}"
-                                                        title="Plan {{ number_format($c['plan']) }} · Real {{ number_format($c['real']) }} (con orden {{ number_format($c['withOrder']) }} + sin orden {{ number_format($c['noOrder']) }}){{ $c['inProgress'] ? ' · En Proceso' : '' }}">
+                                                    <div class="relative px-2 pt-1.5 pb-1 {{ $c['inProgress'] ? 'ring-2 ring-inset ring-[#2563eb] dark:ring-[#3b82f6]' : '' }}"
+                                                        title="Plan {{ number_format($c['plan']) }} · Real {{ number_format($c['real']) }}{{ $c['inProgress'] ? ' · En Proceso' : '' }}">
                                                         @if($c['inProgress'])
                                                             <span class="absolute top-1 right-1 flex h-2 w-2">
                                                                 <span class="absolute inline-flex h-full w-full rounded-full bg-[#2563eb] dark:bg-[#3b82f6] opacity-75 animate-ping"></span>
@@ -175,39 +172,54 @@
                                                             </span>
                                                         @endif
 
-                                                        <div class="space-y-1 pr-2.5">
-                                                            {{-- Plan --}}
-                                                            <div class="h-2.5">
-                                                                @if($c['plan'] > 0)
-                                                                    <div class="h-full min-w-[3px] rounded-[3px] border border-[#2563eb] bg-[rgba(37,99,235,0.15)] dark:border-[#3b82f6] dark:bg-[rgba(59,130,246,0.16)]"
-                                                                        style="width: {{ $c['planPct'] }}%"></div>
-                                                                @endif
-                                                            </div>
-                                                            {{-- Real = con orden (verde) + sin orden (naranja), separados por 2px --}}
-                                                            <div class="h-2.5 flex gap-[2px]">
-                                                                @if($c['withOrder'] > 0)
-                                                                    <div class="h-full min-w-[3px] rounded-[3px] border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]"
-                                                                        style="width: {{ $c['withOrderPct'] }}%"></div>
-                                                                @endif
-                                                                @if($c['noOrder'] > 0)
-                                                                    <div class="h-full min-w-[3px] rounded-[3px] border border-[#ea580c] bg-[rgba(234,88,12,0.15)] dark:bg-[rgba(234,88,12,0.22)]"
-                                                                        style="width: {{ $c['noOrderPct'] }}%"></div>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-
-                                                        {{-- Detalle debajo: texto en tinta neutra, el color lo lleva la muestra --}}
-                                                        <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-semibold tabular-nums whitespace-nowrap">
-                                                            <span class="flex items-center gap-1 text-zinc-600 dark:text-zinc-300"><span class="w-2 h-2 rounded-[2px] bg-[#2563eb] dark:bg-[#3b82f6]"></span>P {{ number_format($c['plan']) }}</span>
-                                                            <span class="flex items-center gap-1 text-zinc-800 dark:text-zinc-100"><span class="w-2 h-2 rounded-[2px] bg-[#059669]"></span>R {{ number_format($c['real']) }}</span>
-                                                            @if($c['noOrder'] > 0)
-                                                                <span class="flex items-center gap-1 text-zinc-600 dark:text-zinc-300"><span class="w-2 h-2 rounded-[2px] bg-[#ea580c]"></span>S/O {{ number_format($c['noOrder']) }}</span>
+                                                        {{-- Medidor semicircular: 100 % = máx(plan, real) --}}
+                                                        @php $a = $c['arc']; @endphp
+                                                        <svg viewBox="0 0 100 56" class="block w-full max-w-[128px] mx-auto" role="img"
+                                                            aria-label="Plan {{ $c['plan'] }}, real {{ $c['real'] }}">
+                                                            {{-- Fondo del arco --}}
+                                                            <path d="M 3 50 A 47 47 0 0 1 97 50 L 87 50 A 37 37 0 0 0 13 50 Z" vector-effect="non-scaling-stroke"
+                                                                class="fill-zinc-50 stroke-zinc-200 dark:fill-zinc-800/40 dark:stroke-zinc-700/70" />
+                                                            {{-- Mismo estilo que las barras: contorno fuerte + relleno claro --}}
+                                                            {{-- Plan (azul): lo que hay que cubrir --}}
+                                                            @if($a['plan'])
+                                                                <path d="{{ $a['plan'] }}" vector-effect="non-scaling-stroke"
+                                                                    class="fill-[rgba(37,99,235,0.15)] stroke-[#2563eb] dark:fill-[rgba(59,130,246,0.16)] dark:stroke-[#3b82f6]" />
                                                             @endif
+                                                            {{-- Real (verde): va cubriendo el plan --}}
+                                                            @if($a['real'])
+                                                                <path d="{{ $a['real'] }}" vector-effect="non-scaling-stroke"
+                                                                    class="fill-[rgba(16,185,129,0.15)] stroke-[#059669] dark:fill-[rgba(16,185,129,0.22)]" />
+                                                            @endif
+                                                            {{-- Centro: real contra plan --}}
+                                                            <text x="50" y="49" text-anchor="middle"
+                                                                class="fill-zinc-800 dark:fill-zinc-100 font-bold tabular-nums"
+                                                                font-size="{{ $c['percent'] === null ? 10 : 15 }}">
+                                                                {{ $c['percent'] === null ? 'Sin plan' : $c['percent'] . '%' }}
+                                                            </text>
+                                                        </svg>
+
+                                                        {{-- Cantidades a los lados (como en la vista de work center) --}}
+                                                        <div class="mt-0.5 flex items-center justify-between gap-1 text-[11px] font-semibold tabular-nums whitespace-nowrap">
+                                                            <span class="flex items-center gap-1 text-zinc-600 dark:text-zinc-300"><span class="w-2 h-2 rounded-[2px] bg-[#2563eb] dark:bg-[#3b82f6]"></span>P: {{ number_format($c['plan']) }}</span>
+                                                            <span class="flex items-center gap-1 text-zinc-800 dark:text-zinc-100"><span class="w-2 h-2 rounded-[2px] bg-[#059669]"></span>R: {{ number_format($c['real']) }}</span>
                                                         </div>
                                                     </div>
                                                 @endif
                                             </td>
                                         @endforeach
+
+                                        {{-- Cant. Sin Orden: acumulado de la semana del renglón; clic = detalle por número de parte --}}
+                                        <td class="p-1 align-middle text-center border-l border-zinc-200 dark:border-zinc-800 {{ $i > 0 ? 'border-t border-t-zinc-100 dark:border-t-zinc-800/60' : '' }}">
+                                            @if($row['noOrderTotal'] > 0)
+                                                <button type="button" wire:click="showNoOrder({{ $wc['id'] }}, '{{ $row['shift'] }}')"
+                                                    title="Ver números de parte sin orden"
+                                                    class="w-full rounded-md border border-[#ea580c] bg-[rgba(234,88,12,0.10)] dark:bg-[rgba(234,88,12,0.18)] px-2 py-2 text-sm font-bold tabular-nums text-zinc-800 dark:text-zinc-100 hover:bg-[rgba(234,88,12,0.20)] dark:hover:bg-[rgba(234,88,12,0.28)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ea580c] transition-colors">
+                                                    {{ number_format($row['noOrderTotal']) }}
+                                                </button>
+                                            @else
+                                                <div class="py-2 text-zinc-300 dark:text-zinc-700 text-[11px]">–</div>
+                                            @endif
+                                        </td>
                                     </tr>
                                 @endforeach
                             @endforeach
@@ -216,7 +228,7 @@
                 @empty
                     <tbody>
                         <tr>
-                            <td colspan="{{ count($days) + 2 }}" class="px-4 py-16 text-center text-zinc-500 dark:text-zinc-400">
+                            <td colspan="{{ count($days) + 3 }}" class="px-4 py-16 text-center text-zinc-500 dark:text-zinc-400">
                                 No hay producción ni plan en esta semana para las líneas seleccionadas.
                             </td>
                         </tr>
@@ -225,15 +237,76 @@
             </table>
         </div>
 
-        {{-- Pie: aclaración de fechas y última actualización --}}
+        {{-- Pie: leyenda y última actualización --}}
         <div class="px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">
-            <span>La producción se muestra en el día y turno <strong class="font-semibold">planeados de la orden</strong>, no en el día en que se produjo.</span>
+            <div class="flex items-center gap-3 font-medium text-zinc-600 dark:text-zinc-300">
+                <span class="flex items-center gap-1.5"><span class="w-3 h-2.5 rounded-[2px] border border-[#2563eb] bg-[rgba(37,99,235,0.15)] dark:border-[#3b82f6] dark:bg-[rgba(59,130,246,0.16)]"></span>Plan</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-2.5 rounded-[2px] border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]"></span>Real</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-2.5 rounded-[2px] border border-[#ea580c] bg-[rgba(234,88,12,0.15)] dark:bg-[rgba(234,88,12,0.22)]"></span>Sin orden</span>
+            </div>
             <div class="flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-[#059669] animate-pulse"></span>
                 Actualización automática · {{ $lastUpdated }}
             </div>
         </div>
     </div>
+
+    {{-- Modal: números de parte sin orden del renglón (estación + turno) en la semana --}}
+    @if($noOrderDetail)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="no-order-title"
+            x-data @keydown.escape.window="$wire.closeNoOrder()">
+            <div class="absolute inset-0 bg-zinc-900/50 dark:bg-black/60" wire:click="closeNoOrder"></div>
+
+            <div class="relative w-full max-w-lg max-h-[80vh] flex flex-col bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden">
+                <div class="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-start justify-between gap-4">
+                    <div>
+                        <h2 id="no-order-title" class="flex items-center gap-2 text-base font-semibold text-zinc-800 dark:text-zinc-100">
+                            <span class="w-3 h-3 rounded-[2px] border border-[#ea580c] bg-[rgba(234,88,12,0.15)] dark:bg-[rgba(234,88,12,0.22)]"></span>
+                            Sin orden · {{ $noOrderDetail['workCenter'] }}
+                        </h2>
+                        <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Turno {{ $noOrderDetail['shift'] }} · {{ $weekLabel }}</p>
+                    </div>
+                    <button type="button" wire:click="closeNoOrder" title="Cerrar"
+                        class="p-1 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                <div class="min-h-0 overflow-y-auto">
+                    <table class="w-full text-sm">
+                        <thead class="sticky top-0 bg-zinc-50 dark:bg-zinc-800">
+                            <tr>
+                                <th class="px-5 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Número de Parte</th>
+                                <th class="px-5 py-2 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                            @forelse($noOrderDetail['parts'] as $part)
+                                <tr>
+                                    <td class="px-5 py-2">
+                                        <div class="font-semibold text-zinc-800 dark:text-zinc-100">{{ $part['number'] }}</div>
+                                        @if($part['name'])
+                                            <div class="text-xs text-zinc-500 dark:text-zinc-400 truncate max-w-[18rem]">{{ $part['name'] }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="px-5 py-2 text-right font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">{{ number_format($part['quantity']) }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="2" class="px-5 py-8 text-center text-zinc-500 dark:text-zinc-400">Ya no hay piezas sin orden en este renglón.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="px-5 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-sm">
+                    <span class="font-medium text-zinc-600 dark:text-zinc-300">Total sin orden</span>
+                    <span class="font-bold tabular-nums text-zinc-800 dark:text-zinc-100">{{ number_format($noOrderDetail['total']) }}</span>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @script
     <script>

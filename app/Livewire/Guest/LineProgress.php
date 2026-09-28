@@ -5,6 +5,7 @@ namespace App\Livewire\Guest;
 use App\Models\Line;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
+use App\Models\WorkCenter;
 use Carbon\Carbon;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -20,6 +21,10 @@ class LineProgress extends Component
 
     /** Catálogo de líneas para el select múltiple */
     public array $allLines = [];
+
+    /** Modal "Cant. Sin Orden": renglón abierto (work center + turno); null = cerrado */
+    public ?int $noOrderWorkCenterId = null;
+    public ?string $noOrderShift = null;
 
     public function mount(): void
     {
@@ -48,6 +53,18 @@ class LineProgress extends Component
         $this->selectedLines = array_values(array_map('intval', $this->selectedLines));
     }
 
+    public function showNoOrder(int $workCenterId, string $shift): void
+    {
+        $this->noOrderWorkCenterId = $workCenterId;
+        $this->noOrderShift = $shift;
+    }
+
+    public function closeNoOrder(): void
+    {
+        $this->noOrderWorkCenterId = null;
+        $this->noOrderShift = null;
+    }
+
     public function prevWeek(): void
     {
         $this->weekStart = Carbon::parse($this->weekStart)->subWeek()->toDateString();
@@ -61,6 +78,47 @@ class LineProgress extends Component
     public function currentWeek(): void
     {
         $this->weekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->toDateString();
+    }
+
+    /**
+     * Tramos del medidor semicircular. El 100 % del arco es máx(plan, real):
+     *  - plan (azul): lo que hay que cubrir
+     *  - real (verde, producido con orden): va cubriendo el plan
+     * Lo producido sin orden no va en el medidor: tiene su propia columna.
+     */
+    private function gaugeArc(int $plan, int $real): array
+    {
+        $total = max($plan, $real);
+
+        if ($total <= 0) {
+            return ['plan' => null, 'real' => null];
+        }
+
+        // Cada tramo es un sector cerrado del anillo: así lleva contorno fuerte y relleno claro, como las barras
+        return [
+            'plan' => $plan > 0 ? $this->ringSector(0, $plan / $total * 100) : null,
+            'real' => $real > 0 ? $this->ringSector(0, $real / $total * 100) : null,
+        ];
+    }
+
+    /**
+     * Path SVG de un sector del anillo semicircular (centro 50,50; radios 37–47),
+     * entre las posiciones $from y $to (0 = extremo izquierdo, 100 = extremo derecho).
+     */
+    private function ringSector(float $from, float $to): string
+    {
+        $outer = 47;
+        $inner = 37;
+        $point = function (float $pos, float $r) {
+            $angle = M_PI * (1 - $pos / 100);
+            return round(50 + $r * cos($angle), 3) . ' ' . round(50 - $r * sin($angle), 3);
+        };
+
+        return 'M ' . $point($from, $outer)
+            . " A {$outer} {$outer} 0 0 1 " . $point($to, $outer)
+            . ' L ' . $point($to, $inner)
+            . " A {$inner} {$inner} 0 0 0 " . $point($from, $inner)
+            . ' Z';
     }
 
     public function render()
@@ -111,13 +169,13 @@ class LineProgress extends Component
             $noOrder = (int) $r->no_order;
             $inProgress = (int) $r->in_progress > 0;
 
+            $map[$area][$lineId]['workCenters'][$wc]['id'] = (int) $r->work_center_id;
             $map[$area][$lineId]['workCenters'][$wc]['inProgress'] =
                 ($map[$area][$lineId]['workCenters'][$wc]['inProgress'] ?? false) || $inProgress;
             $map[$area][$lineId]['workCenters'][$wc]['cells'][$r->shift][$date] = [
                 'plan' => (int) $r->plan,
-                'withOrder' => $withOrder,
-                'noOrder' => $noOrder,
-                'real' => $withOrder + $noOrder,
+                'real' => $withOrder,      // real = producido con orden
+                'noOrder' => $noOrder,     // sin orden: va en la columna "Cant. Sin Orden"
                 'inProgress' => $inProgress,
             ];
         }
@@ -138,18 +196,23 @@ class LineProgress extends Component
                     $shiftRows = [];
                     foreach ($shifts as $shift) {
                         $cells = [];
+                        $noOrderTotal = 0;
                         foreach ($wc['cells'][$shift['abbr']] ?? [] as $date => $c) {
-                            // Plan y real comparten escala: la barra más larga de la celda ocupa el ancho completo
-                            $max = max($c['plan'], $c['real']);
-                            $c['planPct'] = $max > 0 ? round($c['plan'] / $max * 100, 1) : 0;
-                            $c['withOrderPct'] = $max > 0 ? round($c['withOrder'] / $max * 100, 1) : 0;
-                            $c['noOrderPct'] = $max > 0 ? round($c['noOrder'] / $max * 100, 1) : 0;
+                            $c['arc'] = $this->gaugeArc($c['plan'], $c['real']);
+                            $c['percent'] = $c['plan'] > 0 ? (int) round($c['real'] / $c['plan'] * 100) : null;
                             $cells[$date] = $c;
+                            $noOrderTotal += $c['noOrder'];
                         }
-                        $shiftRows[] = ['shift' => $shift['abbr'], 'shift_name' => $shift['name'], 'cells' => $cells];
+                        $shiftRows[] = [
+                            'shift' => $shift['abbr'],
+                            'shift_name' => $shift['name'],
+                            'cells' => $cells,
+                            'noOrderTotal' => $noOrderTotal, // acumulado de la semana en registros sin orden
+                        ];
                     }
 
                     $wcRows[] = [
+                        'id' => $wc['id'],
                         'name' => $wcName,
                         'inProgress' => $wc['inProgress'],
                         'shifts' => $shiftRows,
@@ -167,9 +230,31 @@ class LineProgress extends Component
             $areas[] = ['name' => $areaName, 'lines' => $areaLines];
         }
 
+        // Modal "Cant. Sin Orden": números de parte del renglón abierto (se recalcula en cada refresco)
+        $noOrderDetail = null;
+        if ($this->noOrderWorkCenterId && $this->noOrderShift) {
+            $parts = ProductionRecord::getNoOrderPartsByWorkCenter(
+                $this->noOrderWorkCenterId,
+                $this->noOrderShift,
+                $start->toDateString(),
+                $end->toDateString()
+            );
+            $noOrderDetail = [
+                'workCenter' => WorkCenter::whereKey($this->noOrderWorkCenterId)->value('name'),
+                'shift' => collect($shifts)->firstWhere('abbr', $this->noOrderShift)['name'] ?? $this->noOrderShift,
+                'parts' => $parts->map(fn ($p) => [
+                    'number' => $p->part_number,
+                    'name' => $p->part_name,
+                    'quantity' => (int) $p->quantity,
+                ])->all(),
+                'total' => (int) $parts->sum('quantity'),
+            ];
+        }
+
         $currentWeekStart = Carbon::today()->startOfWeek(Carbon::MONDAY)->toDateString();
 
         return view('livewire.guest.line-progress', [
+            'noOrderDetail' => $noOrderDetail,
             'days' => $days,
             'areas' => $areas,
             'weekLabel' => $start->day . ' ' . $meses[$start->month - 1] . ' – ' . $end->day . ' ' . $meses[$end->month - 1] . ' ' . $end->year,

@@ -474,6 +474,29 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Piezas producidas sin orden (acumuladores) de un work center y turno en un
+     * rango de fechas planeadas, agrupadas por número de parte (modal de la vista de líneas).
+     */
+    public static function getNoOrderPartsByWorkCenter(int $workCenterId, string $shift, $startDate, $endDate): Collection
+    {
+        return ProductionRecord::query()
+            ->selectRaw('part_numbers.number AS part_number, part_numbers.name AS part_name, SUM(production_records.produced_quantity) AS quantity')
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->where('part_numbers.work_center_id', $workCenterId)
+            ->where('shifts.abbreviation', $shift)
+            ->whereBetween('production_records.planned_date', [
+                \Carbon\Carbon::parse($startDate)->toDateString(),
+                \Carbon\Carbon::parse($endDate)->toDateString(),
+            ])
+            ->whereRaw("COALESCE(production_records.shop_order_number, '') = ''")
+            ->groupBy('part_numbers.number', 'part_numbers.name')
+            ->havingRaw('SUM(production_records.produced_quantity) > 0')
+            ->orderByRaw('SUM(production_records.produced_quantity) DESC')
+            ->get();
+    }
+
+    /**
      * Método para obtener el siguiente part number que debe producirse
      * basado en el orden de producción
      */
