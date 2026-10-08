@@ -40,7 +40,7 @@ class StoreProductionPlanJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $partNumber = PartNumber::query()->where('number', $this->part_number)->first();
+        $partNumber = PartNumber::query()->where('number', $this->part_number)->orderByDesc('id')->first();
         if (!$partNumber) {
             return;
         }

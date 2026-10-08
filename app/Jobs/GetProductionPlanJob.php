@@ -20,9 +20,10 @@ class GetProductionPlanJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct()
-    {
-        //
+    public function __construct(
+        protected ?string $from = null,
+        protected ?string $to = null,
+    ) {
     }
 
     /**
@@ -32,8 +33,13 @@ class GetProductionPlanJob implements ShouldQueue
     {
         $today = Carbon::today();
 
-        $startDate = ProductionRecord::applyHistoryFloor($today->copy()->subWeek()->startOfWeek())->format('Ymd');
-        $endDate = $today->copy()->addWeek()->endOfWeek()->format('Ymd');
+        $defaultStart = $today->copy()->subWeek()->startOfWeek();
+        $defaultEnd = $today->copy()->addWeek()->endOfWeek();
+
+        $startDate = ProductionRecord::applyHistoryFloor($this->from ? Carbon::parse($this->from) : $defaultStart)->format('Ymd');
+        $endDate = ($this->to ? Carbon::parse($this->to) : $defaultEnd)->format('Ymd');
+
+        Log::info("[GetProductionPlanJob] Rango de plan: {$startDate} - {$endDate}");
 
         $partNumbers = PartNumber::query()
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')

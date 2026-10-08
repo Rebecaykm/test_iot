@@ -52,7 +52,7 @@ class GetPartNumberJob implements ShouldQueue
                 ->get()
                 ->map(fn ($item) => [
                     'partNumber' => preg_replace('/[^a-zA-Z0-9\/\-\s()]/', '', trim($item->partNumber)),
-                    'partName' => preg_replace('/[^a-zA-Z0-9\/\-\s()]/', '', trim($item->partName)),
+                    'partName' => trim(preg_replace('/\s+/', ' ', preg_replace('/[^a-zA-Z0-9\/\-\s()]/', '', $item->partName))),
                     'class' => trim($item->class),
                     'project' => $item->project,
                     'isObsolete' => $item->isObsolete,
