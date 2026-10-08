@@ -52,7 +52,7 @@ class PartNumber extends Model
             }
         }
 
-        $partNumber = self::query()->where([['number', $number], ['name', $name]])->first();
+        $partNumber = self::query()->where('number', $number)->orderByDesc('id')->first();
 
         if ($partNumber !== null) {
             $partNumber->update($attributes);

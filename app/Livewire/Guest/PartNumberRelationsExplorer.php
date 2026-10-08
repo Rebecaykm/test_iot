@@ -40,6 +40,7 @@ class PartNumberRelationsExplorer extends Component
         $partNumber = PartNumber::query()
             ->with(['itemClass', 'workCenter'])
             ->where('number', $number)
+            ->orderByDesc('id')
             ->first();
 
         if (!$partNumber) {

@@ -28,7 +28,7 @@ class StorePartShotsJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $part = PartNumber::where('number', $this->partNumber)->first();
+        $part = PartNumber::where('number', $this->partNumber)->orderByDesc('id')->first();
 
         if ($part) {
             Log::debug("GetPartShotsJob", ['partNumber' => $this->partNumber, 'piecesPerShot' => $this->piecesPerShot]);

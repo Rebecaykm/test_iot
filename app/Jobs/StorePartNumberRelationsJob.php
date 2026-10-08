@@ -48,6 +48,7 @@ class StorePartNumberRelationsJob implements ShouldQueue
 
         $partMap = PartNumber::whereIn('number', $allNumbers)
             ->select('id', 'number')
+            ->orderBy('id')
             ->get()
             ->keyBy('number');
 

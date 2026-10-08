@@ -8,8 +8,10 @@ use App\Models\ProductionRecord;
 use App\Models\Shift;
 use App\Models\Status;
 use Carbon\Carbon;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -36,11 +38,33 @@ class StoreProductionPlanJob implements ShouldQueue
     }
 
     /**
+     * Segundos que un job espera a que otro de la misma parte libere el
+     * candado antes de regresar a la cola.
+     */
+    protected const LOCK_WAIT_SECONDS = 60;
+
+    /**
      * Execute the job.
+     *
+     * Solo un job a la vez por número de parte: si dos workers concilian
+     * órdenes de la misma parte en paralelo, ambos leen el mismo acumulador
+     * y reparten sus piezas dos veces.
      */
     public function handle(): void
     {
-        $partNumber = PartNumber::query()->where('number', $this->part_number)->first();
+        $lock = Cache::lock('production-plan:' . trim((string) $this->part_number), 120);
+
+        try {
+            $lock->block(self::LOCK_WAIT_SECONDS, fn () => $this->reconcile());
+        } catch (LockTimeoutException $e) {
+            Log::warning("StoreProductionPlanJob: la parte {$this->part_number} sigue bloqueada por otro job; la orden {$this->shop_order_number} regresa a la cola.");
+            $this->release(15);
+        }
+    }
+
+    protected function reconcile(): void
+    {
+        $partNumber = PartNumber::query()->where('number', $this->part_number)->orderByDesc('id')->first();
         if (!$partNumber) {
             return;
         }

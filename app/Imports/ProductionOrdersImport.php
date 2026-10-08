@@ -57,6 +57,7 @@ class ProductionOrdersImport implements ToCollection, WithHeadingRow
             $partNumber = PartNumber::query()
                 ->where('number', $number)
                 ->where('is_obsolete', '<>', 1)
+                ->orderByDesc('id')
                 ->first();
 
             if ($partNumber === null) {

@@ -51,7 +51,7 @@ class MaterialValidationController extends Controller
 
             $partNumber = null;
             if ($request->filled('part_number')) {
-                $partNumber = PartNumber::where('number', trim($request->part_number))->first();
+                $partNumber = PartNumber::where('number', trim($request->part_number))->orderByDesc('id')->first();
 
                 if (!$partNumber) {
                     $accessErrors[] = 'El número de parte no existe';
