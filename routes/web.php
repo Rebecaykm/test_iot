@@ -161,6 +161,11 @@ Route::get('guest/wc-progress/{workCenter}', function ($workCenter) {
     ]);
 })->name('guest.work-center-progress');
 
+// Avance de producción semanal por línea → estación → número de parte, con los días divididos por turno
+Route::get('guest/part-progress', function () {
+    return view('guest.part-progress');
+})->name('guest.part-progress');
+
 // Avance de producción semanal por línea (todas las líneas, agrupadas por área)
 // URL anterior de la vista de líneas: redirige a / conservando los filtros (?lines=, ?wcs=)
 Route::get('guest/line-progress', function () {

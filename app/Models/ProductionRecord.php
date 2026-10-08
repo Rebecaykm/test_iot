@@ -497,6 +497,61 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Avance semanal por número de parte (vista de invitados /guest/part-progress):
+     * mismos totales que getLineWeeklyProgress, pero desglosados por número de parte.
+     * Solo partes de clase PROGRESS_ITEM_CLASSES. Con $partIds se recalculan solo
+     * esas partes (actualización incremental de la vista).
+     */
+    public static function getPartWeeklyProgress($startDate, $endDate, ?array $partIds = null): Collection
+    {
+        $hasOrder = "COALESCE(production_records.shop_order_number, '') <> ''";
+
+        $query = ProductionRecord::query()
+            ->selectRaw("
+                areas.name AS area_name,
+                lines.id AS line_id,
+                lines.name AS line_name,
+                lines.color AS line_color,
+                work_centers.id AS work_center_id,
+                work_centers.name AS work_center_name,
+                part_numbers.id AS part_number_id,
+                part_numbers.number AS part_number,
+                item_classes.abbreviation AS item_class,
+                shifts.abbreviation AS shift,
+                production_records.planned_date AS planned_date,
+                SUM(CASE WHEN {$hasOrder} THEN production_records.planned_quantity ELSE 0 END) AS [plan],
+                SUM(CASE WHEN {$hasOrder} THEN production_records.produced_quantity ELSE 0 END) AS with_order,
+                SUM(CASE WHEN {$hasOrder} THEN 0 ELSE production_records.produced_quantity END) AS no_order,
+                SUM(CASE WHEN statuses.name = 'En progreso' THEN 1 ELSE 0 END) AS in_progress
+            ")
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->leftJoin('item_classes', 'part_numbers.item_class_id', '=', 'item_classes.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->leftJoin('areas', 'lines.area_id', '=', 'areas.id')
+            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
+            ->leftJoin('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->whereBetween('production_records.planned_date', [
+                \Carbon\Carbon::parse($startDate)->toDateString(),
+                \Carbon\Carbon::parse($endDate)->toDateString(),
+            ]);
+
+        if ($partIds !== null) {
+            $query->whereIn('part_numbers.id', $partIds);
+        }
+
+        self::applyProgressItemClasses($query);
+
+        return $query
+            ->groupBy(
+                'areas.name', 'lines.id', 'lines.name', 'lines.color',
+                'work_centers.id', 'work_centers.name', 'part_numbers.id', 'part_numbers.number',
+                'item_classes.abbreviation', 'shifts.abbreviation', 'production_records.planned_date'
+            )
+            ->get();
+    }
+
+    /**
      * Piezas producidas sin orden (acumuladores) de un work center y turno en un
      * rango de fechas planeadas, agrupadas por número de parte (modal de la vista de líneas).
      * Solo partes de clase PROGRESS_ITEM_CLASSES, igual que la tabla.
