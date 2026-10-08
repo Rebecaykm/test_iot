@@ -64,6 +64,7 @@ class VisualAidDisplay extends Component
 
             $partNumber = PartNumber::query()
                 ->where('number', $productionRecord->part_number)
+                ->orderByDesc('id')
                 ->first();
 
             $visualAid = $partNumber?->visualAids()
