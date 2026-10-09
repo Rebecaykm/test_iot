@@ -249,8 +249,8 @@ class PartProgress extends Component
      */
     private function partFamily(string $number): ?array
     {
-        return $this->store()->remember("part_progress:v2:family:{$number}", self::CATALOG_TTL, function () use ($number) {
-            $part = PartNumber::query()->where('number', $number)->first();
+        return $this->store()->remember("part_progress:v3:family:{$number}", self::CATALOG_TTL, function () use ($number) {
+            $part = PartNumber::query()->where('number', $number)->orderByDesc('id')->first();
             if (!$part) {
                 return null;
             }
