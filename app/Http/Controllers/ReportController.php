@@ -18,12 +18,11 @@ class ReportController extends Controller
         return view('reports.index');
     }
 
+    private const PRESS_AREA = 'Estampado';
+
     /**
      * Descarga el Reporte de MDI en Excel.
      *
-     * Incluye únicamente los números de parte que tienen un MDI asociado
-     * (atributo 'mid' no vacío) y que pertenecen a las líneas asociadas al
-     * usuario autenticado.
      */
     public function exportMdi()
     {
@@ -42,14 +41,13 @@ class ReportController extends Controller
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('lines', 'work_centers.line_id', '=', 'lines.id')
             ->join('areas', 'lines.area_id', '=', 'areas.id')
-            ->join('attributes', function ($join) {
+            ->leftJoin('attributes', function ($join) {
                 $join->on('attributes.attributable_id', '=', 'part_numbers.id')
                     ->where('attributes.attributable_type', '=', PartNumber::class)
                     ->where('attributes.key', '=', 'mid');
             })
+            ->where('areas.name', self::PRESS_AREA)
             ->whereIn('lines.id', $lineIds)
-            ->whereNotNull('attributes.value')
-            ->where('attributes.value', '!=', '')
             ->orderBy('areas.name')
             ->orderBy('lines.name')
             ->orderBy('work_centers.number')
