@@ -11,13 +11,26 @@ use Illuminate\Support\Str;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
+/**
+ * Gráfica de press-production: plan vs real acumulados, en GOLPES, por bloques de
+ * 2 horas del turno anterior y del turno en curso.
+ *
+ *  - Plan: el plan total del turno (en golpes) repartido parejo entre sus bloques y
+ *    acumulado; el último bloque muestra el plan completo del turno.
+ *  - Real: golpes registrados en histories hasta el final del bloque.
+ *  - Bloques futuros: sin real; todo el plan del bloque se pinta como faltante
+ *    (rojo), que es a lo que se debe llegar.
+ */
 class PressProductionGraph extends Component
 {
+    private const BLOCK_HOURS = 2;
+
     public string $chartId;
     public array $labels = [];
     public array $plannedData = [];
     public array $producedData = [];
     public array $differenceData = [];
+
     public $workCenter;
 
     public function mount($workCenter): void
@@ -31,53 +44,20 @@ class PressProductionGraph extends Component
     public function refreshGraph(): void
     {
         $now = Carbon::now();
-        $current = Shift::getCurrentShiftInfo($now);
-        $previous = Shift::getPreviousShiftInfo($now);
 
-        // Generar bloques separados para cada turno
-        $previousBlocks = $this->generateTimeBlocks(
-            $previous->timeRange->startDateTime,
-            $previous->timeRange->endDateTime
-        );
+        $this->labels = [];
+        $this->plannedData = [];
+        $this->producedData = [];
+        $this->differenceData = [];
 
-        $currentBlocks = $this->generateTimeBlocks(
-            $current->timeRange->startDateTime,
-            $current->timeRange->endDateTime
-        );
+        // Turno anterior y turno en curso, cada uno con su propio plan y acumulado
+        foreach ([Shift::getPreviousShiftInfo($now), Shift::getCurrentShiftInfo($now)] as $shiftInfo) {
+            if (! $shiftInfo->shift || ! $shiftInfo->timeRange) {
+                continue;
+            }
 
-        // Combinar labels en orden cronológico
-        $this->labels = array_merge(array_keys($previousBlocks), array_keys($currentBlocks));
-
-        // Divisor del PLAN por troquel y POR TURNO: cada turno tiene su propio conjunto
-        // de parts programados, así que el divisor se calcula solo con esos parts
-        // (no todo el work center). Ver PartNumber::buildShotDivisorsForPartIds.
-        $previousDivisors = $this->divisorsForShift($previous);
-        $currentDivisors  = $this->divisorsForShift($current);
-
-        // Calcular plan para cada turno por separado
-        $previousPlanned = $this->calculatePlannedForShift($previous, $previousBlocks, $previousDivisors);
-        $currentPlanned = $this->calculatePlannedForShift($current, $currentBlocks, $currentDivisors);
-        $this->plannedData = array_merge($previousPlanned, $currentPlanned);
-
-        // Calcular producción real para cada turno por separado
-        $previousProduced = $this->calculateActualForShift(
-            $previous->timeRange->startDateTime,
-            $previous->timeRange->endDateTime,
-            $previousBlocks,
-            $now
-        );
-
-        $currentProduced = $this->calculateActualForShift(
-            $current->timeRange->startDateTime,
-            $current->timeRange->endDateTime,
-            $currentBlocks,
-            $now
-        );
-
-        $this->producedData = array_merge($previousProduced, $currentProduced);
-
-        // Calcular diferencias
-        $this->calculateDifference();
+            $this->appendShift($shiftInfo, $now);
+        }
 
         $this->dispatch('update-chart', [
             'labels' => $this->labels,
@@ -87,82 +67,81 @@ class PressProductionGraph extends Component
         ]);
     }
 
-    /**
-     * Construye el divisor por troquel ([part_number_id => divisor]) usando solo
-     * los part numbers programados en ese turno, para no inflar el divisor con
-     * revisiones viejas que comparten 'mid'.
-     */
-    private function divisorsForShift($shiftInfo): array
+    private function appendShift($shiftInfo, Carbon $now): void
     {
-        $partIds = ProductionRecord::getCachedProductionRecords(
-            $this->workCenter,
-            $shiftInfo->shift->id,
-            $shiftInfo->date
-        )->pluck('part_number_id')->all();
+        $start = $shiftInfo->timeRange->startDateTime;
+        $end = $shiftInfo->timeRange->endDateTime;
 
-        return PartNumber::buildShotDivisorsForPartIds($partIds);
+        $blocks = $this->generateTimeBlocks($start, $end);
+        $shotsByBlock = $this->producedShotsByBlock($start, $end);
+
+        // Plan total del turno en golpes (el "Plan Turno" de la tabla), repartido
+        // parejo entre los bloques del turno.
+        $dies = ProductionRecord::getPressShiftPlanByDie($this->workCenter, $shiftInfo->shift->id, $shiftInfo->date);
+        $planPerBlock = array_sum(array_column($dies, 'shots')) / max(1, count($blocks));
+
+        $plannedAccumulated = 0.0;
+        $accumulated = 0.0;
+
+        foreach ($blocks as $label => $blockStart) {
+            $plannedAccumulated += $planPerBlock;
+            $planned = (int) round($plannedAccumulated);
+
+            $this->labels[] = $label;
+            $this->plannedData[] = $planned;
+
+            if ($blockStart->gt($now)) {
+                // Aún no llega: sin real; el plan completo del bloque es lo que falta por llegar
+                $this->producedData[] = null;
+                $this->differenceData[] = 0 - $planned;
+                continue;
+            }
+
+            $accumulated += $shotsByBlock[$label] ?? 0;
+            $produced = (int) round($accumulated);
+
+            $this->producedData[] = $produced;
+            $this->differenceData[] = $produced - $planned;
+        }
     }
 
+    /**
+     * Bloques de 2 horas del turno: [etiqueta => inicio del bloque].
+     */
     private function generateTimeBlocks(Carbon $start, Carbon $end): array
     {
         $blocks = [];
-        $currentBlock = $start->copy()->floorHour();
-        if ($currentBlock->hour % 2 !== 0) $currentBlock->subHour();
+        $currentBlock = $this->blockStart($start);
 
         while ($currentBlock < $end) {
-            $startRange = $currentBlock->copy();
-            $endRange = $currentBlock->copy()->addHours(2);
-            $label = $startRange->format('d-m H:i') . ' a ' . $endRange->format('H:i');
-            $blocks[$label] = 0;
-            $currentBlock->addHours(2);
+            $blocks[$this->blockLabel($currentBlock)] = $currentBlock->copy();
+            $currentBlock->addHours(self::BLOCK_HOURS);
         }
+
         return $blocks;
     }
 
-    /**
-     * Calcula el plan acumulado para un turno específico
-     */
-    private function calculatePlannedForShift($shiftInfo, $timeBlocks, array $divisors): array
+    private function blockStart(Carbon $time): Carbon
     {
-        // Obtener el total planeado para este turno
-        $records = ProductionRecord::getCachedProductionRecords(
-            $this->workCenter,
-            $shiftInfo->shift->id,
-            $shiftInfo->date
-        );
-
-        // Plan en golpes: piezas planeadas por part / divisor de su troquel.
-        $totalPlanned = $records->sum(function ($record) use ($divisors) {
-            $divisor = $divisors[$record->part_number_id] ?? 1;
-
-            return $record->planned_quantity / $divisor;
-        });
-
-        // Calcular cantidad de bloques
-        $hoursInShift = $shiftInfo->timeRange->startDateTime->diffInHours($shiftInfo->timeRange->endDateTime);
-        $blocksCount = max(1, $hoursInShift / 2);
-
-        // Cantidad promedio por bloque
-        $avgPerBlock = $totalPlanned / $blocksCount;
-
-        // Crear el acumulado para este turno
-        $accumulated = 0;
-        $result = [];
-
-        foreach ($timeBlocks as $label => $val) {
-            $accumulated += $avgPerBlock;
-            $result[] = round($accumulated);
+        $block = $time->copy()->floorHour();
+        if ($block->hour % self::BLOCK_HOURS !== 0) {
+            $block->subHour();
         }
 
-        return $result;
+        return $block;
+    }
+
+    private function blockLabel(Carbon $blockStart): string
+    {
+        return $blockStart->format('d-m H:i') . ' a ' . $blockStart->copy()->addHours(self::BLOCK_HOURS)->format('H:i');
     }
 
     /**
-     * Calcula la producción real acumulada para un turno específico
+     * Golpes reales del turno por bloque: [etiqueta => golpes].
      */
-    private function calculateActualForShift(Carbon $start, Carbon $end, $timeBlocks, $now): array
+    private function producedShotsByBlock(Carbon $start, Carbon $end): array
     {
-        // Obtener el historial de producción para este turno (sólo quantity + created_at)
+        // Historial de producción del turno (sólo part, quantity y created_at)
         $histories = History::getProducedTimeline($this->workCenter, $start, $end);
 
         // Divisor piezas -> golpes con los parts que realmente se produjeron en el
@@ -173,50 +152,13 @@ class PressProductionGraph extends Component
             $histories->pluck('part_number_id')->unique()->all()
         );
 
-        // Agrupar por bloques de tiempo
-        $grouped = $histories->groupBy(function ($item) {
-            $dt = $item->created_at->copy()->floorHour();
-            if ($dt->hour % 2 !== 0) $dt->subHour();
-            return $dt->format('d-m H:i') . ' a ' . $dt->addHours(2)->format('H:i');
-        });
-
-        // Calcular acumulado para este turno
-        $accumulated = 0;
-        $result = [];
-
-        foreach ($timeBlocks as $label => $val) {
-            $labelParts = explode(' a ', $label);
-            $labelStart = Carbon::createFromFormat('d-m H:i', $labelParts[0]);
-
-            // Si el bloque es futuro, poner null
-            if ($labelStart > $now) {
-                $result[] = null;
-                continue;
-            }
-
-            // Sumar el bloque en golpes: cada pieza / divisor del troquel de su part.
-            $blockSum = isset($grouped[$label])
-                ? $grouped[$label]->sum(fn ($item) => $item->quantity / ($divisors[$item->part_number_id] ?? 1))
-                : 0;
-
-            $accumulated += $blockSum;
-            $result[] = round($accumulated);
+        $shots = [];
+        foreach ($histories as $item) {
+            $label = $this->blockLabel($this->blockStart($item->created_at));
+            $shots[$label] = ($shots[$label] ?? 0) + $item->quantity / ($divisors[$item->part_number_id] ?? 1);
         }
 
-        return $result;
-    }
-
-    private function calculateDifference(): void
-    {
-        $this->differenceData = [];
-        foreach ($this->plannedData as $index => $planned) {
-            $produced = $this->producedData[$index];
-            if ($produced === null) {
-                $this->differenceData[] = 0 - $planned;
-            } else {
-                $this->differenceData[] = $produced - $planned;
-            }
-        }
+        return $shots;
     }
 
     public function render()

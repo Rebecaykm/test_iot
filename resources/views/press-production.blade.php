@@ -9,7 +9,7 @@
                     Volver: a la página anterior si se llegó desde este sistema;
                     si se abrió directo (sin historial), a la vista de la estación.
                 --}}
-                <a href="{{ route('guest.work-center-progress', $workCenter) }}"
+                <a href="{{ Route::has('guest.work-center-progress') ? route('guest.work-center-progress', $workCenter) : url('/') }}"
                     onclick="if (document.referrer && new URL(document.referrer).origin === window.location.origin && history.length > 1) { history.back(); return false; }"
                     title="Volver"
                     class="inline-flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 pl-2.5 pr-3.5 text-sm font-semibold text-zinc-700 dark:text-zinc-200 shadow-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
