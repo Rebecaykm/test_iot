@@ -151,31 +151,31 @@
 
             @if(!empty($data))
                 <div class="grid grid-cols-4 gap-px bg-gray-200 dark:bg-gray-600">
-                    {{-- Número de Parte — 2 columnas, un solo recuadro para todos los números --}}
+                    {{-- MDI (troquel) — 2 columnas, un solo recuadro para todos los troqueles en progreso --}}
                     <div class="col-span-2 bg-white dark:bg-gray-800 px-5 py-3 flex flex-col items-center gap-1">
                         <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                            Número de Parte
+                            NÚMERO DE PARTE
                         </span>
                         <div class="w-full divide-y divide-gray-100 dark:divide-gray-700">
                             @foreach($data as $index => $record)
                                 <div wire:key="pn-{{ $index }}"
                                      class="flex items-center justify-center py-1.5 text-xl font-bold text-blue-700 dark:text-blue-300 tracking-wider">
-                                    {{ $record['part_number'] }}
+                                    {{ $record['mdi'] }}
                                 </div>
                             @endforeach
                         </div>
                     </div>
 
-                    {{-- Cantidad Producida — 2 columnas, un solo recuadro alineado con los números de parte --}}
+                    {{-- Golpes del turno — 2 columnas, un solo recuadro alineado con los MDI --}}
                     <div class="col-span-2 bg-white dark:bg-gray-800 px-5 py-3 flex flex-col items-center gap-1">
                         <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                            Cantidad Producida
+                            Cant. Golpes
                         </span>
                         <div class="w-full divide-y divide-gray-100 dark:divide-gray-700">
                             @foreach($data as $index => $record)
                                 <div wire:key="qty-{{ $index }}"
                                      class="flex items-center justify-center py-1.5 text-xl font-bold text-green-700 dark:text-green-300">
-                                    {{ number_format($record['produced_quantity']) }}
+                                    {{ number_format($record['shots']) }}
                                 </div>
                             @endforeach
                         </div>

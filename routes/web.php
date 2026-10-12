@@ -156,3 +156,7 @@ Route::get('guest/work-center-dashboard', function () {
 Route::get('guest/part-number-relations', function () {
     return view('guest.part-number-relations');
 })->name('guest.part-number-relations');
+
+Route::get('guest/press-efficiency', function () {
+    return view('guest.press-efficiency');
+})->name('guest.press-efficiency');

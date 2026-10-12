@@ -1,3 +1,6 @@
+{{-- inline: dentro del header (junto a "Iniciar sesión"); si no, botón flotante abajo a la derecha --}}
+@props(['inline' => false])
+
 <div
     x-data="{
         dark: localStorage.getItem('theme')
@@ -9,12 +12,16 @@
             localStorage.setItem('theme', this.dark ? 'dark' : 'light');
         }
     }"
-    class="fixed bottom-4 right-4 z-50"
+    @class(['fixed bottom-4 right-4 z-50' => !$inline, 'flex-shrink-0' => $inline])
 >
     <button
         @click="toggleTheme()"
         type="button"
-        class="flex items-center justify-center h-11 w-11 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg hover:shadow-xl text-gray-600 dark:text-gray-300 transition-all"
+        @class([
+            'flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+            'h-11 w-11 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg hover:shadow-xl text-zinc-600 dark:text-zinc-300' => !$inline,
+            'h-9 w-9 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800' => $inline,
+        ])
         :aria-label="dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
         :title="dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
     >

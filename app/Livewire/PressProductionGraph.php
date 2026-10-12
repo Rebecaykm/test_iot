@@ -48,8 +48,8 @@ class PressProductionGraph extends Component
         // Combinar labels en orden cronológico
         $this->labels = array_merge(array_keys($previousBlocks), array_keys($currentBlocks));
 
-        // Divisor por troquel POR TURNO: cada turno tiene su propio conjunto de
-        // parts programados, así que el divisor se calcula solo con esos parts
+        // Divisor del PLAN por troquel y POR TURNO: cada turno tiene su propio conjunto
+        // de parts programados, así que el divisor se calcula solo con esos parts
         // (no todo el work center). Ver PartNumber::buildShotDivisorsForPartIds.
         $previousDivisors = $this->divisorsForShift($previous);
         $currentDivisors  = $this->divisorsForShift($current);
@@ -64,16 +64,14 @@ class PressProductionGraph extends Component
             $previous->timeRange->startDateTime,
             $previous->timeRange->endDateTime,
             $previousBlocks,
-            $now,
-            $previousDivisors
+            $now
         );
 
         $currentProduced = $this->calculateActualForShift(
             $current->timeRange->startDateTime,
             $current->timeRange->endDateTime,
             $currentBlocks,
-            $now,
-            $currentDivisors
+            $now
         );
 
         $this->producedData = array_merge($previousProduced, $currentProduced);
@@ -162,10 +160,18 @@ class PressProductionGraph extends Component
     /**
      * Calcula la producción real acumulada para un turno específico
      */
-    private function calculateActualForShift(Carbon $start, Carbon $end, $timeBlocks, $now, array $divisors): array
+    private function calculateActualForShift(Carbon $start, Carbon $end, $timeBlocks, $now): array
     {
         // Obtener el historial de producción para este turno (sólo quantity + created_at)
         $histories = History::getProducedTimeline($this->workCenter, $start, $end);
+
+        // Divisor piezas -> golpes con los parts que realmente se produjeron en el
+        // turno (igual que PressProductionTable). Con el divisor del plan, un part
+        // producido fuera del plan del turno se quedaba sin divisor y sus piezas se
+        // contaban como golpes.
+        $divisors = PartNumber::buildShotDivisorsForPartIds(
+            $histories->pluck('part_number_id')->unique()->all()
+        );
 
         // Agrupar por bloques de tiempo
         $grouped = $histories->groupBy(function ($item) {
