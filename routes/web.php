@@ -76,6 +76,7 @@ Route::middleware([
     // Reportes Generales
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/mdi/export', [ReportController::class, 'exportMdi'])->name('reports.mdi.export');
+    Route::get('reports/iot-rejections/export', [ReportController::class, 'exportIotRejections'])->name('reports.iot-rejections.export');
 
     Route::get('/production/export-pdf-form', [ProductionRecordController::class, 'showExportForm'])->name('production.export-pdf-form');
     Route::post('/production/export-pdf-filtered', [ProductionRecordController::class, 'exportProductionReportFiltered'])->name('production.export-pdf-filtered');
@@ -182,3 +183,7 @@ Route::get('guest/production-progress/{workCenter}', function ($workCenter) {
 Route::get('guest/part-number-relations', function () {
     return view('guest.part-number-relations');
 })->name('guest.part-number-relations');
+
+Route::get('guest/press-efficiency', function () {
+    return view('guest.press-efficiency');
+})->name('guest.press-efficiency');

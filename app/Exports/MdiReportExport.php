@@ -29,7 +29,7 @@ class MdiReportExport implements
                 $rec->work_name,
                 $rec->part_number,
                 $rec->part_name,
-                $rec->mid,
+                trim((string) $rec->mid),
             ];
         });
     }

@@ -602,4 +602,93 @@ class ProductionRecord extends Model
             ->orderBy('part_numbers.production_order', 'asc')
             ->first();
     }
+
+    /**
+     * Plan de un turno de prensa agrupado por troquel (MDI), en GOLPES.
+     *
+     * Devuelve [clave del troquel => ['shots' => golpes planeados, 'rates' => SPM de
+     * sus parts, 'order' => production_order más bajo]]. Lo comparten la tabla y la
+     * gráfica de press-production para que ambas cuenten el mismo plan.
+     *
+     *  - Golpes: piezas planeadas / suma de pieces_per_shot del troquel, calculada
+     *    solo con los parts del plan del turno (ver PartNumber::buildShotDivisors).
+     *  - SPM: production_rate es el estándar en golpes/hora (SPH) => SPH / 60.
+     */
+    public static function getPressShiftPlanByDie(string $workCenter, int $shiftId, $date): array
+    {
+        $records = self::getCachedProductionRecords($workCenter, $shiftId, $date);
+
+        $parts = PartNumber::query()
+            ->whereIn('id', $records->pluck('part_number_id')->unique())
+            ->with(['customAttributes' => fn ($q) => $q->whereIn('key', ['mid', 'pieces_per_shot'])])
+            ->get()
+            ->keyBy('id');
+
+        $divisors = PartNumber::buildShotDivisors($parts);
+
+        $dies = [];
+        foreach ($records as $record) {
+            $part = $parts->get($record->part_number_id);
+            if (! $part) {
+                continue;
+            }
+
+            $mid = trim((string) ($part->customAttributes->firstWhere('key', 'mid')->value ?? ''));
+            $key = $mid !== '' ? $mid : "part:{$part->id}";
+
+            $dies[$key] ??= ['shots' => 0.0, 'rates' => [], 'order' => PHP_INT_MAX];
+            $dies[$key]['shots'] += $record->planned_quantity / ($divisors[$part->id] ?? 1);
+
+            if ((float) $record->production_rate > 0) {
+                $dies[$key]['rates'][] = (float) $record->production_rate / 60;
+            }
+            if (! is_null($record->production_order)) {
+                $dies[$key]['order'] = min($dies[$key]['order'], (int) $record->production_order);
+            }
+        }
+
+        // Orden de producción del plan (sin orden al final, desempate por troquel).
+        uksort($dies, fn ($a, $b) => [$dies[$a]['order'], $a] <=> [$dies[$b]['order'], $b]);
+
+        return $dies;
+    }
+
+    /**
+     * Golpes que el plan de getPressShiftPlanByDie() debería llevar a los
+     * $elapsedMinutes del turno.
+     *
+     * Los troqueles se recorren en su orden de producción, cada uno a su SPM estándar
+     * (promedio de sus parts): golpes esperados = SPM * minutos, hasta agotar los
+     * golpes planeados del troquel y pasar al siguiente.
+     *
+     * Un troquel sin estándar (production_rate en 0) no tiene ritmo con qué
+     * secuenciarse: sus golpes se reparten parejo en todo el turno.
+     */
+    public static function expectedPressShots(array $dies, float $elapsedMinutes, float $totalShiftMinutes): float
+    {
+        $elapsedMinutes = max(0.0, min($elapsedMinutes, $totalShiftMinutes));
+
+        $expected        = 0.0;
+        $remaining       = $elapsedMinutes;
+        $withoutStandard = 0.0;
+
+        foreach ($dies as $die) {
+            if (empty($die['rates'])) {
+                $withoutStandard += $die['shots'];
+                continue;
+            }
+
+            if ($remaining <= 0 || $die['shots'] <= 0) {
+                continue;
+            }
+
+            $spm      = array_sum($die['rates']) / count($die['rates']);
+            $duration = $die['shots'] / $spm;
+
+            $expected  += min($die['shots'], $spm * $remaining);
+            $remaining -= min($duration, $remaining);
+        }
+
+        return $expected + $withoutStandard * ($elapsedMinutes / max(1.0, $totalShiftMinutes));
+    }
 }

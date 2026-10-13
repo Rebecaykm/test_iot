@@ -99,7 +99,10 @@
                     arrow.classList.remove('rotated');
                     window.removeEventListener('scroll', onViewportChange, true);
                     window.removeEventListener('resize', onViewportChange);
+                    if (panel.parentNode !== dropdown) dropdown.appendChild(panel);
                 }
+
+                dropdown.closest('form')?.addEventListener('submit', closePanel);
 
                 function renderChips() {
                     const selected = [...options].filter(o => o.classList.contains('ms-selected'));

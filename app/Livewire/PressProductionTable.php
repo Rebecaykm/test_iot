@@ -60,76 +60,78 @@ class PressProductionTable extends Component
         $this->shiftEnd    = $timeRange->endDateTime->format('H:i');
         $this->nowTime     = $now->format('H:i');
 
-        $planRecords = ProductionRecord::query()
-            ->select([
-                'production_records.part_number_id',
-                'production_records.planned_quantity',
-            ])
-            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
-            ->join('work_centers',  'part_numbers.work_center_id',       '=', 'work_centers.id')
-            ->join('shifts',        'production_records.shift_id',        '=', 'shifts.id')
-            ->where('production_records.planned_date', $currentShiftInfo->date->toDateString())
-            ->where('shifts.id', $shift->id)
-            ->where('work_centers.name', 'LIKE', $this->workCenter)
-            ->get();
+        // Plan del turno por troquel (MDI), en golpes. Mismo cálculo que la gráfica.
+        $dies = ProductionRecord::getPressShiftPlanByDie($this->workCenter, $shift->id, $currentShiftInfo->date);
 
-        // Divisor por troquel: [part_number_id => suma de pieces_per_shot del troquel],
-        // calculado SOLO con los parts del turno (no todo el work center), para no
-        // inflar el divisor con revisiones viejas que comparten 'mid'. Convierte
-        // piezas -> golpes. Ver PartNumber::buildShotDivisorsForPartIds.
-        $divisors = PartNumber::buildShotDivisorsForPartIds(
-            $planRecords->pluck('part_number_id')->all()
-        );
-
-        $this->planTurno = (int) round(
-            $planRecords->sum(function ($record) use ($divisors) {
-                $divisor = $divisors[$record->part_number_id] ?? 1;
-                return $record->planned_quantity / $divisor;
-            })
-        );
+        $this->planTurno = (int) round(array_sum(array_column($dies, 'shots')));
 
         $shiftStartDt      = $timeRange->startDateTime;
         $shiftEndDt        = $timeRange->endDateTime;
         $totalShiftMinutes = max(1, $shiftStartDt->diffInMinutes($shiftEndDt));
         $elapsedMinutes    = min($shiftStartDt->diffInMinutes($now), $totalShiftMinutes);
 
-        $this->planActual = (int) round(
-            ($this->planTurno / $totalShiftMinutes) * $elapsedMinutes
+        // Plan Actual: golpes que el plan debería llevar a esta hora, según el SPM
+        // estándar de cada troquel. Ver ProductionRecord::expectedPressShots.
+        $this->planActual = min(
+            $this->planTurno,
+            (int) round(ProductionRecord::expectedPressShots($dies, $elapsedMinutes, $totalShiftMinutes))
         );
 
-        // Total producido en golpes: piezas por part / divisor de su troquel.
+        // Total producido en golpes: piezas de histories de TODOS los parts de la prensa
+        // en el turno / divisor de su troquel. El divisor se calcula con los parts que
+        // realmente se produjeron (no solo los del plan): un part fuera del plan del
+        // turno se quedaba sin divisor y sus piezas se contaban como golpes.
         $producedByPart = History::getProducedQuantityByPart(
             $this->workCenter,
             $shiftStartDt,
             $now
         );
 
+        $producedDivisors = PartNumber::buildShotDivisorsForPartIds(array_keys($producedByPart));
+
         $totalShots = 0.0;
         foreach ($producedByPart as $partId => $pieces) {
-            $totalShots += $pieces / ($divisors[$partId] ?? 1);
+            $totalShots += $pieces / ($producedDivisors[$partId] ?? 1);
         }
         $this->totalProducido = (int) round($totalShots);
 
         $this->diferencia = $this->totalProducido - $this->planActual;
 
-        // Solo estatus "En progreso" (id 7), sin importar el día ni el turno en
-        // que se planeó: se muestra lo que se está produciendo ahora mismo.
-        $this->data = ProductionRecord::query()
-            ->select([
-                'part_numbers.number AS part_number',
-                'production_records.produced_quantity',
-            ])
+        // Lo que se está produciendo ahora: parts con orden en estatus "En progreso"
+        // (id 7), sin importar el día ni el turno en que se planearon, agrupados por
+        // troquel (MDI, atributo 'mid'). La cantidad NO es la de la orden: son los
+        // golpes que histories lleva registrados en el turno actual.
+        $inProgressPartIds = ProductionRecord::query()
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers',  'part_numbers.work_center_id',       '=', 'work_centers.id')
-            ->join('statuses',      'production_records.status_id',       '=', 'statuses.id')
             ->where('work_centers.name', 'LIKE', $this->workCenter)
-            ->where('statuses.id', 7)
-            ->orderBy('part_numbers.production_order')
-            ->orderBy('part_numbers.number') // desempate estable cuando dos partes comparten orden
-            ->get()
-            ->map(fn($r) => [
-                'part_number'       => $r->part_number,
-                'produced_quantity' => (int) $r->produced_quantity,
+            ->where('production_records.status_id', 7)
+            ->distinct()
+            ->pluck('part_numbers.id');
+
+        $inProgressParts = PartNumber::query()
+            ->whereIn('id', $inProgressPartIds)
+            ->with(['customAttributes' => fn ($q) => $q->whereIn('key', ['mid', 'pieces_per_shot'])])
+            ->orderBy('production_order')
+            ->orderBy('number') // desempate estable cuando dos partes comparten orden
+            ->get();
+
+        // Divisor por troquel calculado solo con los parts en progreso:
+        // golpes = piezas del part / suma de pieces_per_shot del troquel.
+        $inProgressDivisors = PartNumber::buildShotDivisors($inProgressParts);
+
+        $this->data = $inProgressParts
+            ->groupBy(function ($part) {
+                $mid = trim((string) ($part->customAttributes->firstWhere('key', 'mid')->value ?? ''));
+
+                // Sin MDI registrado se muestra el propio número de parte.
+                return $mid !== '' ? $mid : $part->number;
+            })
+            ->map(fn ($parts, $mdi) => [
+                'mdi'   => (string) $mdi,
+                'shots' => (int) round($parts->sum(
+                    fn ($part) => ($producedByPart[$part->id] ?? 0) / ($inProgressDivisors[$part->id] ?? 1)
+                )),
             ])
             ->values()
             ->toArray();

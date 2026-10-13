@@ -17,10 +17,32 @@
     <script>
         Alpine.data('productionChart', () => {
             let chart = null;
+            let themeObserver = null;
+
+            // Últimos datos recibidos: con ellos se vuelve a dibujar al cambiar de tema
+            let current = {
+                labels: @json($labels),
+                planned: @json($plannedData),
+                produced: @json($producedData),
+                difference: @json($differenceData),
+            };
 
             return {
                 init() {
                     this.createChart();
+
+                    // Los colores (textos, ejes, barras) se fijan al crear la gráfica. Al
+                    // cambiar de tema con el botón se vuelve a crear; si no, quedaba con
+                    // los colores del tema anterior (textos negros en modo oscuro).
+                    let wasDark = document.documentElement.classList.contains('dark');
+                    themeObserver = new MutationObserver(() => {
+                        const isDark = document.documentElement.classList.contains('dark');
+                        if (isDark === wasDark) return;
+                        wasDark = isDark;
+                        chart?.destroy();
+                        this.createChart();
+                    });
+                    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
                     // Escuchar el evento de Livewire correctamente
                     $wire.on('update-chart', (data) => {
@@ -35,9 +57,9 @@
 
                 createChart() {
                     const ctx = document.getElementById('{{ $chartId }}').getContext('2d');
-                    const pData = @json($plannedData);
-                    const rData = @json($producedData);
-                    const dData = @json($differenceData);
+                    const pData = current.planned;
+                    const rData = current.produced;
+                    const dData = current.difference;
                     const isDark = document.documentElement.classList.contains('dark');
 
                     const colors = {
@@ -65,7 +87,7 @@
                     chart = new Chart(ctx, {
                         plugins: [ChartDataLabels],
                         data: {
-                            labels: @json($labels),
+                            labels: current.labels,
                             datasets: [
                                 {
                                     type: 'line',
@@ -236,6 +258,7 @@
                 },
 
                 updateChart(data) {
+                    current = data;
                     if (!chart) return;
                     const pData = data.planned;
                     const rData = data.produced.map(v => v === null ? 0 : v);
@@ -250,6 +273,7 @@
                 },
 
                 destroy() {
+                    themeObserver?.disconnect();
                     chart?.destroy();
                     chart = null;
                 }
