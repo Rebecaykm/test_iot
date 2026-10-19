@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\InforSyncSetting;
 use App\Models\Line;
+use App\Models\WorkCenter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InforSyncSettingController extends Controller
 {
+    private const ENVIRONMENTS = [InforSyncSetting::ENVIRONMENT_LIVE, InforSyncSetting::ENVIRONMENT_PROTO];
+
     /**
      * Muestra la configuración de sincronización a Infor (Live y Proto)
      */
@@ -18,7 +22,7 @@ class InforSyncSettingController extends Controller
             ->orderBy('name')
             ->get();
 
-        $settings = InforSyncSetting::all()->keyBy('environment');
+        $settings = InforSyncSetting::with('workCenters')->get()->keyBy('environment');
 
         return view('infor-sync.index', [
             'lines' => $lines,
@@ -28,28 +32,56 @@ class InforSyncSettingController extends Controller
     }
 
     /**
-     * Guarda la configuración de ambos ambientes
+     * Guarda la configuración de ambos ambientes. Cada estación seleccionada
+     * requiere su fecha de inicio de envío (corte por fecha planeada).
      */
     public function update(Request $request)
     {
-        $validated = $request->validate([
-            'live.enabled' => ['nullable', 'boolean'],
-            'live.work_centers' => ['nullable', 'array'],
-            'live.work_centers.*' => ['integer', 'exists:work_centers,id'],
-            'proto.enabled' => ['nullable', 'boolean'],
-            'proto.work_centers' => ['nullable', 'array'],
-            'proto.work_centers.*' => ['integer', 'exists:work_centers,id'],
-        ]);
+        $rules = [];
+        $messages = [];
 
-        foreach ([InforSyncSetting::ENVIRONMENT_LIVE, InforSyncSetting::ENVIRONMENT_PROTO] as $environment) {
-            InforSyncSetting::updateOrCreate(
-                ['environment' => $environment],
-                [
-                    'enabled' => (bool) ($validated[$environment]['enabled'] ?? false),
-                    'work_center_ids' => array_map('intval', $validated[$environment]['work_centers'] ?? []),
-                ]
-            );
+        foreach (self::ENVIRONMENTS as $environment) {
+            $rules["{$environment}.enabled"] = ['nullable', 'boolean'];
+            $rules["{$environment}.stations"] = ['nullable', 'array'];
+            $rules["{$environment}.stations.*.selected"] = ['nullable', 'boolean'];
+            $rules["{$environment}.stations.*.sync_from"] = [
+                'nullable',
+                "required_if_accepted:{$environment}.stations.*.selected",
+                'date_format:Y-m-d',
+            ];
+
+            $messages["{$environment}.stations.*.sync_from.required_if_accepted"] = 'Ingresa la fecha de inicio de envío de la estación seleccionada.';
+            $messages["{$environment}.stations.*.sync_from.date_format"] = 'La fecha de inicio de envío no es válida.';
         }
+
+        $validated = $request->validate($rules, $messages);
+
+        DB::transaction(function () use ($validated) {
+            foreach (self::ENVIRONMENTS as $environment) {
+                $setting = InforSyncSetting::updateOrCreate(
+                    ['environment' => $environment],
+                    ['enabled' => (bool) ($validated[$environment]['enabled'] ?? false)]
+                );
+
+                $syncDates = collect($validated[$environment]['stations'] ?? [])
+                    ->filter(fn ($station) => filter_var($station['selected'] ?? false, FILTER_VALIDATE_BOOLEAN))
+                    ->map(fn ($station) => $station['sync_from']);
+
+                // Solo IDs de estaciones existentes (las llaves del arreglo vienen del formulario)
+                $syncDates = $syncDates->only(
+                    WorkCenter::whereIn('id', $syncDates->keys())->pluck('id')->all()
+                );
+
+                $setting->workCenters()->whereNotIn('work_center_id', $syncDates->keys())->delete();
+
+                foreach ($syncDates as $workCenterId => $syncFrom) {
+                    $setting->workCenters()->updateOrCreate(
+                        ['work_center_id' => $workCenterId],
+                        ['sync_from' => $syncFrom]
+                    );
+                }
+            }
+        });
 
         return redirect()
             ->route('infor-sync.index')

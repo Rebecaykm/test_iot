@@ -63,7 +63,7 @@ class SyncProductionRecordsProto implements ShouldQueue
                 return;
             }
 
-            $productionRecords = $this->getEligibleProductionRecords($workCenterNumbers);
+            $productionRecords = $this->getEligibleProductionRecords($setting, $workCenterNumbers);
 
             if ($productionRecords->isEmpty()) {
                 return;
@@ -104,7 +104,7 @@ class SyncProductionRecordsProto implements ShouldQueue
         }
     }
 
-    protected function getEligibleProductionRecords(array $workCenterNumbers)
+    protected function getEligibleProductionRecords(InforSyncSetting $setting, array $workCenterNumbers)
     {
         return ProductionRecord::query()
             ->select([
@@ -134,6 +134,8 @@ class SyncProductionRecordsProto implements ShouldQueue
             ->where('statuses.name', 'Completado')
             // ->whereNotNull('production_records.shop_order_number')
             ->whereIn('work_centers.number', $workCenterNumbers)
+            // Solo desde la fecha de inicio de envío de cada estación
+            ->tap(fn ($query) => $setting->applySyncFrom($query))
             ->whereBetween('production_records.planned_date', [
                 ProductionRecord::applyHistoryFloor(Carbon::now()->subWeek()->startOfWeek()),
                 Carbon::now()->addWeek()->endOfWeek()
