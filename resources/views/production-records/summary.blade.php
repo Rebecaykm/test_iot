@@ -40,9 +40,9 @@
                         search-placeholder="Buscar estación..."
                         style="min-width: 220px;"
                         :options="$workCenters->map(fn ($wc) => [
-                            'value' => $wc->name,
+                            'value' => $wc->id,
                             'label' => $wc->number . ' – ' . $wc->name,
-                            'selected' => is_array($selectedCenters) && in_array($wc->name, $selectedCenters),
+                            'selected' => is_array($selectedCenters) && in_array($wc->id, $selectedCenters),
                         ])"
                     />
 
