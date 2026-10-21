@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -85,26 +86,66 @@ class StoreProductionPlanJob implements ShouldQueue
             ? $partNumber->production_order
             : (ProductionOrderHistory::orderOnDate($partNumber->id, $plannedDateStr) ?? $partNumber->production_order);
 
-        // Primero el registro que ya tiene esta orden; si no hay, uno libre (sin
-        // orden). Así un acumulador vacío en el mismo slot no se toma por la orden.
-        $slotQuery = fn () => ProductionRecord::where([
-            'part_number_id' => $partNumber->id,
-            'planned_date' => $this->planned_date,
-            'shift_id' => $shift->id,
-        ]);
-
-        $existingRecord = $slotQuery()
-            ->where('shop_order_number', $this->shop_order_number)
-            ->orderBy('id')
-            ->first()
-            ?? $slotQuery()
-                ->where(fn ($query) => $query->whereNull('shop_order_number')->orWhere('shop_order_number', ''))
-                ->orderBy('id')
-                ->first();
-
         $accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
         $inProgressStatus = Status::where('name', 'LIKE', 'En progreso')->first();
         $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
+
+        // Todos los ids con este número (puede haber duplicados viejos); el
+        // correcto es el más reciente ($partNumber).
+        $partNumberIds = PartNumber::query()->where('number', $this->part_number)->pluck('id');
+
+        $this->absorbDuplicatedPartNumberRecords($partNumber, $partNumberIds, $inProgressStatus);
+
+        // La orden es la que identifica al registro: se busca por shop_order_number
+        // en todos los ids del número de parte, sin importar fecha ni turno, porque
+        // Infor puede reprogramarla. Si hay repetidos se toma el que tiene más
+        // producción (iot:merge-duplicate-part-numbers limpia los demás).
+        $orderRecords = ProductionRecord::query()
+            ->whereIn('part_number_id', $partNumberIds)
+            ->where('shop_order_number', $this->shop_order_number)
+            ->where('planned_date', '>=', ProductionRecord::HISTORY_FLOOR_DATE)
+            ->orderByDesc('produced_quantity')
+            ->orderByDesc('id')
+            ->get();
+
+        // Ya está en Infor: no se mueve ni se crea otro registro con la misma orden.
+        if ($orderRecords->contains(fn ($record) => $record->synced_to_infor)) {
+            Log::info("Orden {$this->shop_order_number} (parte {$this->part_number}) ya está sincronizada con Infor; no se modifica.");
+            return;
+        }
+
+        if ($orderRecords->count() > 1) {
+            Log::warning("Orden {$this->shop_order_number} (parte {$this->part_number}) repetida en los registros #" . $orderRecords->pluck('id')->implode(', #') . "; se usa #{$orderRecords->first()->id}. Correr iot:merge-duplicate-part-numbers.");
+        }
+
+        $existingRecord = $orderRecords->first();
+
+        if ($existingRecord !== null && (
+            (int) $existingRecord->part_number_id !== (int) $partNumber->id
+            || Carbon::parse($existingRecord->planned_date)->toDateString() !== $plannedDateStr
+            || (int) $existingRecord->shift_id !== (int) $shift->id
+        )) {
+            $previousSlot = Carbon::parse($existingRecord->planned_date)->toDateString() . " turno #{$existingRecord->shift_id}, parte #{$existingRecord->part_number_id}";
+
+            $existingRecord->update([
+                'part_number_id' => $partNumber->id,
+                'planned_date' => $this->planned_date,
+                'shift_id' => $shift->id,
+            ]);
+
+            Log::info("Orden {$this->shop_order_number} (parte {$this->part_number}) cambió en Infor; el registro #{$existingRecord->id} se movió de {$previousSlot} a {$plannedDateStr} turno {$this->planned_shift}, parte #{$partNumber->id}.");
+        }
+
+        // Si la orden todavía no existe, se usa un registro libre (sin orden) del
+        // mismo slot. Así un acumulador vacío en el mismo slot no se toma por la orden.
+        $existingRecord ??= ProductionRecord::where([
+            'part_number_id' => $partNumber->id,
+            'planned_date' => $this->planned_date,
+            'shift_id' => $shift->id,
+        ])
+            ->where(fn ($query) => $query->whereNull('shop_order_number')->orWhere('shop_order_number', ''))
+            ->orderBy('id')
+            ->first();
 
         // Orden ya Completada: no se le vuelve a pasar producción de acumuladores.
         $orderAlreadyCompleted = $existingRecord !== null
@@ -139,73 +180,83 @@ class StoreProductionPlanJob implements ShouldQueue
                 })
                 ->get();
 
-            if ($accumulatorCandidates->count() > 1) {
-                Log::warning("Varios acumuladores para la parte {$this->part_number} (IDs: " . $accumulatorCandidates->pluck('id')->implode(', ') . "). Se omite conciliación de la orden {$this->shop_order_number}; revisar manualmente.");
-            } elseif ($accumulatorCandidates->count() === 1) {
-                $accumulator = $accumulatorCandidates->first();
+            // Con varios acumuladores se usa el más antiguo que no esté "En progreso"
+            // (en ese puede seguir escribiendo el PLC). Si todos lo están, se omite.
+            $accumulator = $accumulatorCandidates->count() > 1
+                ? $accumulatorCandidates->sortBy('id')->first(fn ($candidate) => ! ($inProgressStatus && (int) $candidate->status_id === $inProgressStatus->id))
+                : $accumulatorCandidates->first();
 
-                // No se fusiona si el registro ya tiene producción propia (se perdería).
+            if ($accumulator === null && $accumulatorCandidates->count() > 1) {
+                Log::warning("Varios acumuladores En progreso para la parte {$this->part_number} (IDs: " . $accumulatorCandidates->pluck('id')->implode(', ') . "). Se omite conciliación de la orden {$this->shop_order_number}; revisar manualmente.");
+            } elseif ($accumulator !== null) {
+                if ($accumulatorCandidates->count() > 1) {
+                    Log::info("Varios acumuladores para la parte {$this->part_number} (IDs: " . $accumulatorCandidates->pluck('id')->implode(', ') . "); se usa #{$accumulator->id} para la orden {$this->shop_order_number}.");
+                }
+
+                // "En progreso" no se toca (el PLC puede seguir escribiendo sobre él).
+                $existingRecordIsInProgress = $existingRecord !== null && $inProgressStatus && (int) $existingRecord->status_id === $inProgressStatus->id;
+
                 $existingRecordHasOwnProduction = $existingRecord !== null && (int) $existingRecord->produced_quantity > 0;
 
-                // Ya tiene orden/plan de una corrida anterior: se le fusiona el acumulador.
+                // Ya tiene orden/plan de una corrida anterior: se rellena con el acumulador.
                 $existingRecordHasOwnOrderOrPlan = $existingRecord !== null && (
                     !empty($existingRecord->shop_order_number) || (int) $existingRecord->planned_quantity > 0
                 );
 
+                // Lo que le falta para llegar al plan de Infor.
+                $existingRecordMissingQuantity = $existingRecord !== null
+                    ? max(0, $plannedQuantityInt - (int) $existingRecord->produced_quantity)
+                    : 0;
+
                 $existingRecordHasLabels = $existingRecord !== null
                     && DB::table('production_labels')->where('production_record_id', $existingRecord->id)->exists();
 
-                if ($existingRecordHasOwnProduction) {
+                if ($existingRecordHasOwnProduction && ($existingRecordIsInProgress || !$existingRecordHasOwnOrderOrPlan)) {
                     Log::warning("Acumulador #{$accumulator->id} y registro #{$existingRecord->id} (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) tienen producción propia. Se omite conciliación; revisar manualmente.");
+                } elseif ($existingRecordHasOwnOrderOrPlan && $existingRecordMissingQuantity === 0) {
+                    // Ya llegó al plan: no recibe nada del acumulador, sigue la actualización normal.
                 } elseif ($existingRecordHasOwnOrderOrPlan) {
                     $accumulatorProduced = (int) $accumulator->produced_quantity;
-                    $targetPlan = (int) $existingRecord->planned_quantity;
+                    $transferQuantity = min($accumulatorProduced, $existingRecordMissingQuantity);
+                    $remainingQuantity = $accumulatorProduced - $transferQuantity;
+                    $newProducedQuantity = (int) $existingRecord->produced_quantity + $transferQuantity;
                     $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
 
-                    // "En progreso" no se toca (el PLC puede seguir escribiendo sobre él).
-                    $existingRecordIsInProgress = $inProgressStatus && (int) $existingRecord->status_id === $inProgressStatus->id;
+                    $existingRecordUpdate = [
+                        'shop_order_number' => $this->shop_order_number,
+                        'planned_quantity' => $plannedQuantityInt,
+                        'produced_quantity' => $newProducedQuantity,
+                    ];
 
-                    if ($accumulatorProduced > $targetPlan) {
-                        $excessQuantity = $accumulatorProduced - $targetPlan;
+                    if ($shouldRefreshOrder) {
+                        $existingRecordUpdate['production_order'] = $productionOrderForRecord;
+                    }
 
-                        // Cubrió el plan: Completado (salvo "En progreso").
-                        $existingRecordUpdate = ['produced_quantity' => $targetPlan];
-                        if (!$existingRecordIsInProgress && $completedStatus) {
+                    // Completado si alcanzó el plan, Detenido si no (salvo "En progreso").
+                    if (!$existingRecordIsInProgress) {
+                        if ($completedStatus && $newProducedQuantity >= $plannedQuantityInt) {
                             $existingRecordUpdate['status_id'] = $completedStatus->id;
+                        } else {
+                            $stoppedStatus = Status::where('name', 'LIKE', 'Detenid%')->first();
+                            if ($stoppedStatus) {
+                                $existingRecordUpdate['status_id'] = $stoppedStatus->id;
+                            }
                         }
-                        $existingRecord->update($existingRecordUpdate);
+                    }
 
+                    $existingRecord->update($existingRecordUpdate);
+
+                    if ($remainingQuantity > 0) {
                         $accumulator->update([
                             'planned_date' => $this->planned_date,
                             'shift_id' => $shift->id,
-                            'produced_quantity' => $excessQuantity,
+                            'produced_quantity' => $remainingQuantity,
                         ]);
 
-                        Log::info("Registro #{$existingRecord->id} (orden {$existingRecord->shop_order_number}) completó su plan ({$targetPlan}) con el acumulador #{$accumulator->id} y quedó Completado. El acumulador conservó el restante ({$excessQuantity}) en {$this->planned_date}/{$this->planned_shift}.");
+                        Log::info("Registro #{$existingRecord->id} (orden {$this->shop_order_number}) se rellenó con {$transferQuantity} piezas del acumulador #{$accumulator->id} ({$newProducedQuantity}/{$plannedQuantityInt}). El acumulador conservó el restante ({$remainingQuantity}) en {$this->planned_date}/{$this->planned_shift}.");
                     } else {
-                        $existingRecordUpdate = ['produced_quantity' => $accumulatorProduced];
-
-                        // Completado si alcanzó el plan, Detenido si no (salvo "En progreso").
-                        if (!$existingRecordIsInProgress) {
-                            if ($completedStatus && $accumulatorProduced >= $targetPlan) {
-                                $existingRecordUpdate['status_id'] = $completedStatus->id;
-                            } elseif ($accumulatorProduced > 0) {
-                                $stoppedStatus = Status::where('name', 'LIKE', 'Detenid%')->first();
-                                if ($stoppedStatus) {
-                                    $existingRecordUpdate['status_id'] = $stoppedStatus->id;
-                                }
-                            }
-                        }
-
-                        $existingRecord->update($existingRecordUpdate);
-
-                        if (DB::table('production_labels')->where('production_record_id', $accumulator->id)->exists()) {
-                            $accumulator->update(['produced_quantity' => 0]);
-                            Log::info("Registro #{$existingRecord->id} (orden {$existingRecord->shop_order_number}) recibió {$accumulatorProduced} piezas del acumulador #{$accumulator->id}. El acumulador tenía etiquetas, se dejó en 0 en vez de borrarse.");
-                        } else {
-                            $accumulator->delete();
-                            Log::info("Registro #{$existingRecord->id} (orden {$existingRecord->shop_order_number}) recibió {$accumulatorProduced} piezas del acumulador #{$accumulator->id}, que se eliminó.");
-                        }
+                        ProductionRecord::discard($accumulator, $partNumber, $existingRecord);
+                        Log::info("Registro #{$existingRecord->id} (orden {$this->shop_order_number}) se rellenó con {$transferQuantity} piezas del acumulador #{$accumulator->id} ({$newProducedQuantity}/{$plannedQuantityInt}); el acumulador quedó vacío y se descartó.");
                     }
 
                     return;
@@ -393,5 +444,40 @@ class StoreProductionPlanJob implements ShouldQueue
         } else {
             ProductionRecord::store($partNumber->id, $plannedQuantityInt, $this->planned_date, $shift->id, $this->shop_order_number, $productionOrderForRecord);
         }
+    }
+
+    /**
+     * Si el sistema externo escribió producción sin orden en un id viejo
+     * (duplicado) de este número de parte, se pasa al acumulador del id
+     * correcto para que se reparta en las órdenes. Los "En progreso" se dejan
+     * (el PLC puede seguir escribiendo en ellos) y los ya sincronizados con
+     * Infor no se tocan. Los que traen orden los mueve la búsqueda por orden.
+     */
+    protected function absorbDuplicatedPartNumberRecords(PartNumber $partNumber, Collection $partNumberIds, ?Status $inProgressStatus): void
+    {
+        $oldIds = $partNumberIds->reject(fn ($id) => (int) $id === (int) $partNumber->id);
+
+        if ($oldIds->isEmpty()) {
+            return;
+        }
+
+        ProductionRecord::query()
+            ->whereIn('part_number_id', $oldIds)
+            ->where('synced_to_infor', false)
+            ->where(fn ($query) => $query->whereNull('shop_order_number')->orWhere('shop_order_number', ''))
+            ->where('produced_quantity', '>', 0)
+            ->where('planned_date', '>=', ProductionRecord::HISTORY_FLOOR_DATE)
+            ->when($inProgressStatus, fn ($query) => $query->where(
+                fn ($query) => $query->whereNull('status_id')->orWhere('status_id', '!=', $inProgressStatus->id)
+            ))
+            ->orderBy('id')
+            ->get()
+            ->each(function (ProductionRecord $record) use ($partNumber) {
+                $producedQuantity = (int) $record->produced_quantity;
+                $oldPartNumberId = $record->part_number_id;
+                $accumulator = ProductionRecord::moveToAccumulator($partNumber, $record);
+
+                Log::info("Parte {$this->part_number}: el registro #{$record->id} estaba en el id viejo #{$oldPartNumberId}; sus {$producedQuantity} piezas pasaron al acumulador #{$accumulator->id} del id #{$partNumber->id}.");
+            });
     }
 }

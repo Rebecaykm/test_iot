@@ -201,6 +201,93 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Pasa lo producido (y el scrap) de $source al acumulador de $partNumber,
+     * para que iot:production-plan lo reparta en las órdenes que falten por
+     * llenar; si no hay ninguna, se queda en el acumulador. Después descarta
+     * $source.
+     *
+     * Solo usa un acumulador "No planeado" (el más antiguo) y nunca uno "En
+     * progreso", porque el PLC puede estar escribiendo en él. Si no hay
+     * ninguno, crea uno en la fecha/turno de $source.
+     */
+    public static function moveToAccumulator(PartNumber $partNumber, self $source): self
+    {
+        return DB::transaction(function () use ($partNumber, $source) {
+            $accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
+            $producedQuantity = (int) $source->produced_quantity;
+            $scrapQuantity = (int) $source->scrap_quantity;
+
+            $accumulator = self::query()
+                ->where('part_number_id', $partNumber->id)
+                ->where('id', '!=', $source->id)
+                ->where('status_id', $accumulatorStatus->id)
+                ->where(fn ($query) => $query->whereNull('shop_order_number')->orWhere('shop_order_number', ''))
+                ->where('planned_quantity', 0)
+                ->where('produced_quantity', '>', 0)
+                ->where('planned_date', '>=', self::HISTORY_FLOOR_DATE)
+                ->where(function ($query) {
+                    $query->whereNull('production_start')
+                        ->orWhere('production_start', '>=', self::HISTORY_FLOOR_DATE);
+                })
+                ->orderBy('id')
+                ->first();
+
+            if ($accumulator !== null) {
+                $accumulator->increment('produced_quantity', $producedQuantity);
+
+                // scrap_quantity puede ser NULL y NULL + n da NULL en SQL Server.
+                if ($scrapQuantity > 0) {
+                    $accumulator->update(['scrap_quantity' => (int) $accumulator->scrap_quantity + $scrapQuantity]);
+                }
+            } else {
+                $accumulator = self::create([
+                    'part_number_id' => $partNumber->id,
+                    'planned_date' => $source->planned_date,
+                    'shift_id' => $source->shift_id,
+                    'planned_quantity' => 0,
+                    'produced_quantity' => $producedQuantity,
+                    'scrap_quantity' => $scrapQuantity,
+                    'shop_order_number' => null,
+                    'production_order' => $partNumber->production_order,
+                    'status_id' => $accumulatorStatus->id,
+                    'synced_to_infor' => false,
+                ]);
+            }
+
+            self::discard($source, $partNumber, $accumulator);
+
+            return $accumulator;
+        });
+    }
+
+    /**
+     * Borra un registro que sobra (duplicado o ya pasado al acumulador). Sus
+     * production_sequences pasan a $replacement. Si tiene etiquetas no se
+     * puede borrar: se deja en 0, sin orden ni plan, en el número de parte
+     * correcto, para que ya no cuente ni repita la orden.
+     */
+    public static function discard(self $record, PartNumber $partNumber, ?self $replacement = null): void
+    {
+        DB::table('production_sequences')
+            ->where('production_record_id', $record->id)
+            ->update(['production_record_id' => $replacement?->id]);
+
+        if (DB::table('production_labels')->where('production_record_id', $record->id)->exists()) {
+            $record->update([
+                'part_number_id' => $partNumber->id,
+                'shop_order_number' => null,
+                'planned_quantity' => 0,
+                'produced_quantity' => 0,
+                'scrap_quantity' => 0,
+            ]);
+
+            return;
+        }
+
+        $record->delete();
+    }
+
+    /**
      * Método para obtener registros con cache para mejor performance
      */
     public static function getCachedWorkCenterProductionRecord(string $workCenter, int $shiftId, $now): Collection

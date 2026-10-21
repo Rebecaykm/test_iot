@@ -125,7 +125,7 @@ class ProductionRecordController extends Controller
                 ]);
 
             if (!empty($selectedCenters)) {
-                $query->whereIn('work_centers.name', $selectedCenters);
+                $query->whereIn('work_centers.id', $selectedCenters);
             }
 
             if (!empty($searchPart)) {
@@ -207,7 +207,7 @@ class ProductionRecordController extends Controller
             ]);
 
         if (!empty($selectedCenters)) {
-            $query->whereIn('work_centers.name', $selectedCenters);
+            $query->whereIn('work_centers.id', $selectedCenters);
         }
         if (!empty($searchPart)) {
             $query->where('part_numbers.number', 'like', "%{$searchPart}%");
