@@ -1,19 +1,18 @@
 @php
     use App\Livewire\Guest\PressEfficiency;
 
-    $summary = $report['summary'];
-
+    // Estilo TailAdmin: texto y badges redondos con fondo suave
     $toneText = [
         'good' => 'text-emerald-600 dark:text-emerald-400',
         'warn' => 'text-amber-600 dark:text-amber-400',
         'bad' => 'text-red-600 dark:text-red-400',
-        'none' => 'text-zinc-400 dark:text-zinc-500',
+        'none' => 'text-gray-400 dark:text-gray-500',
     ];
     $toneBadge = [
-        'good' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/30',
-        'warn' => 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/30',
-        'bad' => 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/30',
-        'none' => 'bg-zinc-50 text-zinc-500 ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-600/40',
+        'good' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400',
+        'warn' => 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400',
+        'bad' => 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400',
+        'none' => 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-400',
     ];
 
     $duration = function (float $minutes): string {
@@ -23,72 +22,71 @@
         return $hours > 0 ? "{$hours} h " . str_pad($mins, 2, '0', STR_PAD_LEFT) . ' min' : "{$mins} min";
     };
 
-    $summaryTone = PressEfficiency::efficiencyTone($summary['efficiency'] ?? null);
+    // Piezas de TailAdmin: tarjeta, control (botón/selector) y panel desplegable
+    $card = 'rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]';
+    $control = 'h-9 rounded-lg border border-gray-300 bg-white text-sm text-gray-700 shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-white/[0.03] transition-colors';
+    $panel = 'absolute left-0 mt-2 rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900 z-50 overflow-hidden';
+    $chevron = '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 transition-transform" :class="{ \'rotate-180\': open }" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>';
+
+    $selectedStations = $stations->whereIn('id', $selectedWorkCenters);
+    $stationsLabel = match (true) {
+        $selectedStations->isEmpty() => 'Todas las estaciones',
+        $selectedStations->count() === 1 => $selectedStations->first()->name,
+        default => $selectedStations->count() . ' estaciones',
+    };
+    $periodNoun = $period === 'month' ? 'mes' : 'semana';
+    $loadingTargets = 'goToPage,selectedWorkCenters,clearWorkCenters,clearFilters,setPeriod,currentPeriod,prevPeriod,nextPeriod,setWeek,setMonth';
 @endphp
 
-<div class="flex flex-col gap-3 sm:gap-4">
+<div class="flex flex-col gap-4 md:gap-6">
 
-    {{-- Barra superior: estaciones, fecha y turno a la izquierda; estado de actualización a la derecha --}}
-    @php
-        $control = 'h-8 border border-zinc-300 dark:border-zinc-700/70 rounded-lg bg-white dark:bg-zinc-900 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors';
-        $panel = 'absolute left-0 mt-1 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 z-50 overflow-hidden';
-        $chevron = '<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-zinc-500 transition-transform" :class="{ \'rotate-180\': open }" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>';
-
-        $selectedStations = $stations->whereIn('id', $selectedWorkCenters);
-        $stationsLabel = match (true) {
-            $selectedStations->isEmpty() => 'Todas las estaciones',
-            $selectedStations->count() === 1 => $selectedStations->first()->name,
-            default => $selectedStations->count() . ' estaciones',
-        };
-        $selectedShift = $shifts->firstWhere('id', $shiftId);
-        $shiftHours = fn ($shift) => substr($shift->start_time, 0, 5) . ' – ' . substr($shift->end_time, 0, 5);
-    @endphp
-    <div class="relative z-20 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm px-3 py-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div class="flex flex-wrap items-center gap-1.5">
+    {{-- Filtros: estaciones a la izquierda; Excel y periodo (semana o mes con su calendario) a la derecha --}}
+    <div class="relative z-20 {{ $card }} px-4 py-3 sm:px-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div class="flex flex-wrap items-center gap-2">
             {{-- Multi select de estaciones del área de Estampado (vacío = todas) --}}
-            <div x-data="{ open: false, search: '' }" @click.outside="open = false" @keydown.escape.window="open = false" class="relative w-full sm:w-48">
-                <button @click="open = !open" type="button" class="{{ $control }} w-full flex items-center justify-between gap-1.5 px-2.5">
-                    <span class="flex items-center gap-1.5 min-w-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <div x-data="{ open: false, search: '' }" @click.outside="open = false" @keydown.escape.window="open = false" class="relative w-full sm:w-56">
+                <button @click="open = !open" type="button" class="{{ $control }} w-full flex items-center justify-between gap-2 px-3">
+                    <span class="flex items-center gap-2 min-w-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
                         </svg>
                         <span class="truncate font-medium">{{ $stationsLabel }}</span>
                     </span>
-                    <span class="flex items-center gap-1 flex-shrink-0">
+                    <span class="flex items-center gap-1.5 flex-shrink-0">
                         @if($selectedStations->isNotEmpty())
-                            <span class="inline-flex items-center justify-center min-w-[1rem] h-4 px-1 text-[10px] font-bold bg-[#2563eb] dark:bg-[#3b82f6] text-white rounded-full">{{ $selectedStations->count() }}</span>
+                            <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-[11px] font-semibold bg-[#2563eb] text-white rounded-full">{{ $selectedStations->count() }}</span>
                         @endif
                         {!! $chevron !!}
                     </span>
                 </button>
 
-                <div x-show="open" x-transition.opacity.duration.100ms style="display: none;" class="{{ $panel }} w-full sm:w-64">
-                    <div class="p-2 border-b border-zinc-200 dark:border-zinc-800">
+                <div x-show="open" x-transition.opacity.duration.100ms style="display: none;" class="{{ $panel }} w-full sm:w-72">
+                    <div class="p-2 border-b border-gray-200 dark:border-gray-800">
                         <input x-model="search" type="text" placeholder="Buscar estación..."
-                            class="w-full h-7 px-2.5 py-0 text-xs border border-zinc-300 dark:border-zinc-700/70 rounded-md bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="w-full h-9 px-3 text-sm rounded-lg border border-gray-300 bg-transparent text-gray-800 placeholder:text-gray-400 focus:border-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 dark:border-gray-700 dark:text-white/90 dark:placeholder:text-white/30">
                     </div>
-                    <div class="max-h-64 overflow-y-auto py-1">
+                    <div class="max-h-72 overflow-y-auto py-1">
                         @foreach($stations->groupBy('line') as $line => $lineStations)
                             <div x-show="!search || @js(\Illuminate\Support\Str::lower($line . ' ' . $lineStations->pluck('name')->implode(' ') . ' ' . $lineStations->pluck('number')->implode(' '))).includes(search.toLowerCase())"
-                                class="px-3 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                class="px-3 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
                                 {{ $line }}
                             </div>
                             @foreach($lineStations as $station)
                                 <label wire:key="station-{{ $station->id }}"
                                     x-show="!search || @js(\Illuminate\Support\Str::lower($line . ' ' . $station->name . ' ' . $station->number)).includes(search.toLowerCase())"
-                                    class="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                    class="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors">
                                     <input type="checkbox" wire:model.live="selectedWorkCenters" value="{{ $station->id }}"
-                                        class="h-3.5 w-3.5 rounded border-zinc-400 dark:border-zinc-600 dark:bg-zinc-900 text-[#2563eb] focus:ring-blue-500 focus:ring-offset-0 flex-shrink-0">
-                                    <span class="text-zinc-700 dark:text-zinc-200">{{ $station->name }}</span>
-                                    <span class="ml-auto text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">{{ $station->number }}</span>
+                                        class="h-4 w-4 rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-[#2563eb] focus:ring-[#2563eb]/20 focus:ring-offset-0 flex-shrink-0">
+                                    <span class="text-gray-700 dark:text-gray-300">{{ $station->name }}</span>
+                                    <span class="ml-auto text-xs tabular-nums text-gray-400 dark:text-gray-500">{{ $station->number }}</span>
                                 </label>
                             @endforeach
                         @endforeach
                     </div>
                     @if($selectedStations->isNotEmpty())
-                        <div class="p-1.5 border-t border-zinc-200 dark:border-zinc-800">
+                        <div class="p-2 border-t border-gray-200 dark:border-gray-800">
                             <button wire:click="clearWorkCenters" type="button"
-                                class="w-full px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors">
+                                class="w-full h-8 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
                                 Limpiar selección (ver todas)
                             </button>
                         </div>
@@ -96,61 +94,11 @@
                 </div>
             </div>
 
-            {{-- Fecha (día en que inicia el turno) y turno --}}
-            <div class="flex items-center gap-1.5">
-                <button wire:click="prevShift" type="button" title="Turno anterior" class="{{ $control }} w-8 flex items-center justify-center text-zinc-500 dark:text-zinc-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
-                </button>
-
-                <input type="date" wire:model.live="date" max="{{ now()->toDateString() }}"
-                    class="{{ $control }} w-32 px-2 py-0 font-medium focus:border-blue-500 dark:[color-scheme:dark]">
-
-                {{-- Turno: mismo diseño que el multi select --}}
-                <div x-data="{ open: false }" @click.outside="open = false" @keydown.escape.window="open = false" class="relative">
-                    <button @click="open = !open" type="button" class="{{ $control }} w-36 flex items-center justify-between gap-1.5 px-2.5">
-                        <span class="flex items-center gap-1.5 min-w-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                            </svg>
-                            <span class="truncate font-medium">{{ $selectedShift?->name ?? 'Turno' }}</span>
-                        </span>
-                        {!! $chevron !!}
-                    </button>
-
-                    <div x-show="open" x-transition.opacity.duration.100ms style="display: none;" class="{{ $panel }} w-48 py-1">
-                        @foreach($shifts as $shift)
-                            <button wire:key="shift-{{ $shift->id }}" type="button"
-                                wire:click="$set('shiftId', {{ $shift->id }})" @click="open = false"
-                                class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                                <span class="w-3.5 flex-shrink-0 text-[#2563eb] dark:text-[#60a5fa]">
-                                    @if($shift->id === $shiftId)
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                                    @endif
-                                </span>
-                                <span class="{{ $shift->id === $shiftId ? 'font-semibold text-zinc-900 dark:text-zinc-50' : 'text-zinc-700 dark:text-zinc-200' }}">{{ $shift->name }}</span>
-                                <span class="ml-auto text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">{{ $shiftHours($shift) }}</span>
-                            </button>
-                        @endforeach
-                    </div>
-                </div>
-
-                <button wire:click="nextShift" type="button" title="Turno siguiente" @disabled(!$canGoNext)
-                    class="{{ $control }} w-8 flex items-center justify-center text-zinc-500 dark:text-zinc-300 disabled:opacity-40 disabled:pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
-                </button>
-            </div>
-
-            @unless($range?->isLive)
-                <button wire:click="currentShift" type="button" class="{{ $control }} px-2.5 font-medium text-zinc-600 dark:text-zinc-300">
-                    Turno actual
-                </button>
-            @endunless
-
-            {{-- Limpiar filtros: todas las estaciones y el turno en curso --}}
-            @if($selectedStations->isNotEmpty() || !$range?->isLive)
+            {{-- Limpiar filtros: todas las estaciones y la semana en curso --}}
+            @if($selectedStations->isNotEmpty() || !$range?->isLive || $period !== 'week')
                 <button wire:click="clearFilters" type="button" title="Limpiar filtros"
-                    class="h-8 inline-flex items-center gap-1 rounded-lg px-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true">
+                    class="h-9 inline-flex items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-500/10 dark:hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                     </svg>
                     Limpiar filtros
@@ -158,137 +106,189 @@
             @endif
         </div>
 
-        <div class="flex flex-wrap items-center gap-2 md:justify-end">
+        <div class="flex flex-wrap items-center gap-2 xl:justify-end">
             {{-- Exportar a Excel: tabla completa (todas las páginas) y gráficas Top 10 --}}
             <button wire:click="export" wire:loading.attr="disabled" wire:target="export" type="button" title="Descargar la tabla y las gráficas en Excel"
                 @disabled(empty($report['rows']))
-                class="{{ $control }} inline-flex items-center gap-1.5 px-2.5 font-medium disabled:opacity-40 disabled:pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                class="{{ $control }} inline-flex items-center gap-2 px-3.5 font-medium disabled:opacity-40 disabled:pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
-                <span wire:loading.remove wire:target="export">Excel</span>
+                <span wire:loading.remove wire:target="export">Exportar</span>
                 <span wire:loading wire:target="export">Generando…</span>
             </button>
-    
-            <div class="flex items-center gap-2 text-xs md:justify-end text-zinc-600 dark:text-zinc-300"
-                title="{{ $range?->isLive ? 'En vivo: se actualiza cada minuto' : 'Turno cerrado' }}">
-                <span wire:loading.delay wire:target="date,shiftId,prevShift,nextShift,currentShift,goToPage,selectedWorkCenters,clearWorkCenters,clearFilters"
-                    class="text-zinc-500 dark:text-zinc-400">Cargando…</span>
-                <span class="relative flex h-2 w-2">
-                    @if($range?->isLive)
-                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                        <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                    @else
-                        <span class="relative inline-flex h-2 w-2 rounded-full bg-zinc-400 dark:bg-zinc-500"></span>
-                    @endif
-                </span>
-                <span>Actualizado: <span class="font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">{{ \Carbon\Carbon::parse($report['generatedAt'])->format('d/m/Y H:i:s') }}</span></span>
-            </div>
-        </div>
-    </div>
 
-    {{-- Indicadores del turno --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm px-4 py-3">
-            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Eficiencia del turno</p>
-            <p class="mt-1 text-3xl font-bold tabular-nums {{ $toneText[$summaryTone] }}">
-                {{ isset($summary['efficiency']) ? number_format($summary['efficiency'], 1) . ' %' : '—' }}
-            </p>
-            <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Troqueles con SPM estándar</p>
-        </div>
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm px-4 py-3">
-            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Piezas producidas</p>
-            <p class="mt-1 text-3xl font-bold tabular-nums text-zinc-800 dark:text-zinc-100">{{ number_format($summary['produced'] ?? 0) }}</p>
-            <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                Esperadas (con estándar): {{ number_format($summary['expected'] ?? 0) }}
-            </p>
-        </div>
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm px-4 py-3">
-            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Troqueles producidos</p>
-            <p class="mt-1 text-3xl font-bold tabular-nums text-zinc-800 dark:text-zinc-100">{{ $summary['dies'] ?? 0 }}</p>
-            <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                {{ $summary['belowStandard'] ?? 0 }} debajo del SPM estándar
-            </p>
-        </div>
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm px-4 py-3">
-            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Sin SPM estándar</p>
-            <p class="mt-1 text-3xl font-bold tabular-nums {{ ($summary['withoutStandard'] ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-800 dark:text-zinc-100' }}">
-                {{ $summary['withoutStandard'] ?? 0 }}
-            </p>
-            <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Troqueles sin production_rate</p>
+            <span wire:loading.delay wire:target="{{ $loadingTargets }}" class="text-sm text-gray-500 dark:text-gray-400">Cargando…</span>
+
+            {{-- Periodo: Semana o Mes (selector tipo pastilla de TailAdmin) --}}
+            <div class="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 dark:bg-gray-900" role="group" aria-label="Periodo">
+                @foreach(PressEfficiency::PERIODS as $value => $text)
+                    <button wire:click="setPeriod('{{ $value }}')" type="button" aria-pressed="{{ $period === $value ? 'true' : 'false' }}"
+                        class="h-8 px-3.5 rounded-md text-sm font-medium transition-colors {{ $period === $value ? 'bg-white text-gray-900 shadow-[0px_1px_3px_0px_rgba(16,24,40,0.1)] dark:bg-gray-800 dark:text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white' }}">
+                        {{ $text }}
+                    </button>
+                @endforeach
+            </div>
+
+            {{-- Flechas y calendario --}}
+            <div class="flex items-center gap-1.5">
+                <button wire:click="prevPeriod" type="button" title="{{ $period === 'month' ? 'Mes anterior' : 'Semana anterior' }}" class="{{ $control }} w-9 flex items-center justify-center text-gray-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                </button>
+
+                {{--
+                    Calendario (Alpine + Tailwind): semana = clic en cualquier día; mes = cuadrícula de meses.
+                    El panel lleva wire:ignore para que el refresco no lo cierre; lee el periodo de $wire al abrirse.
+                --}}
+                <div x-data="peCalendar" @click.outside="open = false" @keydown.escape.window="open = false" class="relative">
+                    <button type="button" @click="toggle()" :aria-expanded="open" title="Elegir {{ $periodNoun }}"
+                        class="{{ $control }} min-w-[10rem] inline-flex items-center justify-center gap-2 px-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
+                        <span class="font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">{{ $periodLabel }}</span>
+                    </button>
+
+                    <div wire:ignore x-show="open" x-transition.opacity.duration.100ms style="display: none;"
+                        class="{{ $panel }} !left-auto right-0 w-72 p-3" role="dialog" aria-label="Calendario">
+                        <div class="flex items-center justify-between mb-2">
+                            <button type="button" @click="move(-1)" title="Anterior" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/40">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                            </button>
+                            <span class="text-sm font-semibold text-gray-800 dark:text-white/90" x-text="title"></span>
+                            <button type="button" @click="move(1)" title="Siguiente" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/40">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                            </button>
+                        </div>
+
+                        {{-- Mes: cuadrícula de meses del año --}}
+                        <div x-show="mode === 'month'" class="grid grid-cols-3 gap-1">
+                            <template x-for="(name, i) in monthNames" :key="i">
+                                <button type="button" @click="pickMonth(i)" :disabled="monthDisabled(i)"
+                                    class="h-10 rounded-lg text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 disabled:opacity-30 disabled:pointer-events-none"
+                                    :class="monthSelected(i) ? 'bg-[#2563eb] text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'"
+                                    x-text="name.slice(0, 3)"></button>
+                            </template>
+                        </div>
+
+                        {{-- Semana: días de lunes a domingo; la semana elegida va sombreada --}}
+                        <div x-show="mode === 'week'">
+                            <div class="grid grid-cols-7 mb-1">
+                                <template x-for="d in ['L', 'M', 'M', 'J', 'V', 'S', 'D']">
+                                    <span class="h-8 flex items-center justify-center text-xs font-medium text-gray-400" x-text="d"></span>
+                                </template>
+                            </div>
+                            <template x-for="week in weeks" :key="week[0].iso">
+                                <div class="grid grid-cols-7 rounded-lg" :class="week[0].iso === $wire.from ? 'bg-[#2563eb]/10 dark:bg-[#2563eb]/20' : 'hover:bg-gray-50 dark:hover:bg-white/[0.03]'">
+                                    <template x-for="day in week" :key="day.iso">
+                                        <button type="button" @click="pickDay(day.iso)" :disabled="day.iso > today"
+                                            class="h-9 text-sm tabular-nums rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 disabled:opacity-30 disabled:pointer-events-none"
+                                            :class="day.iso === today ? 'font-bold text-[#2563eb] dark:text-[#60a5fa]' : (day.inMonth ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600')"
+                                            x-text="day.day"></button>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <button wire:click="nextPeriod" type="button" title="{{ $period === 'month' ? 'Mes siguiente' : 'Semana siguiente' }}" @disabled(!$canGoNext)
+                    class="{{ $control }} w-9 flex items-center justify-center text-gray-500 disabled:opacity-40 disabled:pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                </button>
+            </div>
+
+            @unless($range?->isLive)
+                <button wire:click="currentPeriod" type="button" class="{{ $control }} px-3 font-medium">
+                    {{ $period === 'month' ? 'Mes actual' : 'Semana actual' }}
+                </button>
+            @endunless
         </div>
     </div>
 
     {{-- Tabla por troquel --}}
-    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[1100px] border-collapse text-sm">
+    <div class="{{ $card }} overflow-hidden">
+        <div class="overflow-x-auto transition-opacity" wire:loading.delay.class="opacity-50" wire:target="{{ $loadingTargets }}">
+            <table class="w-full min-w-[1100px] text-xs">
                 <thead>
-                    <tr class="bg-[#1e3a5f] dark:bg-zinc-800 text-white dark:text-zinc-100 text-xs uppercase tracking-wide">
-                        <th class="px-4 py-2.5 text-left font-semibold">Prensa</th>
-                        <th class="px-3 py-2.5 text-left font-semibold">Troquel (MDI)</th>
-                        <th class="px-3 py-2.5 text-left font-semibold">Número de parte</th>
-                        <th class="px-3 py-2.5 text-left font-semibold">Descripción</th>
-                        <th class="px-3 py-2.5 text-right font-semibold">SPM estándar</th>
-                        <th class="px-3 py-2.5 text-right font-semibold">SPM real</th>
-                        <th class="px-3 py-2.5 text-right font-semibold">Diferencia SPM</th>
-                        <th class="px-3 py-2.5 text-right font-semibold">Tiempo trabajado</th>
-                        <th class="px-3 py-2.5 text-right font-semibold">Piezas esperadas</th>
-                        <th class="px-3 py-2.5 text-right font-semibold">Piezas producidas</th>
-                        <th class="px-4 py-2.5 text-right font-semibold">Eficiencia</th>
+                    {{-- Renglón de títulos: mayúsculas sobre azul suave, igual que los títulos de las gráficas --}}
+                    <tr class="border-b border-blue-100 bg-blue-50 text-[11px] uppercase tracking-wide text-blue-900 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-100">
+                        <th class="px-5 py-3 text-left font-bold sm:pl-6">Prensa</th>
+                        <th class="px-3 py-3 text-left font-bold">Troquel (MDI)</th>
+                        <th class="px-3 py-3 text-left font-bold">Número de parte</th>
+                        <th class="px-3 py-3 text-left font-bold">Descripción</th>
+                        <th class="px-3 py-3 text-right font-bold">SPM estándar</th>
+                        <th class="px-3 py-3 text-right font-bold">SPM real</th>
+                        <th class="px-3 py-3 text-right font-bold">Diferencia SPM</th>
+                        <th class="px-3 py-3 text-right font-bold">Tiempo trabajado</th>
+                        <th class="px-3 py-3 text-right font-bold">Piezas esperadas</th>
+                        <th class="px-3 py-3 text-right font-bold">Piezas producidas</th>
+                        <th class="px-5 py-3 text-right font-bold sm:pr-6">
+                            <span class="inline-flex items-center justify-end gap-1.5">
+                                Eficiencia
+                                {{-- "?" : al pasar el mouse (o con el teclado) muestra cómo se calcula --}}
+                                <span x-data="{ show: false }" class="relative normal-case tracking-normal"
+                                    @mouseenter="show = true" @mouseleave="show = false" @focusin="show = true" @focusout="show = false">
+                                    <button type="button" aria-label="Cómo se calcula la eficiencia"
+                                        class="flex h-4 w-4 items-center justify-center rounded-full bg-blue-200 text-[10px] font-bold leading-none text-blue-900 hover:bg-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/40 dark:bg-blue-500/30 dark:text-blue-100">?</button>
+                                    <span x-show="show" x-transition.opacity.duration.100ms style="display: none;" role="tooltip"
+                                        class="absolute right-0 top-full z-30 mt-2 w-80 rounded-xl border border-gray-200 bg-white p-3 text-left text-xs font-normal leading-5 text-gray-600 shadow-lg dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+                                        <span class="block font-bold text-gray-800 dark:text-white/90">Eficiencia = Piezas producidas ÷ Piezas esperadas × 100</span>
+                                        <span class="mt-1.5 block">Piezas esperadas = SPM estándar × Tiempo trabajado (min) × Piezas por golpe</span>
+                                        <span class="block">SPM estándar = production_rate (golpes/hora) ÷ 60</span>
+                                        <span class="mt-1.5 block text-gray-400 dark:text-gray-500">Meta: {{ PressEfficiency::GOOD_THRESHOLD }} % o más</span>
+                                    </span>
+                                </span>
+                            </span>
+                        </th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     @forelse($pageRows as $row)
                         @php $tone = PressEfficiency::efficiencyTone($row['efficiency']); @endphp
-                        <tr wire:key="row-{{ $row['press'] }}-{{ $row['die'] }}" class="odd:bg-white even:bg-zinc-50/70 dark:odd:bg-zinc-900 dark:even:bg-zinc-800/40 hover:bg-blue-50/60 dark:hover:bg-zinc-800 transition-colors">
-                            <td class="px-4 py-2.5 font-semibold text-zinc-800 dark:text-zinc-100 whitespace-nowrap">{{ $row['press'] }}</td>
-                            <td class="px-3 py-2.5 font-medium text-zinc-700 dark:text-zinc-200 whitespace-nowrap">{{ $row['die'] }}</td>
-                            <td class="px-3 py-2.5 text-zinc-700 dark:text-zinc-200">
+                        <tr wire:key="row-{{ $row['press'] }}-{{ $row['die'] }}" class="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
+                            <td class="px-5 py-2.5 font-medium text-gray-800 dark:text-white/90 whitespace-nowrap sm:pl-6">{{ $row['press'] }}</td>
+                            <td class="px-3 py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ $row['die'] }}</td>
+                            <td class="px-3 py-2.5 text-gray-500 dark:text-gray-400">
                                 @foreach($row['parts'] as $part)
                                     <span class="block whitespace-nowrap tabular-nums">{{ $part }}</span>
                                 @endforeach
                             </td>
-                            <td class="px-3 py-2.5 text-zinc-600 dark:text-zinc-300">
+                            <td class="px-3 py-2.5 text-gray-500 dark:text-gray-400">
                                 @foreach($row['names'] as $name)
                                     <span class="block">{{ $name }}</span>
                                 @endforeach
                             </td>
-                            <td class="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+                            <td class="px-3 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">
                                 @if($row['spmStandard'] !== null)
                                     {{ number_format($row['spmStandard'], 1) }}
                                 @else
-                                    <span class="inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset {{ $toneBadge['none'] }}">Sin estándar</span>
+                                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {{ $toneBadge['none'] }}">Sin estándar</span>
                                 @endif
                             </td>
-                            <td class="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-200">
+                            <td class="px-3 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400">
                                 {{ $row['spmReal'] !== null ? number_format($row['spmReal'], 1) : '—' }}
                             </td>
-                            <td class="px-3 py-2.5 text-right tabular-nums font-semibold {{ $row['difference'] === null ? $toneText['none'] : ($row['difference'] < 0 ? $toneText['bad'] : $toneText['good']) }}">
+                            <td class="px-3 py-2.5 text-right tabular-nums font-medium {{ $row['difference'] === null ? $toneText['none'] : ($row['difference'] < 0 ? $toneText['bad'] : $toneText['good']) }}">
                                 {{ $row['difference'] !== null ? ($row['difference'] > 0 ? '+' : '') . number_format($row['difference'], 1) : '—' }}
                             </td>
-                            <td class="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-200 whitespace-nowrap"
+                            <td class="px-3 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400 whitespace-nowrap"
                                 title="{{ $row['runs'] }} {{ $row['runs'] === 1 ? 'corrida' : 'corridas' }}">
                                 {{ $duration($row['minutes']) }}
-                                @if($row['runs'] > 1)
-                                    <span class="block text-[11px] text-zinc-500 dark:text-zinc-400">{{ $row['runs'] }} corridas</span>
-                                @endif
                             </td>
-                            <td class="px-3 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-200"
+                            <td class="px-3 py-2.5 text-right tabular-nums text-gray-500 dark:text-gray-400"
                                 @if($row['piecesPerShot'] > 1) title="{{ $row['piecesPerShot'] }} piezas por golpe" @endif>
                                 {{ $row['expected'] !== null ? number_format($row['expected']) : '—' }}
                             </td>
-                            <td class="px-3 py-2.5 text-right tabular-nums font-medium text-zinc-800 dark:text-zinc-100">{{ number_format($row['produced']) }}</td>
-                            <td class="px-4 py-2.5 text-right">
-                                <span class="inline-flex min-w-[4.5rem] justify-end rounded-md px-2 py-0.5 text-sm font-bold tabular-nums ring-1 ring-inset {{ $toneBadge[$tone] }}">
+                            <td class="px-3 py-2.5 text-right tabular-nums font-medium text-gray-800 dark:text-white/90">{{ number_format($row['produced']) }}</td>
+                            <td class="px-5 py-2.5 text-right sm:pr-6">
+                                <span class="inline-flex min-w-[4rem] justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums {{ $toneBadge[$tone] }}">
                                     {{ $row['efficiency'] !== null ? number_format($row['efficiency'], 1) . ' %' : '—' }}
                                 </span>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="px-4 py-12 text-center text-zinc-500 dark:text-zinc-400">
-                                {{ $range?->isFuture ? 'El turno seleccionado aún no inicia.' : 'Sin producción registrada en las estaciones seleccionadas para este turno.' }}
+                            <td colspan="11" class="px-5 py-14 text-center text-gray-500 dark:text-gray-400">
+                                {{ $range?->isFuture ? 'El periodo seleccionado aún no inicia.' : 'Sin producción registrada en las estaciones seleccionadas para este periodo.' }}
                             </td>
                         </tr>
                     @endforelse
@@ -296,65 +296,85 @@
             </table>
         </div>
 
-        {{-- Paginación (5 troqueles por página) --}}
-        @if($pagination->total > 0)
-            <div class="px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p class="text-sm text-zinc-600 dark:text-zinc-300">
-                    Mostrando <span class="font-semibold tabular-nums">{{ $pagination->from }}</span>–<span class="font-semibold tabular-nums">{{ $pagination->to }}</span>
-                    de <span class="font-semibold tabular-nums">{{ $pagination->total }}</span> troqueles
+        {{-- Pie compacto: semáforo de eficiencia (de menor a mayor) a la izquierda; paginación (5 troqueles por página) a la derecha --}}
+        <div class="flex flex-col gap-2 border-t border-gray-100 dark:border-gray-800 px-5 py-2 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-red-500"></span>&lt; {{ PressEfficiency::WARN_THRESHOLD }} %</span>
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-amber-500"></span>{{ PressEfficiency::WARN_THRESHOLD }} – {{ PressEfficiency::GOOD_THRESHOLD }} %</span>
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>≥ {{ PressEfficiency::GOOD_THRESHOLD }} %</span>
+            </div>
+
+            @if($pagination->total > 0)
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Mostrando <span class="font-medium text-gray-800 dark:text-white/90 tabular-nums">{{ $pagination->from }}</span>
+                    a <span class="font-medium text-gray-800 dark:text-white/90 tabular-nums">{{ $pagination->to }}</span>
+                    de <span class="font-medium text-gray-800 dark:text-white/90 tabular-nums">{{ $pagination->total }}</span> troqueles
                 </p>
 
                 @if($pagination->pages > 1)
-                    <nav class="flex items-center gap-1" aria-label="Paginación">
-                        <button wire:click="goToPage({{ $page - 1 }})" type="button" title="Página anterior" @disabled($page <= 1)
-                            class="p-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                    @php
+                        // Páginas visibles: la primera, la última y dos alrededor de la actual
+                        $visible = collect(range(1, $pagination->pages))
+                            ->filter(fn ($p) => $p === 1 || $p === $pagination->pages || abs($p - $page) <= 1)
+                            ->values();
+                    @endphp
+                    <nav class="flex items-center gap-1.5" aria-label="Paginación">
+                        <button wire:click="goToPage({{ $page - 1 }})" type="button" @disabled($page <= 1)
+                            class="{{ $control }} !h-7 !text-xs inline-flex items-center gap-1 px-2.5 font-medium disabled:opacity-40 disabled:pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+                            Anterior
                         </button>
 
-                        @for($p = 1; $p <= $pagination->pages; $p++)
-                            <button wire:click="goToPage({{ $p }})" type="button" @if($p === $page) aria-current="page" @endif
-                                class="min-w-[2rem] h-8 px-2 rounded-lg text-sm font-semibold tabular-nums transition-colors {{ $p === $page
-                                    ? 'bg-[#1e3a5f] text-white dark:bg-blue-600'
-                                    : 'border border-zinc-300 dark:border-zinc-700/70 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800' }}">
-                                {{ $p }}
-                            </button>
-                        @endfor
+                        <div class="hidden sm:flex items-center gap-1">
+                            @foreach($visible as $i => $p)
+                                @if($i > 0 && $p - $visible[$i - 1] > 1)
+                                    <span class="w-7 text-center text-xs text-gray-400">…</span>
+                                @endif
+                                <button wire:click="goToPage({{ $p }})" type="button" @if($p === $page) aria-current="page" @endif
+                                    class="h-7 min-w-[1.75rem] px-1.5 rounded-md text-xs font-medium tabular-nums transition-colors {{ $p === $page
+                                        ? 'bg-[#2563eb] text-white'
+                                        : 'text-gray-700 hover:bg-[#2563eb]/10 hover:text-[#2563eb] dark:text-gray-400 dark:hover:text-[#60a5fa]' }}">
+                                    {{ $p }}
+                                </button>
+                            @endforeach
+                        </div>
 
-                        <button wire:click="goToPage({{ $page + 1 }})" type="button" title="Página siguiente" @disabled($page >= $pagination->pages)
-                            class="p-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                        <button wire:click="goToPage({{ $page + 1 }})" type="button" @disabled($page >= $pagination->pages)
+                            class="{{ $control }} !h-7 !text-xs inline-flex items-center gap-1 px-2.5 font-medium disabled:opacity-40 disabled:pointer-events-none">
+                            Siguiente
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
                         </button>
                     </nav>
                 @endif
             </div>
-        @endif
-
-        {{-- Semáforo de eficiencia --}}
-        <div class="px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
-            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>≥ {{ PressEfficiency::GOOD_THRESHOLD }} %</span>
-            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>{{ PressEfficiency::WARN_THRESHOLD }} – {{ PressEfficiency::GOOD_THRESHOLD }} %</span>
-            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span>&lt; {{ PressEfficiency::WARN_THRESHOLD }} %</span>
+            @endif
         </div>
     </div>
 
-    {{-- Gráficas Top 10 --}}
-    <div x-data="pressEfficiencyCharts" wire:ignore class="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
+    {{-- Gráficas Top 10: título en franja azul suave y la unidad del eje abajo --}}
+    <div x-data="pressEfficiencyCharts" wire:ignore class="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
         @foreach([
             ['deviation', 'Top 10 · Troqueles con mayor desviación respecto al SPM estándar', 'Diferencia SPM (golpes/min)', 'Ningún troquel por debajo del SPM estándar.'],
-            ['efficiency', 'Top 10 · Troqueles con menor eficiencia', 'Eficiencia (%)', 'Sin troqueles con SPM estándar en este turno.'],
+            ['efficiency', 'Top 10 · Troqueles con menor eficiencia', 'Eficiencia (%)', 'Sin troqueles con SPM estándar en este periodo.'],
         ] as [$key, $title, $axis, $emptyText])
-            <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                <div class="bg-[#1e3a5f] dark:bg-zinc-800 px-4 py-2.5">
-                    <h2 class="text-sm font-semibold uppercase tracking-wide text-white dark:text-zinc-100">{{ $title }}</h2>
+            <div class="{{ $card }} overflow-hidden">
+                <div class="flex items-center gap-2.5 border-b border-blue-100 bg-blue-50 px-5 py-2.5 sm:px-6 dark:border-blue-500/20 dark:bg-blue-500/10">
+                    <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#2563eb] shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] dark:bg-blue-500/20 dark:text-blue-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+                        </svg>
+                    </span>
+                    <h3 class="text-sm font-bold uppercase tracking-wide text-blue-900 dark:text-blue-100">{{ $title }}</h3>
                 </div>
-                <div class="relative px-3 py-3 h-[380px]">
+                <div class="relative px-4 pt-4 h-[380px] sm:px-5">
                     <canvas x-ref="{{ $key }}" aria-label="{{ $title }}" role="img"></canvas>
                     <div x-show="!data.{{ $key }}.length" x-cloak
-                        class="absolute inset-0 flex items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
+                        class="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
                         {{ $emptyText }}
                     </div>
                 </div>
-                <p class="px-4 pb-3 -mt-1 text-xs text-zinc-500 dark:text-zinc-400">{{ $axis }}</p>
+                <p class="px-5 pb-4 pt-1 text-center text-xs text-gray-500 dark:text-gray-400 sm:px-6">{{ $axis }}</p>
             </div>
         @endforeach
     </div>
@@ -362,6 +382,52 @@
 
 @script
 <script>
+    // Calendario del periodo: semana (cualquier día lleva a su semana) o mes (cuadrícula de meses)
+    Alpine.data('peCalendar', () => ({
+        open: false,
+        mode: 'week',
+        year: 0,
+        month: 0,
+        today: '',
+        monthNames: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+
+        iso(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; },
+        parse(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); },
+
+        toggle() {
+            this.open = !this.open;
+            if (!this.open) return;
+            this.mode = $wire.period;
+            this.today = this.iso(new Date());
+            const d = this.parse($wire.from || this.today);
+            this.year = d.getFullYear();
+            this.month = d.getMonth();
+        },
+        move(step) {
+            if (this.mode === 'month') { this.year += step; return; }
+            const d = new Date(this.year, this.month + step, 1);
+            this.year = d.getFullYear();
+            this.month = d.getMonth();
+        },
+        get title() { return this.mode === 'month' ? String(this.year) : `${this.monthNames[this.month]} ${this.year}`; },
+
+        // 6 semanas de lunes a domingo, empezando en el lunes de la semana del día 1
+        get weeks() {
+            const first = new Date(this.year, this.month, 1);
+            const start = new Date(this.year, this.month, 1 - ((first.getDay() + 6) % 7));
+            return Array.from({ length: 6 }, (_, w) => Array.from({ length: 7 }, (_, i) => {
+                const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + i);
+                return { iso: this.iso(d), day: d.getDate(), inMonth: d.getMonth() === this.month };
+            }));
+        },
+        pickDay(iso) { this.open = false; $wire.setWeek(iso); },
+
+        monthKey(i) { return `${this.year}-${String(i + 1).padStart(2, '0')}`; },
+        monthDisabled(i) { return this.monthKey(i) > this.today.slice(0, 7); },
+        monthSelected(i) { return ($wire.from || '').slice(0, 7) === this.monthKey(i); },
+        pickMonth(i) { this.open = false; $wire.setMonth(this.monthKey(i)); },
+    }));
+
     Alpine.data('pressEfficiencyCharts', () => {
         const GOOD = {{ PressEfficiency::GOOD_THRESHOLD }};
         const WARN = {{ PressEfficiency::WARN_THRESHOLD }};
@@ -495,6 +561,9 @@
             data: @js($charts),
 
             init() {
+                // Misma fuente que el resto de la vista (Figtree) en ejes, tooltips y etiquetas
+                Chart.defaults.font.family = getComputedStyle(this.$el).fontFamily;
+
                 // Refresco cada minuto con setInterval (como press-production): wire:poll se
                 // frena ~95 % cuando la pestaña no está al frente y la vista parecía congelada.
                 timer = setInterval(() => $wire.tick(), 60000);

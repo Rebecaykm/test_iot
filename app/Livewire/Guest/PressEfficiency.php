@@ -14,13 +14,14 @@ use Livewire\Component;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * Reporte de eficiencia de las prensas del área de Estampado por troquel (MDI) y turno.
+ * Reporte de eficiencia de las prensas del área de Estampado por troquel (MDI), por semana o mes.
  *
  *  - SPM estándar: production_rate (golpes/hora) / 60, promedio de los parts del troquel.
  *  - SPM real: promedio de histories.production_per_cycle * 100.
  *  - Tiempo trabajado: suma de las corridas del troquel en su prensa. Una corrida es un
- *    bloque continuo de registros del mismo troquel; solo se corta cuando otro troquel
- *    produce en medio. Los huecos sin registros dentro de la corrida sí cuentan.
+ *    bloque continuo de registros del mismo troquel; se corta cuando otro troquel produce
+ *    en medio o cuando cambia el turno. Los huecos sin registros dentro de la corrida sí cuentan.
+ *  - Un día de producción va del inicio del primer turno (08:00) a la misma hora del día siguiente.
  *  - Piezas esperadas: SPM estándar * minutos trabajados * piezas por golpe del troquel
  *    (troquel doble LH/RH = 2 piezas por golpe).
  *  - Eficiencia: piezas producidas / piezas esperadas.
@@ -33,14 +34,17 @@ class PressEfficiency extends Component
     /** Caché en archivo (ver LineProgress): compartido entre todas las pantallas */
     private const CACHE_STORE = 'file';
 
-    /** Turno en curso: se recalcula como máximo una vez por refresco */
-    private const LIVE_TTL = 55;
+    /** Semana o mes en curso: pesados (un mes ~8 s), se recalculan cada 5 minutos */
+    private const LIVE_TTL = 300;
 
-    /** Turnos cerrados: sus datos ya no cambian */
+    /** Semanas y meses cerrados: sus datos ya no cambian */
     private const PAST_TTL = 3600;
 
-    /** Umbrales de eficiencia (%) para el color: >= GOOD verde, >= WARN ámbar, debajo rojo */
-    public const GOOD_THRESHOLD = 95;
+    /** Periodos del filtro */
+    public const PERIODS = ['week' => 'Semana', 'month' => 'Mes'];
+
+    /** Umbrales de eficiencia (%) para el color: >= GOOD (meta, 90 %) verde, >= WARN ámbar, debajo rojo */
+    public const GOOD_THRESHOLD = 90;
     public const WARN_THRESHOLD = 80;
 
     /** Cantidad de troqueles en cada gráfica */
@@ -49,20 +53,12 @@ class PressEfficiency extends Component
     /** Renglones de la tabla por página */
     private const PER_PAGE = 5;
 
-    /**
-     * Fecha en que inicia el turno (Y-m-d) y turno. No van en la URL: si quedaran
-     * fijos ahí, al recargar o abrir un marcador la vista se quedaría en un turno
-     * ya cerrado, que no se refresca.
-     */
-    public string $date = '';
+    /** Periodo: 'week' o 'month'. No va en la URL: al abrir, siempre la semana en curso. */
+    public string $period = 'week';
 
-    public ?int $shiftId = null;
-
-    /**
-     * true mientras se ve el turno en curso: cuando ese turno termina, el refresco
-     * pasa solo al turno nuevo. Se apaga al elegir un turno pasado.
-     */
-    public bool $followLive = true;
+    /** Primer y último día de producción del periodo (Y-m-d) */
+    public string $from = '';
+    public string $to = '';
 
     /**
      * Estaciones seleccionadas (vacío = todas las del área). Se guardan como texto
@@ -99,11 +95,7 @@ class PressEfficiency extends Component
 
     public function mount(): void
     {
-        $current = Shift::getCurrentShiftInfo(now());
-
-        $this->shiftId = $current->shift?->id ?? $this->shifts()->first()?->id;
-        $this->date = $current->date->toDateString();
-
+        $this->currentPeriod();
         $this->normalizeWorkCenters();
     }
 
@@ -119,11 +111,12 @@ class PressEfficiency extends Component
         $this->page = 1;
     }
 
-    /** Regresa a la vista por defecto: todas las estaciones y el turno en curso */
+    /** Regresa a la vista por defecto: todas las estaciones y la semana en curso */
     public function clearFilters(): void
     {
         $this->selectedWorkCenters = [];
-        $this->currentShift();
+        $this->period = 'week';
+        $this->currentPeriod();
     }
 
     /** Solo ids válidos del área y sin duplicados */
@@ -137,97 +130,95 @@ class PressEfficiency extends Component
         ));
     }
 
-    public function updatedDate(): void
-    {
-        if (!$this->isValidDate($this->date)) {
-            $this->date = Shift::getCurrentShiftInfo(now())->date->toDateString();
-        }
-
-        $this->page = 1;
-        $this->syncFollowLive();
-    }
-
-    public function updatedShiftId(): void
-    {
-        $this->page = 1;
-        $this->syncFollowLive();
-    }
-
-    /** Tras un cambio manual de fecha/turno: se sigue en vivo solo si quedó en el turno en curso */
-    private function syncFollowLive(): void
-    {
-        $this->followLive = (bool) $this->range()?->isLive;
-    }
-
     public function goToPage(int $page): void
     {
         $this->page = max(1, $page);
     }
 
-    /**
-     * Refresco periódico: solo vuelve a pintar si se está viendo el turno en curso.
-     * Si ese turno ya terminó y la pantalla lo venía siguiendo, pasa al turno nuevo.
-     */
+    /** Refresco periódico: solo vuelve a pintar si el periodo está en curso */
     public function tick(): void
     {
-        if ($this->range()?->isLive) {
-            return;
+        if (!$this->range()?->isLive) {
+            $this->skipRender();
         }
-
-        if ($this->followLive) {
-            $this->currentShift();
-
-            return;
-        }
-
-        $this->skipRender();
     }
 
-    public function currentShift(): void
+    /** Día de producción en curso (el turno nocturno después de medianoche cuenta al día anterior) */
+    private function productionToday(): Carbon
     {
-        $current = Shift::getCurrentShiftInfo(now());
-        $this->shiftId = $current->shift?->id ?? $this->shiftId;
-        $this->date = $current->date->toDateString();
+        return Shift::getCurrentShiftInfo(now())->date->copy()->startOfDay();
+    }
+
+    /** Cambio de periodo: cada uno abre en el actual (la semana o el mes en curso) */
+    public function setPeriod(string $period): void
+    {
+        if (array_key_exists($period, self::PERIODS)) {
+            $this->period = $period;
+            $this->currentPeriod();
+        }
+    }
+
+    /** Botón "Semana actual" / "Mes actual" */
+    public function currentPeriod(): void
+    {
+        $today = $this->productionToday();
+
+        $this->period === 'month'
+            ? $this->setDays($today->copy()->startOfMonth(), $today->copy()->endOfMonth())
+            : $this->setDays($today->copy()->startOfWeek(Carbon::MONDAY), $today->copy()->endOfWeek(Carbon::SUNDAY));
+    }
+
+    /** Calendario de la semana: cualquier día lleva a su semana (lunes a domingo) */
+    public function setWeek(string $day): void
+    {
+        if ($this->isValidDate($day)) {
+            $this->period = 'week';
+            $d = Carbon::parse($day);
+            $this->setDays($d->copy()->startOfWeek(Carbon::MONDAY), $d->copy()->endOfWeek(Carbon::SUNDAY));
+        }
+    }
+
+    /** Calendario del mes: 'Y-m' */
+    public function setMonth(string $month): void
+    {
+        if (preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $this->period = 'month';
+            $d = Carbon::parse($month . '-01');
+            $this->setDays($d->copy()->startOfMonth(), $d->copy()->endOfMonth());
+        }
+    }
+
+    private function setDays(Carbon $from, Carbon $to): void
+    {
+        $this->from = $from->toDateString();
+        $this->to = $to->toDateString();
         $this->page = 1;
-        $this->followLive = true;
     }
 
-    public function prevShift(): void
+    /** Flechas: semana o mes anterior/siguiente */
+    public function prevPeriod(): void
     {
-        $this->moveShift(-1);
+        $this->movePeriod(-1);
     }
 
-    public function nextShift(): void
+    public function nextPeriod(): void
     {
-        $this->moveShift(1);
+        $this->movePeriod(1);
     }
 
-    /**
-     * Recorre los turnos en orden de inicio; al pasar del último al primero cambia el día.
-     */
-    private function moveShift(int $step): void
+    private function movePeriod(int $step): void
     {
-        $shifts = $this->shifts()->values();
-        $index = $shifts->search(fn ($shift) => $shift->id === $this->shiftId);
-        $date = Carbon::parse($this->date);
+        if (!$this->isValidDate($this->from)) {
+            $this->currentPeriod();
 
-        if ($index === false) {
             return;
         }
 
-        $index += $step;
-        if ($index >= $shifts->count()) {
-            $index = 0;
-            $date->addDay();
-        } elseif ($index < 0) {
-            $index = $shifts->count() - 1;
-            $date->subDay();
-        }
+        $from = Carbon::parse($this->from);
 
-        $this->shiftId = $shifts[$index]->id;
-        $this->date = $date->toDateString();
-        $this->page = 1;
-        $this->syncFollowLive();
+        $this->period === 'month'
+            ? $this->setDays($from->copy()->addMonthsNoOverflow($step)->startOfMonth(), $from->copy()->addMonthsNoOverflow($step)->endOfMonth())
+            : $this->setDays($from->copy()->addWeeks($step), $from->copy()->addWeeks($step)->addDays(6));
     }
 
     private function isValidDate(?string $date): bool
@@ -235,36 +226,36 @@ class PressEfficiency extends Component
         return (bool) $date && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) && strtotime($date) !== false;
     }
 
-    private function shifts()
+    private static function shifts()
     {
         return Cache::store(self::CACHE_STORE)->remember('press_efficiency:shifts', 600, fn () => Shift::getAllShifts());
     }
 
     /**
-     * Ventana del turno seleccionado. En el turno en curso el fin es la hora actual.
+     * Ventana del periodo: del inicio del primer turno del primer día al inicio del primer
+     * turno del día siguiente al último (incluye el nocturno del último día).
      */
     private function range(): ?object
     {
-        $shift = $this->shifts()->firstWhere('id', $this->shiftId);
-        $range = $shift ? Shift::getShiftDateTimeRange($shift, $this->date) : null;
-
-        if (!$range) {
+        if (!$this->isValidDate($this->from) || !$this->isValidDate($this->to)) {
             return null;
         }
 
+        $dayStart = substr(self::shifts()->sortBy('start_time')->first()?->start_time ?? '00:00:00', 0, 8);
+        $start = Carbon::parse($this->from . ' ' . $dayStart);
+        $end = Carbon::parse($this->to . ' ' . $dayStart)->addDay();
         $now = now();
 
         return (object) [
-            'shift' => $shift,
-            'start' => $range->startDateTime,
-            'end' => $range->endDateTime,
-            'isLive' => $now->between($range->startDateTime, $range->endDateTime),
-            'isFuture' => $now->lt($range->startDateTime),
+            'start' => $start,
+            'end' => $end,
+            'isLive' => $now->between($start, $end),
+            'isFuture' => $now->lt($start),
         ];
     }
 
     /**
-     * Reporte del turno, cacheado y compartido entre pantallas.
+     * Reporte del periodo, cacheado y compartido entre pantallas.
      */
     public static function report(Carbon $start, Carbon $end, bool $isLive, array $workCenterIds): array
     {
@@ -295,50 +286,90 @@ class PressEfficiency extends Component
             return $empty;
         }
 
-        $window = [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')];
+        // Parts de las estaciones y su troquel (atributo 'mid'; sin MDI el troquel es el propio número de parte)
+        $partInfo = PartNumber::query()
+            ->select('id', 'number', 'name', 'production_rate', 'work_center_id')
+            ->whereIn('work_center_id', $workCenters->keys())
+            ->get()
+            ->keyBy('id');
 
-        // Troquel (MDI) de cada part: atributo 'mid'; sin MDI el troquel es el propio número de parte.
         $mids = DB::table('attributes')
-            ->select('attributable_id')
-            ->selectRaw('MAX(LTRIM(RTRIM(value))) AS mid')
+            ->selectRaw('attributable_id, MAX(LTRIM(RTRIM(value))) AS mid')
             ->where('attributable_type', PartNumber::class)
             ->where('key', 'mid')
             ->where('value', '<>', '')
-            ->groupBy('attributable_id');
+            ->whereIn('attributable_id', PartNumber::query()->select('id')->whereIn('work_center_id', $workCenters->keys()))
+            ->groupBy('attributable_id')
+            ->pluck('mid', 'attributable_id');
 
-        $die = 'COALESCE(m.mid, pn.number)';
+        $dieOf = $partInfo->map(fn ($part) => trim((string) ($mids[$part->id] ?? '')) ?: $part->number)->all();
 
-        $base = DB::table('histories as h')
+        // Piezas agrupadas por estación, part y minuto: con esto la consulta pesa ~20 veces menos
+        // que recorrer cada registro de histories (un mes: ~3.5 millones de renglones → ~180 mil).
+        // Los segundos (desde 2000-01-01) evitan convertir fechas en PHP renglón por renglón.
+        $epoch = "'2000-01-01'";
+        $minute = DB::raw("DATEDIFF(minute, {$epoch}, h.created_at)");
+        $minuteRows = DB::table('histories as h')
             ->join('part_numbers as pn', 'pn.id', '=', 'h.part_number_id')
-            ->leftJoinSub($mids, 'm', 'm.attributable_id', '=', 'pn.id')
             ->whereIn('pn.work_center_id', $workCenters->keys())
-            ->whereBetween('h.created_at', $window);
-
-        // Corridas: renglones consecutivos (por prensa) del mismo troquel. LAG marca dónde
-        // cambia de troquel y la suma acumulada numera cada corrida.
-        $changes = (clone $base)->selectRaw(
-            "h.id, h.created_at, pn.work_center_id AS wc_id, {$die} AS die,
-             CASE WHEN LAG({$die}) OVER (PARTITION BY pn.work_center_id ORDER BY h.created_at, h.id) = {$die} THEN 0 ELSE 1 END AS changed"
-        );
-
-        $numbered = DB::query()->fromSub($changes, 's')->selectRaw(
-            's.wc_id, s.die, s.created_at,
-             SUM(s.changed) OVER (PARTITION BY s.wc_id ORDER BY s.created_at, s.id ROWS UNBOUNDED PRECEDING) AS run'
-        );
-
-        $runs = DB::query()->fromSub($numbered, 'r')
-            ->selectRaw('r.wc_id, r.die, r.run, MIN(r.created_at) AS started_at, MAX(r.created_at) AS ended_at')
-            ->groupBy('r.wc_id', 'r.die', 'r.run')
-            ->get();
-
-        // Totales por part.
-        $parts = (clone $base)
+            ->whereBetween('h.created_at', [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')])
             ->selectRaw(
-                "pn.work_center_id AS wc_id, {$die} AS die, pn.id, pn.number, pn.name, pn.production_rate,
+                "pn.work_center_id AS wc_id, h.part_number_id AS part_id, DATEDIFF(minute, {$epoch}, h.created_at) AS m,
+                 DATEDIFF(second, {$epoch}, MIN(h.created_at)) AS first_s, DATEDIFF(second, {$epoch}, MAX(h.created_at)) AS last_s,
                  SUM(h.quantity) AS qty, SUM(h.production_per_cycle) AS ppc_sum, COUNT(h.production_per_cycle) AS ppc_count"
             )
-            ->groupBy('pn.work_center_id', DB::raw($die), 'pn.id', 'pn.number', 'pn.name', 'pn.production_rate')
-            ->get();
+            ->groupBy('pn.work_center_id', 'h.part_number_id', $minute)
+            ->orderBy('wc_id')
+            ->orderBy('m')
+            ->orderBy('first_s');
+
+        // Corridas: bloque continuo del mismo troquel en su prensa. Se corta cuando otro troquel
+        // produce en medio o cuando cambia el turno (en rangos de varios días, sin este corte, un
+        // troquel que trabajó el lunes y el miércoles sumaría como trabajados los días de en medio).
+        // Los huecos sin registros dentro de la corrida sí cuentan, como antes.
+        $shiftOf = self::shiftBucketResolver();
+        $runs = [];   // "wc|troquel" => [['start' => s, 'end' => s], ...]
+        $totals = []; // part id => qty, ppc_sum, ppc_count
+        $current = null;
+
+        foreach ($minuteRows->cursor() as $row) {
+            $partId = (int) $row->part_id;
+            $key = $row->wc_id . '|' . ($dieOf[$partId] ?? $partId);
+            $bucket = $shiftOf((int) $row->m);
+
+            if (!$current || $current['key'] !== $key || $current['bucket'] !== $bucket) {
+                if ($current) {
+                    $runs[$current['key']][] = ['start' => $current['start'], 'end' => $current['end']];
+                }
+                $current = ['key' => $key, 'bucket' => $bucket, 'start' => (int) $row->first_s, 'end' => (int) $row->last_s];
+            } else {
+                $current['end'] = max($current['end'], (int) $row->last_s);
+            }
+
+            $totals[$partId]['qty'] = ($totals[$partId]['qty'] ?? 0) + (int) $row->qty;
+            $totals[$partId]['ppc_sum'] = ($totals[$partId]['ppc_sum'] ?? 0) + (float) $row->ppc_sum;
+            $totals[$partId]['ppc_count'] = ($totals[$partId]['ppc_count'] ?? 0) + (int) $row->ppc_count;
+        }
+        if ($current) {
+            $runs[$current['key']][] = ['start' => $current['start'], 'end' => $current['end']];
+        }
+
+        // Totales por part, con la misma forma que la consulta anterior
+        $parts = collect($totals)->map(function ($t, $partId) use ($partInfo, $dieOf) {
+            $part = $partInfo[$partId];
+
+            return (object) [
+                'wc_id' => $part->work_center_id,
+                'die' => $dieOf[$partId],
+                'id' => $partId,
+                'number' => $part->number,
+                'name' => $part->name,
+                'production_rate' => $part->production_rate,
+                'qty' => $t['qty'],
+                'ppc_sum' => $t['ppc_sum'],
+                'ppc_count' => $t['ppc_count'],
+            ];
+        })->values();
 
         if ($parts->isEmpty()) {
             return $empty;
@@ -346,15 +377,15 @@ class PressEfficiency extends Component
 
         $divisors = PartNumber::buildShotDivisorsForPartIds($parts->pluck('id')->all());
 
-        $runsByDie = $runs->groupBy(fn ($run) => $run->wc_id . '|' . $run->die);
+        $epochTs = Carbon::parse('2000-01-01')->timestamp;
 
         $rows = $parts
             ->groupBy(fn ($part) => $part->wc_id . '|' . $part->die)
-            ->map(function ($dieParts, $key) use ($runsByDie, $divisors, $workCenters) {
+            ->map(function ($dieParts, $key) use ($runs, $divisors, $workCenters, $epochTs) {
                 $first = $dieParts->first();
-                $dieRuns = $runsByDie->get($key, collect());
+                $dieRuns = collect($runs[$key] ?? []);
 
-                $seconds = $dieRuns->sum(fn ($run) => Carbon::parse($run->started_at)->diffInSeconds(Carbon::parse($run->ended_at)));
+                $seconds = $dieRuns->sum(fn ($run) => $run['end'] - $run['start']);
                 $minutes = $seconds / 60;
 
                 $rates = $dieParts->map(fn ($part) => (float) $part->production_rate)->filter(fn ($rate) => $rate > 0);
@@ -385,7 +416,7 @@ class PressEfficiency extends Component
                     'expected' => $expected !== null ? (int) round($expected) : null,
                     'produced' => $produced,
                     'efficiency' => $efficiency !== null ? round($efficiency, 1) : null,
-                    'startedAt' => $dieRuns->min('started_at'),
+                    'startedAt' => $dieRuns->isNotEmpty() ? Carbon::createFromTimestamp($epochTs + $dieRuns->min('start'))->format('Y-m-d H:i:s') : null,
                 ];
             })
             ->sortBy([['pressNumber', 'asc'], ['startedAt', 'asc']])
@@ -413,6 +444,35 @@ class PressEfficiency extends Component
         ];
     }
 
+    /**
+     * Función que da el turno (como número consecutivo) de un minuto contado desde 2000-01-01:
+     * día * cantidad de turnos + índice del turno según su hora de inicio. Un minuto antes del
+     * primer turno del día pertenece al último turno del día anterior (el nocturno).
+     */
+    private static function shiftBucketResolver(): \Closure
+    {
+        $starts = self::shifts()
+            ->map(fn ($shift) => (int) substr($shift->start_time, 0, 2) * 60 + (int) substr($shift->start_time, 3, 2))
+            ->sort()
+            ->values()
+            ->all() ?: [0];
+        $count = count($starts);
+
+        return function (int $minute) use ($starts, $count): int {
+            $day = intdiv($minute, 1440);
+            $ofDay = $minute % 1440;
+
+            $index = -1;
+            foreach ($starts as $i => $startMinute) {
+                if ($ofDay >= $startMinute) {
+                    $index = $i;
+                }
+            }
+
+            return $index < 0 ? ($day - 1) * $count + $count - 1 : $day * $count + $index;
+        };
+    }
+
     public static function efficiencyTone(?float $efficiency): string
     {
         if ($efficiency === null) {
@@ -426,7 +486,7 @@ class PressEfficiency extends Component
         };
     }
 
-    /** Reporte del turno y estaciones seleccionados (vacío si el turno aún no inicia) */
+    /** Reporte del periodo y estaciones seleccionados (vacío si el periodo aún no inicia) */
     private function currentReport(?object $range): array
     {
         $workCenterIds = array_map('intval', $this->selectedWorkCenters ?: self::stations()->pluck('id')->all());
@@ -436,7 +496,7 @@ class PressEfficiency extends Component
             : ['rows' => [], 'deviation' => [], 'efficiency' => [], 'summary' => null, 'generatedAt' => now()->toIso8601String()];
     }
 
-    /** Descarga en Excel la tabla completa (todas las páginas) y las gráficas del turno */
+    /** Descarga en Excel la tabla completa (todas las páginas) y las gráficas del periodo */
     public function export()
     {
         $report = $this->currentReport($this->range());
@@ -462,7 +522,6 @@ class PressEfficiency extends Component
 
         return view('livewire.guest.press-efficiency', [
             'range' => $range,
-            'shifts' => $this->shifts(),
             'stations' => $stations,
             'report' => $report,
             'pageRows' => array_slice($report['rows'], ($this->page - 1) * self::PER_PAGE, self::PER_PAGE),
@@ -474,6 +533,28 @@ class PressEfficiency extends Component
             ],
             'charts' => $charts,
             'canGoNext' => $range && $range->end->lt(now()),
+            'periodLabel' => $this->periodLabel(),
         ]);
+    }
+
+    /** "19 – 25 Oct 2026", "28 Sep – 4 Oct 2026" u "Octubre 2026" */
+    private function periodLabel(): string
+    {
+        if (!$this->isValidDate($this->from) || !$this->isValidDate($this->to)) {
+            return '';
+        }
+
+        $meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        $mesesLargos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        $from = Carbon::parse($this->from);
+        $to = Carbon::parse($this->to);
+
+        if ($this->period === 'month') {
+            return $mesesLargos[$from->month - 1] . ' ' . $from->year;
+        }
+
+        return $from->day . ($from->month !== $to->month || $from->year !== $to->year ? ' ' . $meses[$from->month - 1] : '')
+            . ($from->year !== $to->year ? ' ' . $from->year : '')
+            . ' – ' . $to->day . ' ' . $meses[$to->month - 1] . ' ' . $to->year;
     }
 }
