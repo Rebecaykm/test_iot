@@ -158,19 +158,32 @@
             @endif
         </div>
 
-        <div class="flex items-center gap-2 text-xs md:justify-end text-zinc-600 dark:text-zinc-300"
-            title="{{ $range?->isLive ? 'En vivo: se actualiza cada minuto' : 'Turno cerrado' }}">
-            <span wire:loading.delay wire:target="date,shiftId,prevShift,nextShift,currentShift,goToPage,selectedWorkCenters,clearWorkCenters,clearFilters"
-                class="text-zinc-500 dark:text-zinc-400">Cargando…</span>
-            <span class="relative flex h-2 w-2">
-                @if($range?->isLive)
-                    <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-                @else
-                    <span class="relative inline-flex h-2 w-2 rounded-full bg-zinc-400 dark:bg-zinc-500"></span>
-                @endif
-            </span>
-            <span>Actualizado: <span class="font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">{{ \Carbon\Carbon::parse($report['generatedAt'])->format('d/m/Y H:i:s') }}</span></span>
+        <div class="flex flex-wrap items-center gap-2 md:justify-end">
+            {{-- Exportar a Excel: tabla completa (todas las páginas) y gráficas Top 10 --}}
+            <button wire:click="export" wire:loading.attr="disabled" wire:target="export" type="button" title="Descargar la tabla y las gráficas en Excel"
+                @disabled(empty($report['rows']))
+                class="{{ $control }} inline-flex items-center gap-1.5 px-2.5 font-medium disabled:opacity-40 disabled:pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span wire:loading.remove wire:target="export">Excel</span>
+                <span wire:loading wire:target="export">Generando…</span>
+            </button>
+    
+            <div class="flex items-center gap-2 text-xs md:justify-end text-zinc-600 dark:text-zinc-300"
+                title="{{ $range?->isLive ? 'En vivo: se actualiza cada minuto' : 'Turno cerrado' }}">
+                <span wire:loading.delay wire:target="date,shiftId,prevShift,nextShift,currentShift,goToPage,selectedWorkCenters,clearWorkCenters,clearFilters"
+                    class="text-zinc-500 dark:text-zinc-400">Cargando…</span>
+                <span class="relative flex h-2 w-2">
+                    @if($range?->isLive)
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                    @else
+                        <span class="relative inline-flex h-2 w-2 rounded-full bg-zinc-400 dark:bg-zinc-500"></span>
+                    @endif
+                </span>
+                <span>Actualizado: <span class="font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">{{ \Carbon\Carbon::parse($report['generatedAt'])->format('d/m/Y H:i:s') }}</span></span>
+            </div>
         </div>
     </div>
 

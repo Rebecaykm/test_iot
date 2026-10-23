@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Guest;
 
+use App\Exports\PressEfficiencyExport;
 use App\Models\PartNumber;
 use App\Models\Shift;
 use App\Models\WorkCenter;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Reporte de eficiencia de las prensas del área de Estampado por troquel (MDI) y turno.
@@ -424,16 +426,30 @@ class PressEfficiency extends Component
         };
     }
 
+    /** Reporte del turno y estaciones seleccionados (vacío si el turno aún no inicia) */
+    private function currentReport(?object $range): array
+    {
+        $workCenterIds = array_map('intval', $this->selectedWorkCenters ?: self::stations()->pluck('id')->all());
+
+        return $range && !$range->isFuture
+            ? self::report($range->start, $range->end, $range->isLive, $workCenterIds)
+            : ['rows' => [], 'deviation' => [], 'efficiency' => [], 'summary' => null, 'generatedAt' => now()->toIso8601String()];
+    }
+
+    /** Descarga en Excel la tabla completa (todas las páginas) y las gráficas del turno */
+    public function export()
+    {
+        $report = $this->currentReport($this->range());
+
+        return Excel::download(new PressEfficiencyExport($report), 'PressEfficiency_' . now()->format('Ymd_His') . '.xlsx');
+    }
+
     public function render()
     {
         $range = $this->range();
 
         $stations = self::stations();
-        $workCenterIds = array_map('intval', $this->selectedWorkCenters ?: $stations->pluck('id')->all());
-
-        $report = $range && !$range->isFuture
-            ? self::report($range->start, $range->end, $range->isLive, $workCenterIds)
-            : ['rows' => [], 'deviation' => [], 'efficiency' => [], 'summary' => null, 'generatedAt' => now()->toIso8601String()];
+        $report = $this->currentReport($range);
 
         $charts = ['deviation' => $report['deviation'], 'efficiency' => $report['efficiency']];
 
