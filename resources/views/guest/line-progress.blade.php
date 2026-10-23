@@ -8,31 +8,32 @@
 
             {{--
                 Filtros guardados en este navegador: se aplican ANTES de pintar la tabla, redirigiendo a la
-                URL con ?lines= / ?wcs=. Antes se recuperaban después de cargar y se veía toda la planta
-                por un momento. Si la URL ya trae filtros, mandan los de la URL.
+                URL con ?lines= (inicio) o ?wcs= (estaciones de una línea). Antes se recuperaban después de
+                cargar y se veía todo por un momento. Si la URL ya trae el filtro, manda el de la URL.
             --}}
-            <script>
-                (function () {
-                    const params = new URLSearchParams(window.location.search);
-                    const inUrl = name => [...params.keys()].some(k => k === name || k.startsWith(name + '['));
-                    if (inUrl('lines') || inUrl('wcs')) return;
+            @php $filterParam = isset($wcId) ? null : (isset($lineId) ? 'wcs' : 'lines'); @endphp
+            @if($filterParam)
+                <script>
+                    (function () {
+                        const param = @js($filterParam);
+                        const params = new URLSearchParams(window.location.search);
+                        if ([...params.keys()].some(k => k === param || k.startsWith(param + '['))) return;
 
-                    try {
-                        const catalog = window.lineProgressCatalog;
-                        const stored = (key, list) => JSON.parse(localStorage.getItem(key) || '[]')
-                            .filter(id => list.some(item => item.id === id));
-                        const lines = stored('lineProgress.lines', catalog.lines);
-                        const wcs = stored('lineProgress.wcs', catalog.workCenters);
-                        if (!lines.length && !wcs.length) return;
+                        try {
+                            const catalog = window.lineProgressCatalog;
+                            const list = param === 'lines' ? Object.values(catalog.lines) : catalog.workCenters.filter(w => w.line_id === @js($lineId ?? null));
+                            const ids = JSON.parse(localStorage.getItem('lineProgress.' + param) || '[]')
+                                .filter(id => list.some(item => item.id === id));
+                            if (!ids.length) return;
 
-                        lines.forEach((id, i) => params.append(`lines[${i}]`, id));
-                        wcs.forEach((id, i) => params.append(`wcs[${i}]`, id));
-                        window.location.replace(window.location.pathname + '?' + params.toString());
-                    } catch (e) { /* almacenamiento no disponible: se muestra toda la planta */ }
-                })();
-            </script>
+                            ids.forEach((id, i) => params.append(`${param}[${i}]`, id));
+                            window.location.replace(window.location.pathname + '?' + params.toString());
+                        } catch (e) { /* almacenamiento no disponible: se muestra todo */ }
+                    })();
+                </script>
+            @endif
 
-            <livewire:guest.line-progress />
+            <livewire:guest.line-progress :line-id="$lineId ?? null" :wc-id="$wcId ?? null" />
         </main>
     </div>
 </x-guest-layout>

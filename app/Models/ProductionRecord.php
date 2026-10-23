@@ -555,6 +555,7 @@ class ProductionRecord extends Model
                 SUM(CASE WHEN {$hasOrder} THEN production_records.planned_quantity ELSE 0 END) AS [plan],
                 SUM(CASE WHEN {$hasOrder} THEN production_records.produced_quantity ELSE 0 END) AS with_order,
                 SUM(CASE WHEN {$hasOrder} THEN 0 ELSE production_records.produced_quantity END) AS no_order,
+                SUM(production_records.scrap_quantity) AS scrap,
                 SUM(CASE WHEN statuses.name = 'En progreso' THEN 1 ELSE 0 END) AS in_progress
             ")
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
@@ -587,9 +588,10 @@ class ProductionRecord extends Model
      * Avance semanal por número de parte (vista de invitados /guest/part-progress):
      * mismos totales que getLineWeeklyProgress, pero desglosados por número de parte.
      * Solo partes de clase PROGRESS_ITEM_CLASSES. Con $partIds se recalculan solo
-     * esas partes (actualización incremental de la vista).
+     * esas partes (actualización incremental de la vista); con $workCenterId, solo
+     * las partes de esa estación (nivel de números de parte de /).
      */
-    public static function getPartWeeklyProgress($startDate, $endDate, ?array $partIds = null): Collection
+    public static function getPartWeeklyProgress($startDate, $endDate, ?array $partIds = null, ?int $workCenterId = null): Collection
     {
         $hasOrder = "COALESCE(production_records.shop_order_number, '') <> ''";
 
@@ -609,6 +611,7 @@ class ProductionRecord extends Model
                 SUM(CASE WHEN {$hasOrder} THEN production_records.planned_quantity ELSE 0 END) AS [plan],
                 SUM(CASE WHEN {$hasOrder} THEN production_records.produced_quantity ELSE 0 END) AS with_order,
                 SUM(CASE WHEN {$hasOrder} THEN 0 ELSE production_records.produced_quantity END) AS no_order,
+                SUM(production_records.scrap_quantity) AS scrap,
                 SUM(CASE WHEN statuses.name = 'En progreso' THEN 1 ELSE 0 END) AS in_progress
             ")
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
@@ -627,6 +630,10 @@ class ProductionRecord extends Model
             $query->whereIn('part_numbers.id', $partIds);
         }
 
+        if ($workCenterId !== null) {
+            $query->where('part_numbers.work_center_id', $workCenterId);
+        }
+
         self::applyProgressItemClasses($query);
 
         return $query
@@ -639,27 +646,62 @@ class ProductionRecord extends Model
     }
 
     /**
-     * Piezas producidas sin orden (acumuladores) de un work center y turno en un
-     * rango de fechas planeadas, agrupadas por número de parte (modal de la vista de líneas).
-     * Solo partes de clase PROGRESS_ITEM_CLASSES, igual que la tabla.
+     * Piezas producidas sin orden (acumuladores) de unas estaciones en un rango de
+     * fechas planeadas, por estación, número de parte y turno (modal "Sin orden" de /).
+     * Con $partNumberId, solo ese número de parte. Solo partes de clase
+     * PROGRESS_ITEM_CLASSES, igual que la tabla.
      */
-    public static function getNoOrderPartsByWorkCenter(int $workCenterId, string $shift, $startDate, $endDate): Collection
+    public static function getNoOrderParts(array $workCenterIds, $startDate, $endDate, ?int $partNumberId = null): Collection
     {
         return ProductionRecord::query()
-            ->selectRaw('part_numbers.number AS part_number, part_numbers.name AS part_name, SUM(production_records.produced_quantity) AS quantity')
+            ->selectRaw('work_centers.name AS work_center_name, part_numbers.number AS part_number, part_numbers.name AS part_name, shifts.abbreviation AS shift, SUM(production_records.produced_quantity) AS quantity')
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
-            ->where('part_numbers.work_center_id', $workCenterId)
-            ->where('shifts.abbreviation', $shift)
+            ->whereIn('part_numbers.work_center_id', $workCenterIds)
+            ->when($partNumberId, fn ($q) => $q->where('part_numbers.id', $partNumberId))
             ->whereBetween('production_records.planned_date', [
                 \Carbon\Carbon::parse($startDate)->toDateString(),
                 \Carbon\Carbon::parse($endDate)->toDateString(),
             ])
             ->whereRaw("COALESCE(production_records.shop_order_number, '') = ''")
             ->tap(fn ($q) => self::applyProgressItemClasses($q))
-            ->groupBy('part_numbers.number', 'part_numbers.name')
+            ->groupBy('work_centers.name', 'part_numbers.number', 'part_numbers.name', 'shifts.abbreviation')
             ->havingRaw('SUM(production_records.produced_quantity) > 0')
-            ->orderByRaw('SUM(production_records.produced_quantity) DESC')
+            ->get();
+    }
+
+    /**
+     * Actividad reciente por estación y número de parte (columna de nombre de /):
+     *  - live:       1 si algún registro está "En progreso" Y registró piezas en los
+     *                últimos $liveMinutes (production_end se actualiza con cada pieza;
+     *                así no cuentan registros que se quedaron "En progreso" de semanas atrás)
+     *  - live_since: production_start de esos registros
+     *  - last_end:   última pieza registrada (production_end más reciente)
+     * Toda la planta, últimos $days días de fecha planeada. Solo partes de clase
+     * PROGRESS_ITEM_CLASSES.
+     */
+    public static function getWorkCenterActivity(Carbon $now, int $liveMinutes = 60, int $days = 30): Collection
+    {
+        $liveFrom = $now->copy()->subMinutes($liveMinutes)->format('Y-m-d H:i:s');
+        $live = "statuses.name = 'En progreso' AND production_records.production_end >= ?";
+
+        return ProductionRecord::query()
+            ->selectRaw("
+                part_numbers.work_center_id AS work_center_id,
+                part_numbers.id AS part_number_id,
+                part_numbers.number AS part_number,
+                part_numbers.name AS part_name,
+                MAX(CASE WHEN {$live} THEN 1 ELSE 0 END) AS live,
+                MIN(CASE WHEN {$live} THEN production_records.production_start END) AS live_since,
+                MAX(production_records.production_end) AS last_end
+            ", [$liveFrom, $liveFrom])
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->leftJoin('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->where('production_records.planned_date', '>=', $now->copy()->subDays($days)->toDateString())
+            ->whereNotNull('production_records.production_end')
+            ->tap(fn ($q) => self::applyProgressItemClasses($q))
+            ->groupBy('part_numbers.work_center_id', 'part_numbers.id', 'part_numbers.number', 'part_numbers.name')
             ->get();
     }
 

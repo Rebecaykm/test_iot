@@ -7,51 +7,51 @@
 }
 
 /*
- * Vista /guest/line-progress: clases cortas para lo que se repite en cada celda.
- * La tabla puede tener más de mil celdas y se vuelve a enviar en cada refresco,
- * así que repetir las utilidades completas en cada una multiplicaba el HTML.
+ * Vista / (avance semanal por línea → estación → número de parte): clases cortas
+ * para lo que se repite en cada celda. Las compartidas (lp-td-*, lp-dot, lp-wc-*)
+ * también las usa /guest/part-progress.
  */
 @layer components {
     .lp-td-day { @apply p-0 align-middle border-l border-zinc-200 dark:border-zinc-800; }
     .lp-td-sep { @apply border-t border-t-zinc-100 dark:border-t-zinc-800/60; }
-    .lp-empty { @apply py-2 text-center text-[11px] text-zinc-300 dark:text-zinc-700; }
-    .lp-cell { @apply relative px-2 pt-1.5 pb-1; }
-    .lp-live { @apply ring-2 ring-inset ring-[#2563eb] dark:ring-[#3b82f6]; }
 
     /* Punto que parpadea de "En Proceso" (sin elementos internos) */
     .lp-dot { @apply absolute top-1 right-1 flex h-2 w-2; }
     .lp-dot::before { content: ''; @apply absolute inline-flex h-full w-full rounded-full bg-[#2563eb] dark:bg-[#3b82f6] opacity-75 animate-ping; }
     .lp-dot::after { content: ''; @apply relative inline-flex h-2 w-2 rounded-full bg-[#2563eb] dark:bg-[#3b82f6]; }
 
-    /* Medidor semicircular: contorno fuerte + relleno claro, como las barras */
-    .lp-gauge { @apply block w-full max-w-[128px] mx-auto; }
-    .lp-gauge path { vector-effect: non-scaling-stroke; }
-    .lp-arc-bg { @apply fill-zinc-50 stroke-zinc-200 dark:fill-zinc-800/40 dark:stroke-zinc-700/70; }
-    .lp-arc-plan { @apply fill-[rgba(37,99,235,0.15)] stroke-[#2563eb] dark:fill-[rgba(59,130,246,0.16)] dark:stroke-[#3b82f6]; }
-    .lp-arc-real { @apply fill-[rgba(16,185,129,0.15)] stroke-[#059669] dark:fill-[rgba(16,185,129,0.22)]; }
-    .lp-pct { @apply fill-zinc-800 dark:fill-zinc-100 font-bold; }
-
-    /* Cantidades debajo del medidor: P a la izquierda, R a la derecha */
-    .lp-qty { @apply mt-0.5 flex items-center justify-between gap-1 text-[11px] font-semibold tabular-nums whitespace-nowrap; }
-    .lp-qty-p, .lp-qty-r { @apply flex items-center gap-1; }
-    .lp-qty-p { @apply text-zinc-600 dark:text-zinc-300; }
-    .lp-qty-r { @apply text-zinc-800 dark:text-zinc-100; }
-    .lp-qty-p::before, .lp-qty-r::before { content: ''; @apply w-2 h-2 rounded-[2px]; }
-    .lp-qty-p::before { @apply bg-[#2563eb] dark:bg-[#3b82f6]; }
-    .lp-qty-r::before { @apply bg-[#059669]; }
-
-    /* Columnas fijas y etiquetas de turno */
-    .lp-wc { @apply sticky left-0 z-10 bg-white dark:bg-zinc-900 px-4 py-1.5 align-middle border-r border-zinc-200 dark:border-zinc-800; }
     .lp-wc-link { @apply block truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100 hover:text-[#2563eb] dark:hover:text-[#60a5fa] hover:underline; }
     .lp-wc-live { @apply mt-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#2563eb] dark:text-[#60a5fa]; }
     .lp-wc-live .lp-dot { @apply relative top-0 right-0; }
-    .lp-shift { @apply sticky left-44 z-10 bg-white dark:bg-zinc-900 px-2 py-1.5 text-center align-middle border-r border-zinc-200 dark:border-zinc-800; }
-    .lp-badge { @apply inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset; }
-    .lp-badge-D { @apply bg-amber-50 text-amber-800 ring-amber-600/20 dark:bg-amber-400/10 dark:ring-amber-400/20 dark:text-amber-300; }
-    .lp-badge-N { @apply bg-indigo-50 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-400/10 dark:ring-indigo-400/20 dark:text-indigo-300; }
 
-    /* Cant. Sin Orden */
-    .lp-noorder { @apply w-full rounded-md border border-[#ea580c] bg-[rgba(234,88,12,0.10)] dark:bg-[rgba(234,88,12,0.18)] px-2 py-2 text-sm font-bold tabular-nums text-zinc-800 dark:text-zinc-100 hover:bg-[rgba(234,88,12,0.20)] dark:hover:bg-[rgba(234,88,12,0.28)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ea580c] transition-colors; }
+    /* Columna fija del nombre (línea, estación o número de parte) con lo que se produce debajo */
+    .lp-name { @apply sticky left-0 z-10 bg-white dark:bg-zinc-900 px-3 py-1.5 align-top border-r border-zinc-200 dark:border-zinc-800; }
+    .lp-act { @apply mt-1 text-[11px] leading-4; }
+    .lp-act-link { @apply flex items-center gap-1.5 font-medium; }
+    .lp-act-link .lp-dot { @apply relative top-0 right-0 flex-shrink-0; }
+    .lp-act-btn { @apply text-left hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded; }
+    .lp-act-live { @apply text-[#2563eb] dark:text-[#60a5fa]; }
+    .lp-act-last { @apply text-zinc-500 dark:text-zinc-400; }
+
+    /* Celda de turno: % arriba a la derecha (con el color del cumplimiento) y barra real / plan */
+    .lp-c { @apply relative px-1.5 py-1; }
+    .lp-c-live { @apply ring-2 ring-inset ring-[#2563eb] dark:ring-[#3b82f6]; }
+    .lp-top { @apply flex h-4 items-center justify-end gap-1 mb-0.5; }
+    .lp-c-live .lp-top { @apply pr-2.5; }
+    .lp-pct { @apply text-[13px] font-bold leading-4 tabular-nums; }
+    .lp-sub { @apply text-[10px] font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap; }
+    .lp-bar-future { @apply border-dashed bg-transparent dark:bg-transparent; }
+
+    /* Tonos del cumplimiento */
+    .lp-t-good { @apply text-emerald-600 dark:text-emerald-400; }
+    .lp-t-warn { @apply text-amber-600 dark:text-amber-400; }
+    .lp-t-bad { @apply text-red-600 dark:text-red-400; }
+    .lp-t-over { @apply text-violet-600 dark:text-violet-400; }
+    .lp-t-none { @apply text-zinc-700 dark:text-zinc-200; }
+
+    /* Sin orden y turno en curso */
+    .lp-noorder { @apply w-full py-2 text-sm font-bold tabular-nums text-[#c2410c] dark:text-orange-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ea580c] rounded; }
+    .lp-th-live { box-shadow: inset 0 -3px 0 #2563eb; }
 
     /*
      * Vista /guest/part-progress: una celda por día y turno (14 columnas), así que

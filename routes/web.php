@@ -31,6 +31,15 @@ Route::get('/', function () {
     return view('guest.line-progress');
 })->name('guest.line-progress');
 
+// Avance semanal de las estaciones de una línea y de los números de parte de una estación
+Route::get('guest/progress/line/{line}', function (int $line) {
+    return view('guest.line-progress', ['lineId' => $line]);
+})->whereNumber('line')->name('guest.progress.line');
+
+Route::get('guest/progress/station/{workCenter}', function (int $workCenter) {
+    return view('guest.line-progress', ['wcId' => $workCenter]);
+})->whereNumber('workCenter')->name('guest.progress.station');
+
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
