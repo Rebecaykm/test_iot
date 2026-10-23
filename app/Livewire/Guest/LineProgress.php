@@ -40,13 +40,21 @@ class LineProgress extends Component
     /** Catálogos (áreas, estaciones, turnos) */
     private const CATALOG_TTL = 600;
 
+    /** Color del %: rojo hasta WARN (70 %), ámbar arriba de eso y verde desde GOOD (91 %) */
+    public const GOOD = 91;
+    public const WARN = 70;
+
     /**
-     * Cumplimiento (%): verde desde GOOD, ámbar desde WARN, rojo abajo. Arriba de
-     * OVER es sobreproducción.
+     * Clase CSS de cada color del %. Van escritas completas a propósito: Tailwind solo
+     * genera las clases que encuentra literalmente en el código, y con 'lp-t-' . $tone
+     * las descartaba (el % salía sin color).
      */
-    public const GOOD = 95;
-    public const WARN = 80;
-    public const OVER = 105;
+    private const TONE_CLASS = [
+        'good' => 'lp-t-good',
+        'warn' => 'lp-t-warn',
+        'bad' => 'lp-t-bad',
+        'none' => 'lp-t-none',
+    ];
 
     /** Minutos sin piezas tras los que un registro "En progreso" ya no cuenta como produciendo */
     private const LIVE_MINUTES = 60;
@@ -65,6 +73,10 @@ class LineProgress extends Component
      */
     #[Url(as: 'week', except: '')]
     public string $week = '';
+
+    /** Día elegido en el selector de fecha (Y-m-d): se resalta en la tabla. Vacío = se resalta hoy. */
+    #[Url(as: 'date', except: '')]
+    public string $date = '';
 
     /** Líneas elegidas en la vista 1 (vacío = todas). Va en la URL y se guarda en el navegador. */
     #[Url(as: 'lines', except: [])]
@@ -193,11 +205,35 @@ class LineProgress extends Component
         }
     }
 
-    /** La semana actual se guarda vacía (ver $week) */
+    /** La semana actual se guarda vacía (ver $week). Al moverse de semana se vuelve a resaltar hoy. */
     private function setWeek(Carbon $monday): void
     {
         $this->week = $monday->isSameDay(Carbon::today()->startOfWeek(Carbon::MONDAY)) ? '' : $monday->toDateString();
+        $this->date = '';
         $this->closeModals();
+    }
+
+    /** Selector de fecha: lleva a la semana de ese día y lo resalta */
+    public function goToDate(string $date): void
+    {
+        try {
+            $day = Carbon::createFromFormat('!Y-m-d', $date);
+        } catch (\Throwable) {
+            return; // fecha incompleta mientras se escribe
+        }
+
+        $this->setWeek($day->copy()->startOfWeek(Carbon::MONDAY));
+        $this->date = $day->isToday() ? '' : $day->toDateString();
+    }
+
+    /** Día resaltado: el elegido o, si no hay, hoy */
+    private function highlightDate(): string
+    {
+        try {
+            return $this->date !== '' ? Carbon::createFromFormat('!Y-m-d', $this->date)->toDateString() : Carbon::today()->toDateString();
+        } catch (\Throwable) {
+            return Carbon::today()->toDateString();
+        }
     }
 
     public function prevWeek(): void
@@ -271,8 +307,26 @@ class LineProgress extends Component
     }
 
     /**
+     * Órdenes de cada número de parte por turno y fecha (vista 3), para el detalle que
+     * aparece al pasar el mouse por la barra:
+     * [número de parte]["D|2026-10-23"] => ['Orden 123: Plan 100 · Real 80', ...]
+     */
+    private function partOrders(Carbon $start, Carbon $end, string $wcName): array
+    {
+        return $this->cached("line_progress:v1:orders:{$start->toDateString()}:" . md5($wcName), $end, function () use ($start, $end, $wcName) {
+            $orders = [];
+            foreach (ProductionRecord::getWorkCenterWeeklyProgress($wcName, $start->toDateString(), $end->toDateString()) as $r) {
+                $orders[$r->part_number][$r->shift . '|' . Carbon::parse($r->planned_date)->toDateString()][] =
+                    'Orden ' . $r->order_number . ': Plan ' . number_format((int) $r->planned_quantity) . ' · Real ' . number_format((int) $r->produced_quantity);
+            }
+
+            return $orders;
+        });
+    }
+
+    /**
      * Qué se produce ahora en cada estación y, si nada, qué fue lo último.
-     *  - wc[id]['live']:  números de parte produciendo (con hora de inicio)
+     *  - wc[id]['live']:  números de parte produciendo
      *  - wc[id]['last']:  la última corrida: partes cuya última pieza cayó dentro de
      *                     5 min de la más reciente (p. ej. izquierda/derecha del mismo troquel)
      *  - part["wc|part"]: estado de cada número de parte (vista 3)
@@ -280,15 +334,17 @@ class LineProgress extends Component
      */
     private function activity(): array
     {
-        return Cache::store(self::CACHE_STORE)->remember('line_progress:v1:activity', self::LIVE_TTL, function () {
+        return Cache::store(self::CACHE_STORE)->remember('line_progress:v2:activity', self::LIVE_TTL, function () {
             $byWc = [];
             $parts = [];
             foreach (ProductionRecord::getWorkCenterActivity(Carbon::now(), self::LIVE_MINUTES) as $r) {
+                // Inicio: el de los registros en vivo; si ya no está en vivo, el del registro más reciente
+                $start = (int) $r->live === 1 ? $r->live_since : $r->last_start;
                 $item = [
                     'number' => $r->part_number,
                     'name' => $r->part_name,
-                    'since' => $r->live_since ? Carbon::parse($r->live_since)->format('Y-m-d H:i:s') : null,
                     'at' => Carbon::parse($r->last_end)->format('Y-m-d H:i:s'),
+                    'start' => $start ? Carbon::parse($start)->format('Y-m-d H:i:s') : null,
                     'live' => (int) $r->live === 1,
                 ];
                 $byWc[(int) $r->work_center_id][] = $item;
@@ -331,7 +387,7 @@ class LineProgress extends Component
 
     /**
      * Columnas de datos: cada día dividido en sus turnos, con el estado del turno
-     * (cerrado, en curso o por venir) y, si está en curso, qué fracción ya pasó.
+     * (cerrado, en curso o por venir).
      */
     private function columns(array $days, array $shifts, Carbon $now): array
     {
@@ -351,14 +407,9 @@ class LineProgress extends Component
                     'abbr' => $shift['abbr'],
                     'name' => $shift['name'],
                     'first' => $si === 0,
-                    'isToday' => $day['isToday'],
+                    'highlight' => $day['highlight'],
                     'title' => $shift['name'] . ' ' . $day['name'] . ' ' . $day['label'],
                     'state' => $state,
-                    'elapsed' => match ($state) {
-                        'closed' => 1.0,
-                        'live' => $from->diffInSeconds($now) / max(1, $from->diffInSeconds($to)),
-                        default => 0.0,
-                    },
                     // Un registro "En progreso" solo se marca en vivo si su turno no terminó hace más de un día
                     'canBeLive' => $to->gte($now->copy()->subDay()),
                 ];
@@ -368,26 +419,14 @@ class LineProgress extends Component
         return $columns;
     }
 
-    /**
-     * Color del cumplimiento: lo real contra lo que debía llevar a esta hora ($due:
-     * todo el plan si el turno cerró, la parte proporcional si está en curso).
-     * Un turno por venir no se califica; producir de más que el plan es sobreproducción.
-     */
-    public static function tone(int $plan, int $real, float $due): string
+    /** Color del % que se muestra (real / plan): rojo ≤ 70, ámbar 71–90, verde ≥ 91 */
+    public static function tone(?int $pct): string
     {
-        if ($plan <= 0) {
-            return 'none';
-        }
-        if ($real * 100 > $plan * self::OVER) {
-            return 'over';
-        }
-        if ($due <= 0) {
+        if ($pct === null) {
             return 'none';
         }
 
-        $ratio = $real / $due * 100;
-
-        return $ratio >= self::GOOD ? 'good' : ($ratio >= self::WARN ? 'warn' : 'bad');
+        return $pct >= self::GOOD ? 'good' : ($pct > self::WARN ? 'warn' : 'bad');
     }
 
     /** Celda de un turno */
@@ -399,14 +438,16 @@ class LineProgress extends Component
             return null;
         }
 
+        $pct = $plan > 0 ? (int) round($real / $plan * 100) : null;
+
         return [
             'plan' => $plan,
             'real' => $real,
             'live' => $live,
-            'pct' => $plan > 0 ? (int) round($real / $plan * 100) : null,
+            'pct' => $pct,
             'fill' => $plan > 0 ? min(100, round($real / $plan * 100, 1)) : 0,
-            'tone' => self::tone($plan, $real, $plan * $col['elapsed']),
-            'future' => $col['state'] === 'future' && $real === 0,
+            // Un turno que aún no empieza y sin piezas queda en 0 % sin color
+            'tone' => $col['state'] === 'future' && $real === 0 ? 'none' : self::tone($pct),
         ];
     }
 
@@ -439,60 +480,47 @@ class LineProgress extends Component
      * La celda lleva el % arriba a la derecha (con el color del cumplimiento) y la
      * barra: plan = contorno gris, real = relleno verde.
      */
-    public static function cellsHtml(array $cells, array $columns): string
+    public static function cellsHtml(array $cells, array $columns, array $orders = []): string
     {
         $html = '';
         foreach ($columns as $col) {
             $c = $cells[$col['key']];
-            $class = ($col['first'] ? 'lp-td-day' : 'pp-td-shift') . ($col['isToday'] ? ' pp-today' : '');
+            $class = $col['first'] ? 'lp-td-day' : 'pp-td-shift';
 
             if (!$c) {
                 $html .= "<td class=\"{$class} pp-x\"></td>";
                 continue;
             }
 
-            $title = $col['title'] . ' · Plan ' . number_format($c['plan']) . ' · Real ' . number_format($c['real'])
+            // Detalle al pasar el mouse: turno y día, plan / real y, en la vista de números de parte, sus órdenes
+            $title = $col['title'] . "\nPlan " . number_format($c['plan']) . ' · Real ' . number_format($c['real'])
                 . ($c['pct'] !== null ? " ({$c['pct']}%)" : '')
-                . ($c['live'] ? ' · En proceso' : '');
+                . ($c['live'] ? ' · En proceso' : '')
+                . (!empty($orders[$col['key']]) ? "\n" . implode("\n", $orders[$col['key']]) : '');
 
-            // Un turno por venir muestra 0 % sin color (tono 'none')
-            $top = $c['pct'] === null
-                ? '<span class="lp-sub">Sin plan</span>'
-                : "<span class=\"lp-pct lp-t-{$c['tone']}\">{$c['pct']}%</span>";
+            // Arriba: % a la izquierda (solo el % lleva el color) y el punto verde de "en proceso" a la derecha
+            $top = ($c['pct'] === null ? '<span class="lp-sub">Sin plan</span>' : '<span class="lp-pct ' . self::TONE_CLASS[$c['tone']] . "\">{$c['pct']}%</span>")
+                . ($c['live'] ? '<span class="lp-dot lp-dot-green"></span>' : '');
 
+            // Barra igual que /guest/part-progress: plan = contorno gris, real = relleno verde, "real / plan" adentro
             $realHtml = '<span class="pp-real' . ($c['plan'] > 0 && $c['real'] >= $c['plan'] ? ' pp-done' : '') . '">' . number_format($c['real']) . '</span>';
             $bar = $c['plan'] > 0
-                ? '<div class="pp-bar' . ($c['future'] ? ' lp-bar-future' : '') . '">'
+                ? '<div class="pp-bar">'
                     . ($c['fill'] > 0 ? "<div class=\"pp-fill\" style=\"width:calc({$c['fill']}% + 2px)\"></div>" : '')
-                    . '<div class="pp-bar-txt">' . ($c['future'] ? '<span></span>' : $realHtml) . '<span class="pp-plan">/ ' . number_format($c['plan']) . '</span></div></div>'
+                    . "<div class=\"pp-bar-txt\">{$realHtml}<span class=\"pp-plan\">/ " . number_format($c['plan']) . '</span></div></div>'
                 : "<div class=\"pp-nums\">{$realHtml}<span class=\"pp-plan\">pzs</span></div>";
 
-            $html .= "<td class=\"{$class}\"><div class=\"lp-c" . ($c['live'] ? ' lp-c-live' : '') . '" title="' . e($title) . '">'
-                . ($c['live'] ? '<span class="lp-dot"></span>' : '')
+            $html .= "<td class=\"{$class}\"><div class=\"pp-cell\" title=\"" . e($title) . '">'
                 . "<div class=\"lp-top\">{$top}</div>{$bar}</div></td>";
         }
 
         return $html;
     }
 
-    /** "Hoy 14:20", "Ayer 23:05" o "Lun 19 Oct · 14:20" */
-    private function timeLabel(string $ts, Carbon $now): string
+    /** Fecha corta: "23/10 14:20" (día/mes hora:minutos) */
+    private function timeLabel(?string $ts): string
     {
-        $t = Carbon::parse($ts);
-        $days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-        $meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
-        return match (true) {
-            $t->isSameDay($now) => 'Hoy ' . $t->format('H:i'),
-            $t->isSameDay($now->copy()->subDay()) => 'Ayer ' . $t->format('H:i'),
-            default => $days[$t->dayOfWeek] . ' ' . $t->day . ' ' . $meses[$t->month - 1] . ' · ' . $t->format('H:i'),
-        };
-    }
-
-    /** "desde 14:20" (hoy) o "desde Ayer 23:05" */
-    private function sinceLabel(?string $ts, Carbon $now): string
-    {
-        return $ts ? 'desde ' . preg_replace('/^Hoy /', '', $this->timeLabel($ts, $now)) : 'en proceso';
+        return $ts ? Carbon::parse($ts)->format('d/m H:i') : '—';
     }
 
     /**
@@ -500,7 +528,7 @@ class LineProgress extends Component
      * parte con su estación y la hora. Con varias estaciones, lo último es la última
      * corrida de cada una, de la más reciente a la más vieja.
      */
-    private function activityFor(array $wcIds, array $wcNames, array $activity, Carbon $now): ?array
+    private function activityFor(array $wcIds, array $wcNames, array $activity): ?array
     {
         $live = [];
         $last = [];
@@ -517,19 +545,21 @@ class LineProgress extends Component
             }
         }
 
-        if ($live) {
-            usort($live, fn ($a, $b) => strnatcasecmp($a['station'] . ' ' . $a['number'], $b['station'] . ' ' . $b['number']));
-
-            return ['state' => 'live', 'items' => array_map(fn ($i) => $i + ['time' => $this->sinceLabel($i['since'], $now)], $live)];
+        $items = $live ?: $last;
+        if (!$items) {
+            return null;
         }
 
-        if ($last) {
-            usort($last, fn ($a, $b) => strcmp($b['at'], $a['at']));
+        usort($items, fn ($a, $b) => strcmp($b['at'], $a['at']));
 
-            return ['state' => 'last', 'items' => array_map(fn ($i) => $i + ['time' => $this->timeLabel($i['at'], $now)], $last)];
-        }
+        // EN PROCESO: desde cuándo corre (el inicio más antiguo); DETENIDO: cuándo salió la última pieza
+        $starts = array_filter(array_column($items, 'start'));
 
-        return null;
+        return [
+            'state' => $live ? 'live' : 'last',
+            'time' => $live ? $this->timeLabel($starts ? min($starts) : null) : $this->timeLabel($items[0]['at']),
+            'items' => array_map(fn ($i) => $i + ['startLabel' => $this->timeLabel($i['start']), 'endLabel' => $this->timeLabel($i['at'])], $items),
+        ];
     }
 
     /** URL de una vista conservando la semana elegida */
@@ -547,7 +577,8 @@ class LineProgress extends Component
         $dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
         $meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
-        // Encabezados de los 7 días (lunes a domingo)
+        // Encabezados de los 7 días (lunes a domingo); se resalta el día elegido o hoy
+        $highlight = $this->highlightDate();
         $days = [];
         for ($i = 0; $i < 7; $i++) {
             $d = $start->copy()->addDays($i);
@@ -555,7 +586,7 @@ class LineProgress extends Component
                 'name' => $dayNames[$i],
                 'label' => $d->day . ' ' . $meses[$d->month - 1],
                 'date' => $d->toDateString(),
-                'isToday' => $d->isToday(),
+                'highlight' => $d->toDateString() === $highlight,
             ];
         }
 
@@ -574,16 +605,19 @@ class LineProgress extends Component
         $groups = [];
         if ($level === 3) {
             $rows = [];
+            $orders = $this->partOrders($start, $end, $wc['name']);
             foreach (collect($this->partRows($start, $end, $wc['id']))->groupBy('part_id') as $partId => $records) {
                 $state = $activity['part'][$wc['id'] . '|' . $partId] ?? null;
                 $rows[] = $this->buildRow($records->all(), $columns) + [
                     'key' => "part:{$partId}",
                     'name' => $records->first()['part_number'],
+                    'orders' => $orders[$records->first()['part_number']] ?? [],
                     'color' => null,
                     'href' => null,
                     'activity' => $state ? [
                         'state' => $state['live'] ? 'live' : 'last',
-                        'items' => [$state + ['station' => '', 'time' => $state['live'] ? $this->sinceLabel($state['since'], $now) : $this->timeLabel($state['at'], $now)]],
+                        'time' => $this->timeLabel($state['live'] ? $state['start'] : $state['at']),
+                        'items' => [$state + ['station' => '', 'startLabel' => $this->timeLabel($state['start']), 'endLabel' => $this->timeLabel($state['at'])]],
                     ] : null,
                 ];
             }
@@ -603,7 +637,7 @@ class LineProgress extends Component
                     'name' => $w['name'],
                     'color' => null,
                     'href' => $this->link('guest.progress.station', $w['id']),
-                    'activity' => $this->activityFor([$w['id']], $wcNames, $activity, $now),
+                    'activity' => $this->activityFor([$w['id']], $wcNames, $activity),
                 ];
             }
             $groups[] = ['name' => null, 'rows' => $rows];
@@ -619,14 +653,14 @@ class LineProgress extends Component
                     'name' => $l['name'],
                     'color' => $l['color'] ?: '#71717a',
                     'href' => $this->link('guest.progress.line', $l['id']),
-                    'activity' => $this->activityFor($catalogWcs->where('line_id', $l['id'])->pluck('id')->all(), $wcNames, $activity, $now),
+                    'activity' => $this->activityFor($catalogWcs->where('line_id', $l['id'])->pluck('id')->all(), $wcNames, $activity),
                 ];
             }
         }
         $groups = array_values(array_filter($groups, fn ($g) => $g['rows']));
         $rowsByKey = array_column(array_merge([], ...array_column($groups, 'rows')), null, 'key');
 
-        // Modal "Sin orden": números de parte del renglón abierto, por estación y turno
+        // Modal "Sin número de orden": total de la semana por estación y número de parte
         $noOrderDetail = null;
         if ($this->noOrderRow && isset($rowsByKey[$this->noOrderRow])) {
             [$type, $id] = explode(':', $this->noOrderRow);
@@ -637,13 +671,12 @@ class LineProgress extends Component
                 default => [$wc['id']],
             };
             $partId = $type === 'part' ? $id : null;
-            $key = 'line_progress:v3:no_order:' . $start->toDateString() . ':' . md5(implode(',', $wcIds) . '|' . $partId);
+            $key = 'line_progress:v4:no_order:' . $start->toDateString() . ':' . md5(implode(',', $wcIds) . '|' . $partId);
             $parts = $this->cached($key, $end, function () use ($wcIds, $start, $end, $partId) {
                 $pivot = [];
                 foreach (ProductionRecord::getNoOrderParts($wcIds, $start->toDateString(), $end->toDateString(), $partId) as $p) {
                     $k = $p->work_center_name . '|' . $p->part_number;
-                    $pivot[$k] ??= ['station' => $p->work_center_name, 'number' => $p->part_number, 'name' => $p->part_name, 'shifts' => [], 'total' => 0];
-                    $pivot[$k]['shifts'][$p->shift] = ($pivot[$k]['shifts'][$p->shift] ?? 0) + (int) $p->quantity;
+                    $pivot[$k] ??= ['station' => $p->work_center_name, 'number' => $p->part_number, 'name' => $p->part_name, 'total' => 0];
                     $pivot[$k]['total'] += (int) $p->quantity;
                 }
                 $pivot = array_values($pivot);
@@ -687,6 +720,8 @@ class LineProgress extends Component
                 . ' – ' . $end->day . ' ' . $meses[$end->month - 1] . ($end->year !== Carbon::today()->year ? ' ' . $end->year : ''),
             'isCurrentWeek' => $start->isSameDay(Carbon::today()->startOfWeek(Carbon::MONDAY)),
             'lastUpdated' => $now->format('H:i:s'),
+            // Botones de Ayuda visual y gráficas de prensa: solo estaciones de estampado (igual que /guest/wc-progress)
+            'isStamping' => $wc && strtolower((string) ($catalog['lines'][$wc['line_id']]['area_name'] ?? '')) === 'estampado',
         ]);
     }
 }

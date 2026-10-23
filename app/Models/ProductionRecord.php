@@ -646,18 +646,17 @@ class ProductionRecord extends Model
     }
 
     /**
-     * Piezas producidas sin orden (acumuladores) de unas estaciones en un rango de
-     * fechas planeadas, por estación, número de parte y turno (modal "Sin orden" de /).
+     * Piezas producidas sin número de orden (acumuladores) de unas estaciones en un
+     * rango de fechas planeadas, por estación y número de parte (modal de /).
      * Con $partNumberId, solo ese número de parte. Solo partes de clase
      * PROGRESS_ITEM_CLASSES, igual que la tabla.
      */
     public static function getNoOrderParts(array $workCenterIds, $startDate, $endDate, ?int $partNumberId = null): Collection
     {
         return ProductionRecord::query()
-            ->selectRaw('work_centers.name AS work_center_name, part_numbers.number AS part_number, part_numbers.name AS part_name, shifts.abbreviation AS shift, SUM(production_records.produced_quantity) AS quantity')
+            ->selectRaw('work_centers.name AS work_center_name, part_numbers.number AS part_number, part_numbers.name AS part_name, SUM(production_records.produced_quantity) AS quantity')
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
-            ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->whereIn('part_numbers.work_center_id', $workCenterIds)
             ->when($partNumberId, fn ($q) => $q->where('part_numbers.id', $partNumberId))
             ->whereBetween('production_records.planned_date', [
@@ -666,7 +665,7 @@ class ProductionRecord extends Model
             ])
             ->whereRaw("COALESCE(production_records.shop_order_number, '') = ''")
             ->tap(fn ($q) => self::applyProgressItemClasses($q))
-            ->groupBy('work_centers.name', 'part_numbers.number', 'part_numbers.name', 'shifts.abbreviation')
+            ->groupBy('work_centers.name', 'part_numbers.number', 'part_numbers.name')
             ->havingRaw('SUM(production_records.produced_quantity) > 0')
             ->get();
     }
@@ -676,7 +675,8 @@ class ProductionRecord extends Model
      *  - live:       1 si algún registro está "En progreso" Y registró piezas en los
      *                últimos $liveMinutes (production_end se actualiza con cada pieza;
      *                así no cuentan registros que se quedaron "En progreso" de semanas atrás)
-     *  - live_since: production_start de esos registros
+     *  - live_since: inicio (production_start) de los registros en vivo
+     *  - last_start: inicio del registro más reciente (para la última corrida si ya no está en vivo)
      *  - last_end:   última pieza registrada (production_end más reciente)
      * Toda la planta, últimos $days días de fecha planeada. Solo partes de clase
      * PROGRESS_ITEM_CLASSES.
@@ -694,6 +694,7 @@ class ProductionRecord extends Model
                 part_numbers.name AS part_name,
                 MAX(CASE WHEN {$live} THEN 1 ELSE 0 END) AS live,
                 MIN(CASE WHEN {$live} THEN production_records.production_start END) AS live_since,
+                MAX(production_records.production_start) AS last_start,
                 MAX(production_records.production_end) AS last_end
             ", [$liveFrom, $liveFrom])
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
