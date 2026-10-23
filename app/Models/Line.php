@@ -13,7 +13,12 @@ class Line extends Model
         'name',
         'color',
         'description',
-        'area_id'
+        'area_id',
+        'show_in_progress'
+    ];
+
+    protected $casts = [
+        'show_in_progress' => 'boolean',
     ];
 
     /**

@@ -32,7 +32,7 @@
                 @csrf
 
                 <div class="row mb-3">
-                    <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="col-md-6 mb-3 mb-md-0">
                         <label for="name" class="field-label">Nombre *</label>
                         <input type="text" name="name" id="name"
                             class="field-input @error('name') is-invalid @enderror"
@@ -42,7 +42,7 @@
                         @enderror
                     </div>
 
-                    <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="col-md-6 mb-3 mb-md-0">
                         <x-select
                             name="area_id"
                             label="Área"
@@ -58,7 +58,10 @@
                         @enderror
                     </div>
 
-                    <div class="col-md-4">
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-3 mb-md-0">
                         @php
                             $lineColors = [
                                 '#1E40AF' => 'Azul Marino',
@@ -94,6 +97,20 @@
                         @error('color')
                             <div class="field-error">{{ $message }}</div>
                         @enderror
+                    </div>
+
+                    <div class="col-md-6">
+                        <span class="filter-label-text d-block">Avance de producción</span>
+                        {{-- El hidden manda 0 cuando el switch está apagado, así old() lo respeta si falla la validación --}}
+                        <input type="hidden" name="show_in_progress" value="0">
+                        <div class="d-flex align-items-center" style="height: 38px;">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="show_in_progress" name="show_in_progress"
+                                    value="1" {{ old('show_in_progress', 1) ? 'checked' : '' }}>
+                                <label class="custom-control-label fw-600" for="show_in_progress"
+                                    style="font-size: 0.85rem; color: #334155;">Mostrar línea</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

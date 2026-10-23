@@ -61,6 +61,7 @@
                             <th class="th-cell" scope="col">Descripción</th>
                             <th class="th-cell" scope="col">Área</th>
                             <th class="th-cell" scope="col">Color</th>
+                            <th class="th-cell" scope="col">Avance</th>
                             <th class="th-cell" scope="col">Creado</th>
                             <th class="th-cell text-center" scope="col">Acciones</th>
                         </tr>
@@ -100,6 +101,14 @@
                                 </td>
 
                                 <td class="td-cell">
+                                    @if ($line->show_in_progress)
+                                        <span class="badge-soft badge-success">Visible</span>
+                                    @else
+                                        <span class="badge-soft badge-secondary">Oculta</span>
+                                    @endif
+                                </td>
+
+                                <td class="td-cell">
                                     <div class="fw-600" style="font-size: 0.82rem; color: #334155;">
                                         {{ optional($line->created_at)->format('Y-m-d') }}
                                     </div>
@@ -134,7 +143,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-5">
+                                <td colspan="7" class="text-center py-5">
                                     <div class="text-muted">
                                         <i class="fas fa-inbox fa-3x mb-3 d-block" style="color: #cbd5e1;"></i>
                                         <p class="mb-1 fw-500" style="color: #475569;">

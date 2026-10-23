@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Livewire\Guest\LineProgress;
 use App\Models\Area;
 use App\Models\Line;
 use App\Models\WorkCenter;
@@ -57,6 +58,7 @@ class LineController extends Controller
             'color' => ['nullable', 'string', 'regex:/^#[0-9A-F]{6}$/i'],
             'description' => ['nullable', 'string', 'max:255'],
             'area_id' => ['nullable', 'exists:areas,id'],
+            'show_in_progress' => ['nullable', 'boolean'],
             'work_centers' => ['required', 'array', 'min:1'],
             'work_centers.*' => [
                 'exists:work_centers,id',
@@ -82,7 +84,9 @@ class LineController extends Controller
                 'name' => $validatedData['name'],
                 'color' => $validatedData['color'] ?? null, // Mejor manejo de null
                 'description' => $validatedData['description'] ?? null,
-                'area_id' => $validatedData['area_id'] ?? null
+                'area_id' => $validatedData['area_id'] ?? null,
+                // Un checkbox sin marcar no se envía: boolean() lo toma como false
+                'show_in_progress' => $request->boolean('show_in_progress')
             ]);
 
             // Actualizar work centers (sintaxis corregida)
@@ -90,6 +94,8 @@ class LineController extends Controller
                 ->update(['line_id' => $line->id]);
 
             DB::commit();
+
+            LineProgress::forgetCatalog();
 
             return redirect()->route('lines.index')
                 ->with('success', 'Línea creada exitosamente!');
@@ -131,6 +137,7 @@ class LineController extends Controller
             'color' => ['nullable', 'string', 'regex:/^#[0-9A-F]{6}$/i'],
             'description' => ['nullable', 'string', 'max:255'],
             'area_id' => ['nullable', 'exists:areas,id'],
+            'show_in_progress' => ['nullable', 'boolean'],
             'work_centers' => ['required', 'array', 'min:1'],
             'work_centers.*' => [
                 'exists:work_centers,id',
@@ -157,7 +164,8 @@ class LineController extends Controller
                 'name' => $validatedData['name'],
                 'color' => $validatedData['color'] ?? null,
                 'description' => $validatedData['description'] ?? null,
-                'area_id' => $validatedData['area_id'] ?? null
+                'area_id' => $validatedData['area_id'] ?? null,
+                'show_in_progress' => $request->boolean('show_in_progress')
             ]);
 
             // Primero, desasignar todas las estaciones de esta línea
@@ -170,6 +178,8 @@ class LineController extends Controller
                 ->update(['line_id' => $line->id]);
 
             DB::commit();
+
+            LineProgress::forgetCatalog();
 
             return redirect()->route('lines.index')
                 ->with('success', 'Línea actualizada exitosamente!');
@@ -198,6 +208,8 @@ class LineController extends Controller
             $line->delete();
 
             DB::commit();
+
+            LineProgress::forgetCatalog();
 
             return redirect()->route('lines.index')
                 ->with('success', 'Línea eliminada correctamente. Todas sus estaciones de trabajo han sido liberadas.');

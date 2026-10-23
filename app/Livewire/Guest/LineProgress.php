@@ -40,6 +40,9 @@ class LineProgress extends Component
     /** Catálogos (áreas, estaciones, turnos) */
     private const CATALOG_TTL = 600;
 
+    /** v4: el catálogo ya no incluye las líneas ocultas (lines.show_in_progress) */
+    private const CATALOG_KEY = 'line_progress:v4:catalog';
+
     /** Color del %: rojo hasta WARN (70 %), ámbar arriba de eso y verde desde GOOD (91 %) */
     public const GOOD = 91;
     public const WARN = 70;
@@ -96,11 +99,12 @@ class LineProgress extends Component
      */
     public static function catalog(): array
     {
-        return Cache::store(self::CACHE_STORE)->remember('line_progress:v3:catalog', self::CATALOG_TTL, function () {
+        return Cache::store(self::CACHE_STORE)->remember(self::CATALOG_KEY, self::CATALOG_TTL, function () {
             $lines = Line::query()
                 ->select('lines.id', 'lines.name', 'lines.color', 'lines.area_id', 'areas.name as area_name')
                 ->leftJoin('areas', 'lines.area_id', '=', 'areas.id')
                 ->whereHas('workCenters')
+                ->where('lines.show_in_progress', true)
                 ->get()
                 ->keyBy('id');
 
@@ -125,6 +129,15 @@ class LineProgress extends Component
                 ])->values()->all(),
             ];
         });
+    }
+
+    /**
+     * Descarta el catálogo en caché para que los cambios en líneas y estaciones
+     * se vean de inmediato y no hasta que venza (CATALOG_TTL).
+     */
+    public static function forgetCatalog(): void
+    {
+        Cache::store(self::CACHE_STORE)->forget(self::CATALOG_KEY);
     }
 
     public function mount(?int $lineId = null, ?int $wcId = null): void
