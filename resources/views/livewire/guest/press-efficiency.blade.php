@@ -377,6 +377,32 @@
                 <p class="px-5 pb-4 pt-1 text-center text-xs text-gray-500 dark:text-gray-400 sm:px-6">{{ $axis }}</p>
             </div>
         @endforeach
+
+        {{-- Volumen y eficiencia por troquel: barras = piezas producidas, línea = eficiencia (eje derecho) --}}
+        <div class="{{ $card }} overflow-hidden xl:col-span-2">
+            <div class="flex flex-col gap-1 border-b border-blue-100 bg-blue-50 px-5 py-3.5 sm:px-6 sm:flex-row sm:items-center sm:justify-between dark:border-blue-500/20 dark:bg-blue-500/10">
+                <div class="flex items-center gap-2.5">
+                    <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white text-[#2563eb] shadow-[0px_1px_2px_0px_rgba(16,24,40,0.05)] dark:bg-blue-500/20 dark:text-blue-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                        </svg>
+                    </span>
+                    <h3 class="text-sm font-bold uppercase tracking-wide text-blue-900 dark:text-blue-100">Piezas producidas y eficiencia por troquel (MDI)</h3>
+                </div>
+            </div>
+            {{-- Todos los troqueles del periodo: ~34 px por barra; si no caben, se desplaza a lo ancho --}}
+            <div class="relative px-4 pt-4 pb-3 sm:px-5">
+                <div x-ref="volumeScroll" class="overflow-x-auto pb-2">
+                    <div x-ref="volumeWrap" class="relative h-[460px]">
+                        <canvas x-ref="volume" aria-label="Piezas producidas y eficiencia por troquel" role="img"></canvas>
+                    </div>
+                </div>
+                <div x-show="!data.volume.length" x-cloak
+                    class="absolute inset-0 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                    Sin producción en este periodo.
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -441,12 +467,16 @@
         const palette = () => isDark()
             ? {
                 text: '#d4d4d8', muted: '#a1a1aa', grid: 'rgba(161,161,170,0.15)', goal: '#60a5fa',
+                line: '#e4e4e7', pointRing: '#18181b', bar: { fill: 'rgba(96,165,250,0.25)', border: 'rgb(96,165,250)' },
+                barNoStd: { fill: 'rgba(161,161,170,0.18)', border: 'rgb(113,113,122)' },
                 bad: { fill: 'rgba(239,68,68,0.3)', border: 'rgb(248,113,113)' },
                 warn: { fill: 'rgba(245,158,11,0.3)', border: 'rgb(251,191,36)' },
                 good: { fill: 'rgba(34,197,94,0.3)', border: 'rgb(74,222,128)' },
             }
             : {
                 text: '#3f3f46', muted: '#71717a', grid: 'rgba(113,113,122,0.15)', goal: '#2563eb',
+                line: '#3f3f46', pointRing: '#ffffff', bar: { fill: 'rgba(37,99,235,0.15)', border: 'rgb(37,99,235)' },
+                barNoStd: { fill: 'rgba(161,161,170,0.25)', border: 'rgb(161,161,170)' },
                 bad: { fill: 'rgba(220,38,38,0.2)', border: 'rgb(185,28,28)' },
                 warn: { fill: 'rgba(217,119,6,0.2)', border: 'rgb(180,83,9)' },
                 good: { fill: 'rgba(22,163,74,0.2)', border: 'rgb(21,128,61)' },
@@ -557,6 +587,113 @@
             };
         };
 
+        // Volumen vs eficiencia: barras (piezas producidas, eje izquierdo) y línea (eficiencia, eje derecho).
+        // Sin línea de meta (confundía con dos ejes); los puntos llevan el color de su eficiencia.
+        const volumeChart = (items) => {
+            const c = palette();
+            const fmt = (n) => Number(n).toLocaleString('es-MX');
+            const effMax = Math.max(100, Math.ceil(Math.max(0, ...items.map(i => i.value ?? 0)) / 10) * 10 + 10);
+            const pointColors = items.map(i => i.value === null ? 'transparent' : tone(i.value, c).border);
+            const hasStd = items.map(i => i.value !== null);
+
+            return {
+                data: {
+                    labels: items.map(i => i.label),
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'Eficiencia (%)',
+                            data: items.map(i => i.value),
+                            yAxisID: 'y1',
+                            order: 0,
+                            borderColor: c.line,
+                            borderWidth: 1.5,
+                            tension: 0.25,
+                            // Sin estándar no hay punto; la línea une los troqueles que sí tienen eficiencia
+                            spanGaps: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            pointBackgroundColor: pointColors,
+                            pointBorderColor: c.pointRing,
+                            pointBorderWidth: 2,
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Piezas producidas',
+                            data: items.map(i => i.produced),
+                            yAxisID: 'y',
+                            order: 1,
+                            backgroundColor: hasStd.map(ok => ok ? c.bar.fill : c.barNoStd.fill),
+                            borderColor: hasStd.map(ok => ok ? c.bar.border : c.barNoStd.border),
+                            borderWidth: 1.5,
+                            borderRadius: 3,
+                            borderSkipped: false,
+                            maxBarThickness: 28,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    interaction: { mode: 'index', intersect: false },
+                    layout: { padding: { top: 8 } },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            border: { color: c.grid },
+                            ticks: { color: c.text, font: { size: 10, weight: '600' }, maxRotation: 90, minRotation: 90, autoSkip: false },
+                        },
+                        y: {
+                            position: 'left',
+                            beginAtZero: true,
+                            grid: { color: c.grid },
+                            border: { display: false },
+                            title: { display: true, text: 'Piezas producidas', color: c.muted, font: { size: 11 } },
+                            ticks: { color: c.muted, font: { size: 11 }, callback: (v) => fmt(v) },
+                        },
+                        y1: {
+                            position: 'right',
+                            min: 0,
+                            max: effMax,
+                            grid: { drawOnChartArea: false },
+                            border: { display: false },
+                            title: { display: true, text: 'Eficiencia (%)', color: c.muted, font: { size: 11 } },
+                            ticks: { color: c.muted, font: { size: 11 }, callback: (v) => v + ' %' },
+                        },
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'end',
+                            labels: { color: c.text, usePointStyle: true, boxWidth: 8, boxHeight: 8, font: { size: 12 } },
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: (ctx) => items[ctx[0].dataIndex]?.label ?? '',
+                                afterTitle: (ctx) => items[ctx[0].dataIndex]?.press ?? '',
+                                label: () => null,
+                                afterBody: (ctx) => {
+                                    const i = items[ctx[0].dataIndex];
+                                    if (!i) return [];
+                                    return i.value === null
+                                        ? [`Piezas producidas: ${fmt(i.produced)}`, 'Sin SPM estándar: no se calcula la eficiencia']
+                                        : [
+                                            `Piezas producidas: ${fmt(i.produced)}`,
+                                            // El troquel corre también en prensas sin estándar: solo esas piezas cuentan en la eficiencia
+                                            ...(i.producedStd < i.produced ? [`  con SPM estándar: ${fmt(i.producedStd)}`] : []),
+                                            `Piezas esperadas: ${fmt(i.expected)}`,
+                                            `Eficiencia: ${i.value.toFixed(1)} %`,
+                                            `Piezas no producidas: ${fmt(i.lost)}`,
+                                        ];
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+        };
+
         return {
             data: @js($charts),
 
@@ -608,6 +745,21 @@
                         plugins: [valueLabels],
                     });
                 });
+
+                const volumeItems = this.data.volume || [];
+                const width = Math.max(this.$refs.volumeScroll.clientWidth, volumeItems.length * 34 + 120);
+                const resized = this.$refs.volumeWrap.style.width !== width + 'px';
+                this.$refs.volumeWrap.style.width = width + 'px';
+
+                const volume = volumeChart(volumeItems);
+                if (charts.volume && !rebuild && !resized) {
+                    charts.volume.data = volume.data;
+                    charts.volume.options = volume.options;
+                    charts.volume.update('none');
+                } else {
+                    charts.volume?.destroy();
+                    charts.volume = new Chart(this.$refs.volume, { type: 'bar', ...volume });
+                }
             },
         };
     });

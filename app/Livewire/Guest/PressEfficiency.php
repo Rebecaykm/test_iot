@@ -261,7 +261,7 @@ class PressEfficiency extends Component
     {
         sort($workCenterIds);
 
-        $key = 'press_efficiency:report:' . $start->format('YmdHi') . '-' . $end->format('YmdHi')
+        $key = 'press_efficiency:v4:report:' . $start->format('YmdHi') . '-' . $end->format('YmdHi')
             . ':' . md5(implode(',', $workCenterIds));
 
         return Cache::store(self::CACHE_STORE)->remember(
@@ -280,7 +280,7 @@ class PressEfficiency extends Component
             ->get()
             ->keyBy('id');
 
-        $empty = ['rows' => [], 'deviation' => [], 'efficiency' => [], 'summary' => null, 'generatedAt' => now()->toIso8601String()];
+        $empty = ['rows' => [], 'deviation' => [], 'efficiency' => [], 'volume' => [], 'coverage' => null, 'summary' => null, 'generatedAt' => now()->toIso8601String()];
 
         if ($workCenters->isEmpty()) {
             return $empty;
@@ -432,6 +432,32 @@ class PressEfficiency extends Component
                 ->map(fn ($row) => ['label' => $row['die'], 'press' => $row['press'], 'value' => $row['difference']])->all(),
             'efficiency' => $withStandard->sortBy('efficiency')->take(self::TOP)->values()
                 ->map(fn ($row) => ['label' => $row['die'], 'press' => $row['press'], 'value' => $row['efficiency']])->all(),
+            // Volumen y eficiencia de TODOS los troqueles (MDI) del periodo, sumando sus prensas; los de más
+            // piezas primero. Sin SPM estándar no hay eficiencia (value = null): solo se muestra su volumen.
+            // Piezas no producidas = esperadas − producidas: junta volumen e ineficiencia (a qué atender primero).
+            'volume' => $rows->groupBy('die')
+                ->map(function ($dieRows, $die) {
+                    $std = $dieRows->whereNotNull('efficiency');
+                    $expected = $std->sum('expected');
+
+                    return [
+                        'label' => $die,
+                        'press' => $dieRows->pluck('press')->unique()->implode(', '),
+                        'produced' => $dieRows->sum('produced'),
+                        // Piezas que entran en la eficiencia: solo de las prensas donde el troquel tiene estándar
+                        'producedStd' => $std->sum('produced'),
+                        'expected' => $expected > 0 ? $expected : null,
+                        'lost' => $expected > 0 ? max(0, $expected - $std->sum('produced')) : null,
+                        'value' => $expected > 0 ? round($std->sum('produced') / $expected * 100, 1) : null,
+                    ];
+                })
+                ->sortByDesc('produced')->values()->all(),
+            // Cuántos troqueles (y qué parte de las piezas) tienen SPM estándar: solo esos tienen eficiencia
+            'coverage' => [
+                'dies' => $withStandard->pluck('die')->unique()->count(),
+                'allDies' => $rows->pluck('die')->unique()->count(),
+                'piecesPct' => $rows->sum('produced') > 0 ? round($withStandard->sum('produced') / $rows->sum('produced') * 100) : 0,
+            ],
             'summary' => [
                 'efficiency' => $expectedTotal > 0 ? round($withStandard->sum('produced') / $expectedTotal * 100, 1) : null,
                 'produced' => $rows->sum('produced'),
@@ -493,7 +519,7 @@ class PressEfficiency extends Component
 
         return $range && !$range->isFuture
             ? self::report($range->start, $range->end, $range->isLive, $workCenterIds)
-            : ['rows' => [], 'deviation' => [], 'efficiency' => [], 'summary' => null, 'generatedAt' => now()->toIso8601String()];
+            : ['rows' => [], 'deviation' => [], 'efficiency' => [], 'volume' => [], 'coverage' => null, 'summary' => null, 'generatedAt' => now()->toIso8601String()];
     }
 
     /** Descarga en Excel la tabla completa (todas las páginas) y las gráficas del periodo */
@@ -511,7 +537,7 @@ class PressEfficiency extends Component
         $stations = self::stations();
         $report = $this->currentReport($range);
 
-        $charts = ['deviation' => $report['deviation'], 'efficiency' => $report['efficiency']];
+        $charts = ['deviation' => $report['deviation'], 'efficiency' => $report['efficiency'], 'volume' => $report['volume'] ?? []];
 
         $this->dispatch('press-efficiency-charts', charts: $charts);
 
