@@ -22,7 +22,8 @@ use Throwable;
  *  2. Si una orden (shop_order_number) quedó repetida, se conserva la que está
  *     en Infor o, si ninguna, la de más producción (y luego la de id mayor).
  *     Lo producido de las demás pasa al acumulador y se descartan.
- *  3. Los acumuladores "No planeado" del correcto se juntan en uno solo.
+ *  3. Los acumuladores "No planeado" del correcto se juntan en uno por fecha
+ *     y turno.
  *  4. El resto de tablas pasa al correcto; los ids viejos que se quedan sin
  *     nada relacionado se borran y los que no, se marcan obsoletos.
  *
@@ -236,8 +237,9 @@ class MergeDuplicatePartNumbers extends Command
     }
 
     /**
-     * Paso 3: un solo acumulador "No planeado" (StoreProductionPlanJob usa el
-     * más antiguo). Los "En progreso" no se juntan.
+     * Paso 3: un solo acumulador "No planeado" por fecha y turno. No se juntan
+     * los de fechas distintas para que la producción no cambie de mes ni llene
+     * órdenes anteriores a cuando se hizo. Los "En progreso" no se juntan.
      */
     protected function mergeAccumulators(PartNumber $target): void
     {
@@ -245,23 +247,17 @@ class MergeDuplicatePartNumbers extends Command
             return;
         }
 
-        $accumulators = ProductionRecord::query()
-            ->where('part_number_id', $target->id)
+        $accumulatorsBySlot = ProductionRecord::accumulators($target->id)
             ->where('status_id', $this->accumulatorStatus->id)
-            ->where(fn ($query) => $query->whereNull('shop_order_number')->orWhere('shop_order_number', ''))
-            ->where('planned_quantity', 0)
-            ->where('produced_quantity', '>', 0)
-            ->where('planned_date', '>=', ProductionRecord::HISTORY_FLOOR_DATE)
-            ->where(function ($query) {
-                $query->whereNull('production_start')
-                    ->orWhere('production_start', '>=', ProductionRecord::HISTORY_FLOOR_DATE);
-            })
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->groupBy(fn (ProductionRecord $record) => $record->planned_date . '|' . $record->shift_id);
 
-        foreach ($accumulators->slice(1) as $record) {
-            $accumulator = ProductionRecord::moveToAccumulator($target, $record);
-            $this->line("  Acumulador {$this->describe($record)}: se junta con el acumulador #{$accumulator->id}.");
+        foreach ($accumulatorsBySlot as $accumulators) {
+            foreach ($accumulators->slice(1) as $record) {
+                $accumulator = ProductionRecord::moveToAccumulator($target, $record);
+                $this->line("  Acumulador {$this->describe($record)}: se junta con el acumulador #{$accumulator->id}.");
+            }
         }
     }
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use DateTime;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -201,14 +202,35 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Acumuladores de la parte: producción del PLC sin orden ni plan, desde
+     * HISTORY_FLOOR_DATE. El status ("No planeado" / "En progreso") lo filtra
+     * quien la usa.
+     */
+    public function scopeAccumulators(Builder $query, int $partNumberId): Builder
+    {
+        return $query
+            ->where('part_number_id', $partNumberId)
+            ->where(fn ($query) => $query->whereNull('shop_order_number')->orWhere('shop_order_number', ''))
+            ->where('planned_quantity', 0)
+            ->where('produced_quantity', '>', 0)
+            ->where('planned_date', '>=', self::HISTORY_FLOOR_DATE)
+            ->where(function ($query) {
+                $query->whereNull('production_start')
+                    ->orWhere('production_start', '>=', self::HISTORY_FLOOR_DATE);
+            });
+    }
+
+    /**
      * Pasa lo producido (y el scrap) de $source al acumulador de $partNumber,
      * para que iot:production-plan lo reparta en las órdenes que falten por
      * llenar; si no hay ninguna, se queda en el acumulador. Después descarta
      * $source.
      *
-     * Solo usa un acumulador "No planeado" (el más antiguo) y nunca uno "En
-     * progreso", porque el PLC puede estar escribiendo en él. Si no hay
-     * ninguno, crea uno en la fecha/turno de $source.
+     * Solo usa un acumulador "No planeado" de la misma fecha y turno que
+     * $source (el más antiguo), para que la producción no cambie de mes ni
+     * llene órdenes anteriores a cuando se hizo. Nunca uno "En progreso",
+     * porque el PLC puede estar escribiendo en él. Si no hay ninguno, crea uno
+     * en la fecha/turno de $source.
      */
     public static function moveToAccumulator(PartNumber $partNumber, self $source): self
     {
@@ -217,18 +239,11 @@ class ProductionRecord extends Model
             $producedQuantity = (int) $source->produced_quantity;
             $scrapQuantity = (int) $source->scrap_quantity;
 
-            $accumulator = self::query()
-                ->where('part_number_id', $partNumber->id)
+            $accumulator = self::accumulators($partNumber->id)
                 ->where('id', '!=', $source->id)
                 ->where('status_id', $accumulatorStatus->id)
-                ->where(fn ($query) => $query->whereNull('shop_order_number')->orWhere('shop_order_number', ''))
-                ->where('planned_quantity', 0)
-                ->where('produced_quantity', '>', 0)
-                ->where('planned_date', '>=', self::HISTORY_FLOOR_DATE)
-                ->where(function ($query) {
-                    $query->whereNull('production_start')
-                        ->orWhere('production_start', '>=', self::HISTORY_FLOOR_DATE);
-                })
+                ->where('planned_date', Carbon::parse($source->planned_date)->toDateString())
+                ->where('shift_id', $source->shift_id)
                 ->orderBy('id')
                 ->first();
 

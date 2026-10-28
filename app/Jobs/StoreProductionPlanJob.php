@@ -20,22 +20,33 @@ class StoreProductionPlanJob implements ShouldQueue
 {
     use Queueable;
 
-    protected $shop_order_number;
     protected $part_number;
+    protected $orders;
+    protected $sync_from;
+    protected $window_end;
+
+    // Orden que se está conciliando; handle() la asigna antes de cada reconcile().
+    protected $shop_order_number;
     protected $planned_quantity;
     protected $planned_date;
     protected $planned_shift;
 
+    /** Turnos ordenados por hora de inicio (D antes que N). */
+    protected ?Collection $shifts = null;
+
     /**
      * Create a new job instance.
+     *
+     * @param  array  $orders  Órdenes de FSO de la parte, en orden de fecha y turno.
+     * @param  string|null  $sync_from  Fecha de arranque (sync_from de Live) de su estación.
+     * @param  string  $window_end  Última fecha que se trajo de FSO.
      */
-    public function __construct($shop_order_number, $part_number, $planned_quantity, $planned_date, $planned_shift)
+    public function __construct($part_number, array $orders, ?string $sync_from, string $window_end)
     {
-        $this->shop_order_number = $shop_order_number;
         $this->part_number = $part_number;
-        $this->planned_quantity = $planned_quantity;
-        $this->planned_date = $planned_date;
-        $this->planned_shift = $planned_shift;
+        $this->orders = $orders;
+        $this->sync_from = $sync_from;
+        $this->window_end = $window_end;
     }
 
     /**
@@ -45,20 +56,39 @@ class StoreProductionPlanJob implements ShouldQueue
     protected const LOCK_WAIT_SECONDS = 60;
 
     /**
+     * Segundos que dura el candado: alcanza para todas las órdenes de la parte.
+     */
+    protected const LOCK_SECONDS = 600;
+
+    /**
      * Execute the job.
      *
      * Solo un job a la vez por número de parte: si dos workers concilian
      * órdenes de la misma parte en paralelo, ambos leen el mismo acumulador
-     * y reparten sus piezas dos veces.
+     * y reparten sus piezas dos veces. Las órdenes se concilian una por una en
+     * orden de fecha y turno, porque el acumulador solo llena hacia adelante.
      */
     public function handle(): void
     {
-        $lock = Cache::lock('production-plan:' . trim((string) $this->part_number), 120);
+        $lock = Cache::lock('production-plan:' . trim((string) $this->part_number), self::LOCK_SECONDS);
 
         try {
-            $lock->block(self::LOCK_WAIT_SECONDS, fn () => $this->reconcile());
+            $lock->block(self::LOCK_WAIT_SECONDS, function () {
+                $this->shifts = Shift::query()->orderBy('start_time')->get();
+
+                foreach ($this->orders as $order) {
+                    $this->shop_order_number = $order['shop_order_number'];
+                    $this->planned_quantity = $order['planned_quantity'];
+                    $this->planned_date = $order['planned_date'];
+                    $this->planned_shift = $order['planned_shift'];
+
+                    $this->reconcile();
+                }
+
+                $this->parkAccumulatorsAtMonthEnd();
+            });
         } catch (LockTimeoutException $e) {
-            Log::warning("StoreProductionPlanJob: la parte {$this->part_number} sigue bloqueada por otro job; la orden {$this->shop_order_number} regresa a la cola.");
+            Log::warning("StoreProductionPlanJob: la parte {$this->part_number} sigue bloqueada por otro job; sus " . count($this->orders) . ' órdenes regresan a la cola.');
             $this->release(15);
         }
     }
@@ -81,6 +111,11 @@ class StoreProductionPlanJob implements ShouldQueue
         // actual, que pudo cambiar). Si es hoy o futuro, se usa la vigente ahora.
         $plannedDateStr = Carbon::parse($this->planned_date)->toDateString();
         $shouldRefreshOrder = $plannedDateStr >= Carbon::today()->toDateString();
+
+        // Antes de la fecha de arranque de la estación no se llena nada.
+        if ($this->sync_from !== null && $plannedDateStr < $this->sync_from) {
+            return;
+        }
 
         $productionOrderForRecord = $shouldRefreshOrder
             ? $partNumber->production_order
@@ -154,30 +189,24 @@ class StoreProductionPlanJob implements ShouldQueue
             && (int) $existingRecord->status_id === $completedStatus->id;
 
         // "Acumulador": producción del PLC sin orden/plan todavía (status "No
-        // planeado" o "En progreso"). Se busca por parte, sin tope hacia adelante, y
-        // se excluye todo lo anterior a HISTORY_FLOOR_DATE. Solo se excluye por ID
-        // (no por fecha) para que se pueda repartir entre turnos del mismo día en el
-        // orden real en que Infor entrega las órdenes (D, luego N, luego el D
-        // siguiente...), en vez de saltarse el turno N y caer solo en días futuros.
+        // planeado" o "En progreso"). Solo sirve el del mismo mes que la orden y
+        // con fecha/turno igual o anterior a ella (llena hacia adelante: D, luego
+        // N, luego el D siguiente...), desde la fecha de arranque de la estación.
+        // Como al llenar solo se mueve al slot de la orden, nunca cambia de mes.
         $accumulatorStatusIds = array_filter([
             optional($accumulatorStatus)->id,
             optional($inProgressStatus)->id,
         ]);
 
         if (!empty($accumulatorStatusIds) && !$orderAlreadyCompleted) {
-            $accumulatorCandidates = ProductionRecord::where('part_number_id', $partNumber->id)
+            $accumulatorCandidates = ProductionRecord::accumulators($partNumber->id)
                 ->whereIn('status_id', $accumulatorStatusIds)
-                ->where(function ($query) {
-                    $query->whereNull('shop_order_number')->orWhere('shop_order_number', '');
-                })
-                ->where('planned_quantity', 0)
-                ->where('produced_quantity', '>', 0)
                 ->when($existingRecord, fn ($query) => $query->where('id', '!=', $existingRecord->id))
-                ->where('planned_date', '>=', ProductionRecord::HISTORY_FLOOR_DATE)
-                ->where(function ($query) {
-                    $query->whereNull('production_start')
-                        ->orWhere('production_start', '>=', ProductionRecord::HISTORY_FLOOR_DATE);
-                })
+                ->where('planned_date', '>=', Carbon::parse($plannedDateStr)->startOfMonth()->toDateString())
+                ->when($this->sync_from !== null, fn ($query) => $query->where('planned_date', '>=', $this->sync_from))
+                ->where(fn ($query) => $query->where('planned_date', '<', $plannedDateStr)
+                    ->orWhere(fn ($query) => $query->where('planned_date', $plannedDateStr)
+                        ->whereIn('shift_id', $this->shiftIdsWhere('<=', $shift))))
                 ->get();
 
             // Con varios acumuladores se usa el más antiguo que no esté "En progreso"
@@ -287,26 +316,17 @@ class StoreProductionPlanJob implements ShouldQueue
                             'synced_to_infor' => false,
                         ]);
 
-                        $accumulatorUpdate = [
+                        // El restante se mueve a la fecha/turno de la orden que llenó (siempre
+                        // hacia adelante y en el mismo mes), como en un rellenado parcial.
+                        $accumulator->update([
+                            'planned_date' => $this->planned_date,
+                            'shift_id' => $shift->id,
                             'shop_order_number' => null,
                             'planned_quantity' => 0,
                             'produced_quantity' => $excessQuantity,
-                        ];
+                        ]);
 
-                        // "En progreso": el restante se mueve a la fecha/turno actual (ahí
-                        // sigue produciendo). Si no, conserva su ubicación original.
-                        if ($accumulatorWasInProgress) {
-                            $accumulatorUpdate['planned_date'] = $this->planned_date;
-                            $accumulatorUpdate['shift_id'] = $shift->id;
-                        }
-
-                        $accumulator->update($accumulatorUpdate);
-
-                        $remainderLocation = $accumulatorWasInProgress
-                            ? "se movió a {$this->planned_date}/{$this->planned_shift}"
-                            : "conservó su fecha/turno original";
-
-                        Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) cubrió el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}; se creó un registro Completado. El restante ({$excessQuantity}) {$remainderLocation}.");
+                        Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) cubrió el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}; se creó un registro Completado. El restante ({$excessQuantity}) se movió a {$this->planned_date}/{$this->planned_shift}.");
                     } else {
                         $accumulatorUpdate = [
                             'planned_date' => $this->planned_date,
@@ -444,6 +464,88 @@ class StoreProductionPlanJob implements ShouldQueue
         } else {
             ProductionRecord::store($partNumber->id, $plannedQuantityInt, $this->planned_date, $shift->id, $this->shop_order_number, $productionOrderForRecord);
         }
+    }
+
+    /**
+     * Lo que sobra de un mes se queda en su acumulador. Si después de él ya no
+     * hay órdenes del mes que rellenar, se mueve al último día del mes en el
+     * último turno (N). Solo en meses que ya caben completos en la ventana
+     * (todas sus órdenes ya se trajeron de FSO) y nunca "En progreso" (el PLC
+     * puede estar escribiendo). Si ya hay otro acumulador ahí, se juntan.
+     */
+    protected function parkAccumulatorsAtMonthEnd(): void
+    {
+        $partNumber = PartNumber::query()->where('number', $this->part_number)->orderByDesc('id')->first();
+        $accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
+        $lastShift = $this->shifts->last();
+
+        if (!$partNumber || !$accumulatorStatus || !$lastShift) {
+            return;
+        }
+
+        $windowEnd = Carbon::parse($this->window_end);
+        $lastClosedMonthEnd = $windowEnd->isLastOfMonth() ? $windowEnd : $windowEnd->copy()->startOfMonth()->subDay();
+
+        $accumulators = ProductionRecord::accumulators($partNumber->id)
+            ->where('status_id', $accumulatorStatus->id)
+            ->where('planned_date', '<=', $lastClosedMonthEnd->toDateString())
+            ->when($this->sync_from !== null, fn ($query) => $query->where('planned_date', '>=', $this->sync_from))
+            ->orderBy('planned_date')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($accumulators as $accumulator) {
+            $plannedDate = Carbon::parse($accumulator->planned_date)->toDateString();
+            $monthEnd = Carbon::parse($plannedDate)->endOfMonth()->toDateString();
+            $accumulatorShift = $this->shifts->firstWhere('id', $accumulator->shift_id);
+
+            if (!$accumulatorShift || ($plannedDate === $monthEnd && (int) $accumulatorShift->id === (int) $lastShift->id)) {
+                continue;
+            }
+
+            $hasOrdersToFill = ProductionRecord::query()
+                ->where('part_number_id', $partNumber->id)
+                ->whereNotNull('shop_order_number')
+                ->where('shop_order_number', '<>', '')
+                ->where('synced_to_infor', false)
+                ->whereColumn('produced_quantity', '<', 'planned_quantity')
+                ->where('planned_date', '<=', $monthEnd)
+                ->where(fn ($query) => $query->where('planned_date', '>', $plannedDate)
+                    ->orWhere(fn ($query) => $query->where('planned_date', $plannedDate)
+                        ->whereIn('shift_id', $this->shiftIdsWhere('>', $accumulatorShift))))
+                ->exists();
+
+            if ($hasOrdersToFill) {
+                continue;
+            }
+
+            $producedQuantity = (int) $accumulator->produced_quantity;
+
+            $accumulator->update([
+                'planned_date' => $monthEnd,
+                'shift_id' => $lastShift->id,
+            ]);
+
+            $sharesSlot = ProductionRecord::accumulators($partNumber->id)
+                ->where('status_id', $accumulatorStatus->id)
+                ->where('id', '!=', $accumulator->id)
+                ->where('planned_date', $monthEnd)
+                ->where('shift_id', $lastShift->id)
+                ->exists();
+
+            $target = $sharesSlot ? ProductionRecord::moveToAccumulator($partNumber, $accumulator) : $accumulator;
+
+            Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) ya no tiene órdenes que rellenar en su mes; sus {$producedQuantity} piezas pasaron de {$plannedDate} turno {$accumulatorShift->abbreviation} a {$monthEnd} turno {$lastShift->abbreviation}" . ($sharesSlot ? " y se juntaron con el acumulador #{$target->id}." : '.'));
+        }
+    }
+
+    /**
+     * Ids de los turnos cuya hora de inicio cumple "$operator" contra la de
+     * $shift; p. ej. '<=' con N da D y N.
+     */
+    protected function shiftIdsWhere(string $operator, Shift $shift): array
+    {
+        return $this->shifts->where('start_time', $operator, $shift->start_time)->pluck('id')->all();
     }
 
     /**

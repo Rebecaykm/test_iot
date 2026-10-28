@@ -14,7 +14,7 @@ class GetProductionPlan extends Command
      * @var string
      */
     protected $signature = 'iot:production-plan
-        {--from= : Fecha inicial del plan (Y-m-d). Nunca antes de HISTORY_FLOOR_DATE}
+        {--from= : Fecha inicial del plan (Y-m-d)}
         {--to= : Fecha final del plan (Y-m-d)}';
 
     /**
