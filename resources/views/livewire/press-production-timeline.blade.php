@@ -1,10 +1,10 @@
 <div class="flex flex-col flex-1 min-h-0">
-    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col flex-1 min-h-0">
+    <div class="bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-sm flex flex-col flex-1 min-h-0">
 
         {{-- Encabezado: estación a la izquierda; fecha y turno a la derecha --}}
-        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700/70 flex-shrink-0">
+        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-ta-gray-700/70 flex-shrink-0">
             <div class="flex items-center justify-between gap-2">
-                <h1 class="truncate text-xl font-bold text-zinc-800 dark:text-zinc-50 flex items-center">
+                <h1 class="truncate text-xl font-bold text-zinc-800 dark:text-ta-gray-50 flex items-center">
                     <span class="w-2.5 h-2.5 flex-shrink-0 bg-[#2563eb] dark:bg-[#3b82f6] rounded-full inline-block mr-2.5"></span>
                     {{ $workCenter }}
                 </h1>
@@ -12,11 +12,11 @@
                     {{-- Calendario (date picker) --}}
                     <div x-data="pressDatePicker(@js($selectedDate))" @click.away="open = false" class="relative">
                         <button @click="open = !open" type="button"
-                            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-sm hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-white dark:bg-ta-gray-900 border border-zinc-300 dark:border-ta-gray-700 rounded-lg shadow-sm hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
                             </svg>
-                            <span x-text="label" class="text-zinc-700 dark:text-zinc-200 font-medium capitalize"></span>
+                            <span x-text="label" class="text-zinc-700 dark:text-ta-gray-200 font-medium capitalize"></span>
                         </button>
 
                         <div x-show="open"
@@ -26,20 +26,20 @@
                             x-transition:leave="transition ease-in duration-75"
                             x-transition:leave-start="transform opacity-100 scale-100"
                             x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 mt-1.5 w-72 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 z-50 p-3"
+                            class="absolute right-0 mt-1.5 w-72 bg-white dark:bg-ta-gray-900 rounded-xl shadow-xl border border-zinc-200 dark:border-ta-gray-800 z-50 p-3"
                             style="display: none;">
                             {{-- Navegación de mes --}}
                             <div class="flex items-center justify-between mb-2">
-                                <button type="button" @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-300">
+                                <button type="button" @click="prevMonth()" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-ta-gray-800 text-zinc-500 dark:text-ta-gray-300">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                                 </button>
-                                <span x-text="monthLabel" class="text-sm font-semibold text-zinc-700 dark:text-zinc-200 capitalize"></span>
-                                <button type="button" @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-300">
+                                <span x-text="monthLabel" class="text-sm font-semibold text-zinc-700 dark:text-ta-gray-200 capitalize"></span>
+                                <button type="button" @click="nextMonth()" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-ta-gray-800 text-zinc-500 dark:text-ta-gray-300">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                                 </button>
                             </div>
                             {{-- Días de la semana --}}
-                            <div class="grid grid-cols-7 gap-1 mb-1 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                            <div class="grid grid-cols-7 gap-1 mb-1 text-center text-xs font-medium text-zinc-500 dark:text-ta-gray-400">
                                 <template x-for="d in ['Do','Lu','Ma','Mi','Ju','Vi','Sa']" :key="d"><span x-text="d"></span></template>
                             </div>
                             {{-- Días del mes --}}
@@ -49,9 +49,9 @@
                                         :class="{
                                             'invisible': !d,
                                             'bg-blue-600 text-white font-semibold': isSelected(d),
-                                            'text-zinc-300 dark:text-zinc-500 cursor-not-allowed': d && isFuture(d),
-                                            'ring-1 ring-blue-400 text-zinc-700 dark:text-zinc-200': isToday(d) && !isSelected(d),
-                                            'hover:bg-blue-50 dark:hover:bg-blue-900/30 text-zinc-700 dark:text-zinc-200': d && !isFuture(d) && !isSelected(d) && !isToday(d)
+                                            'text-zinc-300 dark:text-ta-gray-500 cursor-not-allowed': d && isFuture(d),
+                                            'ring-1 ring-blue-400 text-zinc-700 dark:text-ta-gray-200': isToday(d) && !isSelected(d),
+                                            'hover:bg-blue-50 dark:hover:bg-blue-900/30 text-zinc-700 dark:text-ta-gray-200': d && !isFuture(d) && !isSelected(d) && !isToday(d)
                                         }"
                                         class="h-8 w-8 rounded-lg text-sm flex items-center justify-center transition-colors"></button>
                                 </template>
@@ -61,7 +61,7 @@
 
                     {{-- Select de turnos --}}
                     <select wire:model.live="selectedShiftId"
-                        class="pl-2.5 pr-8 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-sm text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer">
+                        class="pl-2.5 pr-8 py-1.5 text-xs bg-white dark:bg-ta-gray-900 border border-zinc-300 dark:border-ta-gray-700 rounded-lg shadow-sm text-zinc-700 dark:text-ta-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer">
                         @foreach($shiftOptions as $opt)
                             <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
                         @endforeach
@@ -76,7 +76,7 @@
                 <canvas id="{{ $chartId }}"></canvas>
             </div>
             <p x-show="isEmpty" x-cloak
-               class="text-center py-8 text-zinc-500 dark:text-zinc-400">
+               class="text-center py-8 text-zinc-500 dark:text-ta-gray-400">
                 No hay producción registrada en este turno.
             </p>
 
@@ -85,20 +85,20 @@
                 x-transition:enter="transition ease-out duration-100"
                 x-transition:enter-start="transform opacity-0 scale-95"
                 x-transition:enter-end="transform opacity-100 scale-100"
-                class="fixed z-40 w-80 max-w-[85vw] bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 flex flex-col overflow-hidden"
+                class="fixed z-40 w-80 max-w-[85vw] bg-white dark:bg-ta-gray-900 rounded-xl shadow-xl border border-zinc-200 dark:border-ta-gray-800 flex flex-col overflow-hidden"
                 :style="`top: ${noteTop}px; left: ${noteLeft}px;`">
 
-                <div class="flex items-center justify-between px-3 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
+                <div class="flex items-center justify-between px-3 py-2 border-b border-zinc-200 dark:border-ta-gray-800 bg-zinc-50 dark:bg-ta-gray-800/40">
                     <div class="flex items-center gap-1.5 min-w-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.447.894L10 15.118l-4.553 1.776A1 1 0 014 16V4zm2 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
                         </svg>
-                        <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">
+                        <span class="text-sm font-semibold text-zinc-800 dark:text-ta-gray-100 truncate">
                             Notas · {{ $openNoteMdi }}
                         </span>
                     </div>
                     <button type="button" wire:click="closeNotes" @click="noteOpen = false"
-                        class="p-1 rounded-full text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0">
+                        class="p-1 rounded-full text-zinc-500 hover:text-zinc-600 dark:hover:text-ta-gray-200 hover:bg-zinc-200 dark:hover:bg-ta-gray-700 transition-colors flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -106,27 +106,27 @@
                 </div>
 
                 {{-- Lista de notas existentes: ~2 visibles, el resto con scroll --}}
-                <div class="max-h-32 overflow-y-auto divide-y divide-zinc-200 dark:divide-zinc-800">
+                <div class="max-h-32 overflow-y-auto divide-y divide-zinc-200 dark:divide-ta-gray-800">
                     @forelse(($openNoteMdi ? ($notesByMdi[$openNoteMdi] ?? []) : []) as $note)
                         <div class="px-3 py-2 text-xs">
                             <div class="flex items-center justify-end mb-0.5">
-                                <span class="text-zinc-500 dark:text-zinc-400">
+                                <span class="text-zinc-500 dark:text-ta-gray-400">
                                     {{ $note->created_at->format('d-m H:i') }}
                                 </span>
                             </div>
-                            <p class="text-zinc-700 dark:text-zinc-200 whitespace-pre-line break-words">{{ $note->body }}</p>
+                            <p class="text-zinc-700 dark:text-ta-gray-200 whitespace-pre-line break-words">{{ $note->body }}</p>
                         </div>
                     @empty
-                        <p class="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-400 text-center">
+                        <p class="px-3 py-3 text-xs text-zinc-500 dark:text-ta-gray-400 text-center">
                             Sin notas para este MDI en este turno.
                         </p>
                     @endforelse
                 </div>
 
                 {{-- Nueva nota --}}
-                <div class="p-2.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-950/20 space-y-1.5">
+                <div class="p-2.5 border-t border-zinc-200 dark:border-ta-gray-800 bg-zinc-50/60 dark:bg-ta-gray-950/20 space-y-1.5">
                     <textarea wire:model="noteDraft" rows="2" placeholder="Escribe tu nota aquí..."
-                        class="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                        class="w-full px-2.5 py-1.5 text-xs bg-white dark:bg-ta-gray-900 border border-zinc-300 dark:border-ta-gray-700 rounded-lg text-zinc-700 dark:text-ta-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
                     @error('noteDraft')
                         <p class="text-xs text-red-500">{{ $message }}</p>
                     @enderror
@@ -141,7 +141,7 @@
         </div>
 
         {{-- Pie: última actualización / histórico --}}
-        <div class="px-6 py-2.5 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">
+        <div class="px-6 py-2.5 border-t border-zinc-200 dark:border-ta-gray-800 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-ta-gray-400 flex-shrink-0">
             <span>Golpes por MDI</span>
 
             <span>
@@ -236,7 +236,7 @@
                     good: { fill: 'rgba(52,211,153,0.20)', border: '#34d399', text: '#34d399', rowFill: 'rgba(52,211,153,0.18)' },
                     mid:  { fill: 'rgba(251,191,36,0.20)', border: '#fbbf24', text: '#fbbf24', rowFill: 'rgba(251,191,36,0.18)' },
                     bad:  { fill: 'rgba(248,113,113,0.20)', border: '#f87171', text: '#f87171', rowFill: 'rgba(248,113,113,0.18)' },
-                    none: { fill: 'rgba(161,161,170,0.20)', border: '#a1a1aa', text: '#e4e4e7', rowFill: 'rgba(161,161,170,0.14)' },
+                    none: { fill: 'rgba(152,162,179,0.20)', border: '#98a2b3', text: '#e4e7ec', rowFill: 'rgba(152,162,179,0.14)' },
                 }
                 : {
                     good: { fill: 'rgba(16,185,129,0.15)', border: '#059669', text: '#059669', rowFill: 'rgba(16,185,129,0.14)' },
@@ -352,11 +352,11 @@
                     const dark = isDark();
 
                     const colors = {
-                        text:          dark ? '#e4e4e7' : '#3f3f46',
-                        textMuted:     dark ? '#a1a1aa' : '#71717a',
+                        text:          dark ? '#e4e7ec' : '#3f3f46',
+                        textMuted:     dark ? '#98a2b3' : '#71717a',
                         grid:          dark ? 'rgba(82,82,91,0.30)' : 'rgba(0,0,0,0.08)',
-                        tooltipBg:     dark ? 'rgba(24,24,27,0.95)' : 'rgba(255,255,255,0.97)',
-                        tooltipBorder: dark ? '#3f3f46' : '#e4e4e7',
+                        tooltipBg:     dark ? 'rgba(23,31,47,0.95)' : 'rgba(255,255,255,0.97)',
+                        tooltipBorder: dark ? '#344054' : '#e4e4e7',
                         planFill:      dark ? 'rgba(59,130,246,0.20)' : 'rgba(37,99,235,0.15)',
                         planBorder:    dark ? '#3b82f6' : '#2563eb',
                     };
@@ -441,7 +441,7 @@
                                     // Halo de contraste detrás del número para que se lea completo
                                     // aunque se salga de la barra o quede sobre el recuadro de fondo.
                                     ctx.lineWidth = 3.5;
-                                    ctx.strokeStyle = isDark() ? 'rgba(24,24,27,0.9)' : 'rgba(255,255,255,0.95)';
+                                    ctx.strokeStyle = isDark() ? 'rgba(23,31,47,0.9)' : 'rgba(255,255,255,0.95)';
                                     ctx.strokeText(text, cx, el.y);
 
                                     ctx.fillStyle = color;

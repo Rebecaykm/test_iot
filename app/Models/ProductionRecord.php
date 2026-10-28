@@ -43,6 +43,20 @@ class ProductionRecord extends Model
     }
 
     /**
+     * Columna "Sin N° de orden" de las vistas de avance (requiere el join a statuses):
+     *  - "No planeado":  acumuladores cerrados
+     *  - "No verificado": producción sin verificar (tenga o no orden; por eso no cuenta como real)
+     *  - "En progreso" sin orden: el acumulador en el que el PLC escribe ahora (al cerrarse pasa a "No planeado")
+     * Los "Cancelado" sin orden (registros obsoletos) ya no se suman.
+     */
+    const UNPLANNED_SQL = "(statuses.name IN ('No planeado', 'No verificado')"
+        . " OR (statuses.name = 'En progreso' AND COALESCE(production_records.shop_order_number, '') = ''))";
+
+    /** Producido que cuenta como real contra el plan: con orden y ya verificado */
+    const WITH_ORDER_SQL = "(COALESCE(production_records.shop_order_number, '') <> ''"
+        . " AND COALESCE(statuses.name, '') <> 'No verificado')";
+
+    /**
      * Fecha desde la que se reconstruye plan y acumulados; lo anterior se
      * ignora para no mezclar acumuladores viejos con órdenes nuevas.
      */
@@ -549,14 +563,16 @@ class ProductionRecord extends Model
      * Avance de producción semanal por línea (vista de invitados): totales por
      * work center, turno y fecha planeada.
      *  - plan:       cantidad planeada de los registros con shop order
-     *  - with_order: producido en registros con shop order
-     *  - no_order:   producido en registros sin shop order (acumuladores "Sin Orden")
+     *  - with_order: producido en registros con shop order (sin los "No verificado")
+     *  - no_order:   columna "Sin N° de orden" (ver UNPLANNED_SQL)
      *  - in_progress: > 0 si algún registro del grupo está "En progreso"
      * Solo partes de clase PROGRESS_ITEM_CLASSES.
      */
     public static function getLineWeeklyProgress(array $lineIds, $startDate, $endDate): Collection
     {
         $hasOrder = "COALESCE(production_records.shop_order_number, '') <> ''";
+        $withOrder = self::WITH_ORDER_SQL;
+        $unplanned = self::UNPLANNED_SQL;
 
         $query = ProductionRecord::query()
             ->selectRaw("
@@ -569,8 +585,8 @@ class ProductionRecord extends Model
                 shifts.abbreviation AS shift,
                 production_records.planned_date AS planned_date,
                 SUM(CASE WHEN {$hasOrder} THEN production_records.planned_quantity ELSE 0 END) AS [plan],
-                SUM(CASE WHEN {$hasOrder} THEN production_records.produced_quantity ELSE 0 END) AS with_order,
-                SUM(CASE WHEN {$hasOrder} THEN 0 ELSE production_records.produced_quantity END) AS no_order,
+                SUM(CASE WHEN {$withOrder} THEN production_records.produced_quantity ELSE 0 END) AS with_order,
+                SUM(CASE WHEN {$unplanned} THEN production_records.produced_quantity ELSE 0 END) AS no_order,
                 SUM(production_records.scrap_quantity) AS scrap,
                 SUM(CASE WHEN statuses.name = 'En progreso' THEN 1 ELSE 0 END) AS in_progress
             ")
@@ -610,6 +626,8 @@ class ProductionRecord extends Model
     public static function getPartWeeklyProgress($startDate, $endDate, ?array $partIds = null, ?int $workCenterId = null): Collection
     {
         $hasOrder = "COALESCE(production_records.shop_order_number, '') <> ''";
+        $withOrder = self::WITH_ORDER_SQL;
+        $unplanned = self::UNPLANNED_SQL;
 
         $query = ProductionRecord::query()
             ->selectRaw("
@@ -625,8 +643,8 @@ class ProductionRecord extends Model
                 shifts.abbreviation AS shift,
                 production_records.planned_date AS planned_date,
                 SUM(CASE WHEN {$hasOrder} THEN production_records.planned_quantity ELSE 0 END) AS [plan],
-                SUM(CASE WHEN {$hasOrder} THEN production_records.produced_quantity ELSE 0 END) AS with_order,
-                SUM(CASE WHEN {$hasOrder} THEN 0 ELSE production_records.produced_quantity END) AS no_order,
+                SUM(CASE WHEN {$withOrder} THEN production_records.produced_quantity ELSE 0 END) AS with_order,
+                SUM(CASE WHEN {$unplanned} THEN production_records.produced_quantity ELSE 0 END) AS no_order,
                 SUM(production_records.scrap_quantity) AS scrap,
                 SUM(CASE WHEN statuses.name = 'En progreso' THEN 1 ELSE 0 END) AS in_progress
             ")
@@ -662,26 +680,27 @@ class ProductionRecord extends Model
     }
 
     /**
-     * Piezas producidas sin número de orden (acumuladores) de unas estaciones en un
-     * rango de fechas planeadas, por estación y número de parte (modal de /).
+     * Piezas de la columna "Sin N° de orden" (UNPLANNED_SQL) de unas estaciones en un
+     * rango de fechas planeadas, por estación, número de parte y estado (modal de /).
      * Con $partNumberId, solo ese número de parte. Solo partes de clase
      * PROGRESS_ITEM_CLASSES, igual que la tabla.
      */
     public static function getNoOrderParts(array $workCenterIds, $startDate, $endDate, ?int $partNumberId = null): Collection
     {
         return ProductionRecord::query()
-            ->selectRaw('work_centers.name AS work_center_name, part_numbers.number AS part_number, part_numbers.name AS part_name, SUM(production_records.produced_quantity) AS quantity')
+            ->selectRaw('work_centers.name AS work_center_name, part_numbers.number AS part_number, part_numbers.name AS part_name, statuses.name AS status, SUM(production_records.produced_quantity) AS quantity')
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
+            ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->whereIn('part_numbers.work_center_id', $workCenterIds)
             ->when($partNumberId, fn ($q) => $q->where('part_numbers.id', $partNumberId))
             ->whereBetween('production_records.planned_date', [
                 \Carbon\Carbon::parse($startDate)->toDateString(),
                 \Carbon\Carbon::parse($endDate)->toDateString(),
             ])
-            ->whereRaw("COALESCE(production_records.shop_order_number, '') = ''")
+            ->whereRaw(self::UNPLANNED_SQL)
             ->tap(fn ($q) => self::applyProgressItemClasses($q))
-            ->groupBy('work_centers.name', 'part_numbers.number', 'part_numbers.name')
+            ->groupBy('work_centers.name', 'part_numbers.number', 'part_numbers.name', 'statuses.name')
             ->havingRaw('SUM(production_records.produced_quantity) > 0')
             ->get();
     }

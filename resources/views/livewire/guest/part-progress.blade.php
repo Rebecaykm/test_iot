@@ -1,9 +1,9 @@
 {{-- poll(): si los datos no cambiaron, el servidor no re-renderiza nada --}}
 <div wire:poll.30s.visible="poll" class="flex flex-col min-h-0">
-    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col min-h-0">
+    <div class="bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-sm flex flex-col min-h-0">
 
         {{-- Encabezado: número de parte y navegación de semana --}}
-        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700/70 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between flex-shrink-0">
+        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-ta-gray-700/70 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between flex-shrink-0">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 min-w-0">
                 <form wire:submit="applyPart" class="flex items-center gap-2">
                     <div class="relative">
@@ -11,7 +11,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                         </svg>
                         <input type="text" wire:model="partInput" placeholder="Número de parte..." autocomplete="off"
-                            class="w-full sm:w-64 pl-8 pr-3 py-1.5 text-sm uppercase border border-zinc-300 dark:border-zinc-700/70 rounded-lg bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200 placeholder-zinc-500 placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                            class="w-full sm:w-64 pl-8 pr-3 py-1.5 text-sm uppercase border border-zinc-300 dark:border-ta-gray-700/70 rounded-lg bg-white dark:bg-ta-gray-900 text-zinc-700 dark:text-ta-gray-200 placeholder-zinc-500 placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
                     </div>
                     <button type="submit"
                         class="inline-flex h-[34px] items-center rounded-lg bg-[#2563eb] px-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
@@ -19,7 +19,7 @@
                     </button>
                     @if($partNumber !== '')
                         <button type="button" wire:click="clearPart"
-                            class="inline-flex h-[34px] items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap">
+                            class="inline-flex h-[34px] items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-zinc-600 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors whitespace-nowrap">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                             Limpiar
                         </button>
@@ -39,17 +39,17 @@
                 </svg>
                 @unless($isCurrentWeek)
                     <button wire:click="currentWeek" type="button"
-                        class="px-2.5 py-1 mr-1 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                        class="px-2.5 py-1 mr-1 rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-xs font-medium text-zinc-600 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors">
                         Semana actual
                     </button>
                 @endunless
                 <button wire:click="prevWeek" type="button" title="Semana anterior"
-                    class="p-1 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                    class="p-1 rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                 </button>
-                <span class="text-sm font-semibold text-zinc-700 dark:text-zinc-200 whitespace-nowrap min-w-[10rem] text-center">{{ $weekLabel }}</span>
+                <span class="text-sm font-semibold text-zinc-700 dark:text-ta-gray-200 whitespace-nowrap min-w-[10rem] text-center">{{ $weekLabel }}</span>
                 <button wire:click="nextWeek" type="button" title="Semana siguiente"
-                    class="p-1 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                    class="p-1 rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                 </button>
             </div>
@@ -76,22 +76,22 @@
                 </colgroup>
                 <thead class="sticky top-0 z-20">
                     <tr>
-                        <th rowspan="2" class="sticky left-0 z-30 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-700/70">
+                        <th rowspan="2" class="sticky left-0 z-30 bg-zinc-50 dark:bg-ta-gray-800 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-zinc-200 dark:border-ta-gray-700/70">
                             Estación
                         </th>
-                        <th rowspan="2" class="sticky left-28 z-30 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-700/70">
+                        <th rowspan="2" class="sticky left-28 z-30 bg-zinc-50 dark:bg-ta-gray-800 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-zinc-200 dark:border-ta-gray-700/70">
                             Número de Parte
                         </th>
-                        <th rowspan="2" class="sticky left-64 z-30 bg-zinc-50 dark:bg-zinc-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 border-b border-r border-zinc-200 dark:border-zinc-700/70">
+                        <th rowspan="2" class="sticky left-64 z-30 bg-zinc-50 dark:bg-ta-gray-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-r border-zinc-200 dark:border-ta-gray-700/70">
                             Clase
                         </th>
                         @foreach($days as $day)
-                            <th colspan="{{ count($shifts) }}" class="px-2 pt-1.5 pb-1 text-center border-l border-zinc-200 dark:border-zinc-700/70 {{ $day['isToday'] ? 'bg-blue-50 dark:bg-[#1c2331]' : 'bg-zinc-50 dark:bg-zinc-800' }}">
-                                <span class="text-xs font-bold {{ $day['isToday'] ? 'text-blue-700 dark:text-blue-300' : 'text-zinc-700 dark:text-zinc-200' }}">{{ $day['name'] }}</span>
-                                <span class="text-[11px] font-normal {{ $day['isToday'] ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400' }}">{{ $day['label'] }}</span>
+                            <th colspan="{{ count($shifts) }}" class="px-2 pt-1.5 pb-1 text-center border-l border-zinc-200 dark:border-ta-gray-700/70 {{ $day['isToday'] ? 'bg-blue-50 dark:bg-[#1c2331]' : 'bg-zinc-50 dark:bg-ta-gray-800' }}">
+                                <span class="text-xs font-bold {{ $day['isToday'] ? 'text-blue-700 dark:text-blue-300' : 'text-zinc-700 dark:text-ta-gray-200' }}">{{ $day['name'] }}</span>
+                                <span class="text-[11px] font-normal {{ $day['isToday'] ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-ta-gray-400' }}">{{ $day['label'] }}</span>
                             </th>
                         @endforeach
-                        <th rowspan="2" class="bg-zinc-50 dark:bg-zinc-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 border-b border-l border-zinc-200 dark:border-zinc-700/70">
+                        <th rowspan="2" class="bg-zinc-50 dark:bg-ta-gray-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-l border-zinc-200 dark:border-ta-gray-700/70">
                             Cant. Sin Orden
                         </th>
                     </tr>
@@ -110,12 +110,12 @@
         </div>
 
         {{-- Pie: leyenda y última actualización --}}
-        <div class="pl-4 pr-16 py-2 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">
-            <div class="flex flex-wrap items-center gap-3 font-medium text-zinc-600 dark:text-zinc-300">
-                <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-zinc-500 dark:bg-[rgba(113,113,122,0.20)]"></span>Plan</span>
+        <div class="pl-4 pr-16 py-2 border-t border-zinc-200 dark:border-ta-gray-800 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-ta-gray-400 flex-shrink-0">
+            <div class="flex flex-wrap items-center gap-3 font-medium text-zinc-600 dark:text-ta-gray-300">
+                <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-ta-gray-500 dark:bg-[rgba(102,112,133,0.20)]"></span>Plan</span>
                 <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]"></span>Real</span>
                 <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-[#ea580c] bg-[rgba(234,88,12,0.15)] dark:bg-[rgba(234,88,12,0.22)]"></span>Sin orden</span>
-                <span class="text-zinc-500 dark:text-zinc-400">Real / Plan por turno</span>
+                <span class="text-zinc-500 dark:text-ta-gray-400">Real / Plan por turno</span>
             </div>
             {{--
                 La hora se actualiza también cuando poll() se salta el render. Si solo cambiaron algunos

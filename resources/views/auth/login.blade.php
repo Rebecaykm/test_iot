@@ -5,11 +5,11 @@
         Markup propio (sin <x-authentication-card>/<x-input>) para no cambiar registro, recuperar
         contraseña, 2FA, etc., que usan esos componentes compartidos.
     --}}
-    <div class="min-h-screen bg-white dark:bg-zinc-950">
+    <div class="min-h-screen bg-white dark:bg-ta-gray-950">
 
         <div class="min-h-screen flex flex-col px-6 py-8 sm:px-10">
             <a href="{{ url('/') }}"
-                class="flex w-fit items-center gap-1.5 rounded-md text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                class="flex w-fit items-center gap-1.5 rounded-md text-sm font-medium text-zinc-500 dark:text-ta-gray-400 hover:text-zinc-900 dark:hover:text-ta-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
                 </svg>
@@ -20,7 +20,7 @@
                 <div class="w-full max-w-md">
                     {{-- Logo y título, centrados --}}
                     <img src="{{ asset('images/ykm.png') }}" alt="Y-Tec Keylex México" class="mx-auto h-16 w-auto">
-                    <h1 class="mt-6 text-center text-2xl sm:text-3xl font-semibold text-zinc-900 dark:text-zinc-50">Iniciar sesión</h1>
+                    <h1 class="mt-6 text-center text-2xl sm:text-3xl font-semibold text-zinc-900 dark:text-ta-gray-50">Iniciar sesión</h1>
 
                     @session('status')
                         <div class="mt-5 rounded-lg border border-green-600/20 bg-green-50 dark:bg-green-500/10 px-3 py-2 text-sm font-medium text-green-700 dark:text-green-400">
@@ -47,7 +47,7 @@
 
                         {{-- Correo --}}
                         <div>
-                            <label for="email" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Correo electrónico</label>
+                            <label for="email" class="block text-sm font-medium text-zinc-700 dark:text-ta-gray-300">Correo electrónico</label>
                             <div class="relative mt-1.5">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
@@ -55,8 +55,8 @@
                                 <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username"
                                     placeholder="nombre@empresa.com"
                                     @class([
-                                        'block w-full h-10 rounded-lg pl-9 pr-3 text-sm shadow-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 focus:ring-2 focus:ring-offset-0',
-                                        'border-zinc-300 dark:border-zinc-700 focus:border-[#2563eb] focus:ring-[#2563eb]/30' => !$errors->has('email'),
+                                        'block w-full h-10 rounded-lg pl-9 pr-3 text-sm shadow-sm bg-white dark:bg-ta-gray-950 text-zinc-900 dark:text-ta-gray-100 placeholder-zinc-500 focus:ring-2 focus:ring-offset-0',
+                                        'border-zinc-300 dark:border-ta-gray-700 focus:border-[#2563eb] focus:ring-[#2563eb]/30' => !$errors->has('email'),
                                         'border-red-500 focus:border-red-500 focus:ring-red-500/30' => $errors->has('email'),
                                     ])>
                             </div>
@@ -64,18 +64,18 @@
 
                         {{-- Contraseña (con botón para mostrarla) --}}
                         <div>
-                            <label for="password" class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Contraseña</label>
+                            <label for="password" class="block text-sm font-medium text-zinc-700 dark:text-ta-gray-300">Contraseña</label>
                             <div class="relative mt-1.5">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                                 </svg>
                                 <input id="password" name="password" required autocomplete="current-password"
                                     :type="showPassword ? 'text' : 'password'" type="password"
-                                    class="block w-full h-10 rounded-lg pl-9 pr-10 text-sm shadow-sm bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 border-zinc-300 dark:border-zinc-700 focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/30 focus:ring-offset-0">
+                                    class="block w-full h-10 rounded-lg pl-9 pr-10 text-sm shadow-sm bg-white dark:bg-ta-gray-950 text-zinc-900 dark:text-ta-gray-100 border-zinc-300 dark:border-ta-gray-700 focus:border-[#2563eb] focus:ring-2 focus:ring-[#2563eb]/30 focus:ring-offset-0">
                                 <button type="button" @click="showPassword = !showPassword"
                                     :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
                                     :title="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-                                    class="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                                    class="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-zinc-500 hover:text-zinc-800 dark:hover:text-ta-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                                     <svg x-show="!showPassword" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -91,8 +91,8 @@
                         {{-- <div class="flex items-center justify-between gap-3">
                             <label for="remember_me" class="flex w-fit items-center gap-2 cursor-pointer select-none">
                                 <input id="remember_me" type="checkbox" name="remember"
-                                    class="h-4 w-4 rounded border-zinc-400 dark:border-zinc-600 dark:bg-zinc-950 text-[#2563eb] focus:ring-[#2563eb] dark:focus:ring-offset-zinc-950">
-                                <span class="text-sm text-zinc-600 dark:text-zinc-400">Recuérdame</span>
+                                    class="h-4 w-4 rounded border-zinc-400 dark:border-ta-gray-600 dark:bg-ta-gray-950 text-[#2563eb] focus:ring-[#2563eb] dark:focus:ring-offset-ta-gray-950">
+                                <span class="text-sm text-zinc-600 dark:text-ta-gray-400">Recuérdame</span>
                             </label>
 
                             @if (Route::has('password.request'))
@@ -105,7 +105,7 @@
 
                         {{-- Acceder: se desactiva mientras se envía --}}
                         <button type="submit" :disabled="sending"
-                            class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#2563eb] px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-zinc-950">
+                            class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#2563eb] px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-ta-gray-950">
                             <svg x-show="sending" x-cloak class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
@@ -116,7 +116,7 @@
                 </div>
             </div>
 
-            <p class="text-center text-xs text-zinc-400 dark:text-zinc-500">&copy; {{ date('Y') }} Y-Tec Keylex México</p>
+            <p class="text-center text-xs text-zinc-400 dark:text-ta-gray-500">&copy; {{ date('Y') }} Y-Tec Keylex México</p>
         </div>
     </div>
 </x-guest-layout>

@@ -147,7 +147,7 @@ class PartProgress extends Component
     private function dataVersion(Carbon $start, Carbon $end): array
     {
         return $this->store()->remember(
-            "part_progress:v5:version:{$start->toDateString()}",
+            "part_progress:v6:version:{$start->toDateString()}",
             self::VERSION_TTL,
             fn () => $this->queryVersion($start, $end)
         );
@@ -182,7 +182,7 @@ class PartProgress extends Component
      */
     private function weekData(Carbon $start, Carbon $end): array
     {
-        $key = "part_progress:v5:week:{$start->toDateString()}";
+        $key = "part_progress:v6:week:{$start->toDateString()}";
         $version = $this->dataVersion($start, $end);
 
         $data = $this->store()->get($key);
@@ -193,7 +193,7 @@ class PartProgress extends Component
         return $this->rebuildOnce($key, fn ($d) => $d['version'] === $version['hash'], function ($old) use ($start, $end) {
             // Huella fresca (sin caché) justo antes de recalcular
             $version = $this->queryVersion($start, $end);
-            $this->store()->put("part_progress:v5:version:{$start->toDateString()}", $version, self::VERSION_TTL);
+            $this->store()->put("part_progress:v6:version:{$start->toDateString()}", $version, self::VERSION_TTL);
 
             return ($old ? $this->applyDelta($old, $version, $start, $end) : null)
                 ?? [
@@ -344,14 +344,16 @@ class PartProgress extends Component
                 . ($c['noOrder'] ? ' · Sin orden ' . number_format($c['noOrder']) : '')
                 . ($c['inProgress'] ? ' · En Proceso' : '');
 
-            $real = '<span class="pp-real' . ($c['plan'] > 0 && $c['real'] >= $c['plan'] ? ' pp-done' : '') . '">' . number_format($c['real']) . '</span>';
+            // Con miles van compactos ("12k / 15k") para que no se salgan de la barra; el exacto queda en el title
+            [$realQty, $planQty] = LineProgress::barQty($c['real'], $c['plan']);
+            $real = '<span class="pp-real' . ($c['plan'] > 0 && $c['real'] >= $c['plan'] ? ' pp-done' : '') . '">' . $realQty . '</span>';
 
             $html .= "<td class=\"{$class}\"><div class=\"pp-cell" . ($c['inProgress'] ? ' pp-live' : '') . '" title="' . e($title) . '">'
                 . ($c['inProgress'] ? '<span class="lp-dot"></span>' : '')
                 . ($c['plan'] > 0
                     ? '<div class="pp-bar">'
                         . ($c['fill'] > 0 ? "<div class=\"pp-fill\" style=\"width:calc({$c['fill']}% + 2px)\"></div>" : '')
-                        . '<div class="pp-bar-txt">' . $real . '<span class="pp-plan">/ ' . number_format($c['plan']) . '</span></div></div>'
+                        . '<div class="pp-bar-txt">' . $real . '<span class="pp-plan">/ ' . $planQty . '</span></div></div>'
                     : '<div class="pp-nums">' . $real . '<span class="pp-plan">Sin plan</span></div>')
                 . '</div></td>';
         }
@@ -369,7 +371,7 @@ class PartProgress extends Component
         $sep = $j > 0 ? ' lp-td-sep' : '';
         $number = e($part['number']);
 
-        return '<tr id="' . $part['rowId'] . '"' . ($j === $count - 1 ? ' class="border-b border-zinc-200 dark:border-zinc-800"' : '') . '>'
+        return '<tr id="' . $part['rowId'] . '"' . ($j === $count - 1 ? ' class="border-b border-zinc-200 dark:border-ta-gray-800"' : '') . '>'
             . ($j === 0
                 ? '<td rowspan="' . $count . '" class="pp-wc"><a href="' . e(route('guest.work-center-progress', $wc['name'], false)) . '" class="lp-wc-link" title="Ver detalle de ' . e($wc['name']) . '">' . e($wc['name']) . '</a></td>'
                 : '')
@@ -503,7 +505,7 @@ class PartProgress extends Component
     /** Llave de la vista: semana + día de hoy (a medianoche cambia la columna resaltada) + filtro */
     private function viewKey(string $kind): string
     {
-        return "part_progress:v5:{$kind}:{$this->weekStart}:" . Carbon::today()->toDateString() . ':' . md5($this->partNumber);
+        return "part_progress:v6:{$kind}:{$this->weekStart}:" . Carbon::today()->toDateString() . ':' . md5($this->partNumber);
     }
 
     /** Vista armada para la semana y el filtro mostrados, al día con la versión de los datos */

@@ -1,11 +1,11 @@
-<div class="p-6 lg:p-8 bg-white dark:bg-zinc-900 dark:bg-gradient-to-bl dark:from-zinc-800/50 dark:via-transparent border-b border-zinc-200 dark:border-zinc-800">
+<div class="p-6 lg:p-8 bg-white dark:bg-ta-gray-900 dark:bg-gradient-to-bl dark:from-ta-gray-800/50 dark:via-transparent border-b border-zinc-200 dark:border-ta-gray-800">
     <x-application-logo class="block h-12 w-auto" />
 
     <h1 class="mt-8 text-2xl font-medium text-zinc-900 dark:text-white">
         Welcome to your Jetstream application!
     </h1>
 
-    <p class="mt-6 text-zinc-500 dark:text-zinc-400 leading-relaxed">
+    <p class="mt-6 text-zinc-500 dark:text-ta-gray-400 leading-relaxed">
         Laravel Jetstream provides a beautiful, robust starting point for your next Laravel application. Laravel is designed
         to help you build your application using a development environment that is simple, powerful, and enjoyable. We believe
         you should love expressing your creativity through programming, so we have spent time carefully crafting the Laravel
@@ -13,7 +13,7 @@
     </p>
 </div>
 
-<div class="bg-zinc-200 dark:bg-zinc-900 bg-opacity-25 grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 p-6 lg:p-8">
+<div class="bg-zinc-200 dark:bg-ta-gray-900 bg-opacity-25 grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 p-6 lg:p-8">
     <div>
         <div class="flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" class="size-6 stroke-zinc-400">
@@ -24,7 +24,7 @@
             </h2>
         </div>
 
-        <p class="mt-4 text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
+        <p class="mt-4 text-zinc-500 dark:text-ta-gray-400 text-sm leading-relaxed">
             Laravel has wonderful documentation covering every aspect of the framework. Whether you're new to the framework or have previous experience, we recommend reading all of the documentation from beginning to end.
         </p>
 
@@ -49,7 +49,7 @@
             </h2>
         </div>
 
-        <p class="mt-4 text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
+        <p class="mt-4 text-zinc-500 dark:text-ta-gray-400 text-sm leading-relaxed">
             Laracasts offers thousands of video tutorials on Laravel, PHP, and JavaScript development. Check them out, see for yourself, and massively level up your development skills in the process.
         </p>
 
@@ -74,7 +74,7 @@
             </h2>
         </div>
 
-        <p class="mt-4 text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
+        <p class="mt-4 text-zinc-500 dark:text-ta-gray-400 text-sm leading-relaxed">
             Laravel Jetstream is built with Tailwind, an amazing utility first CSS framework that doesn't get in your way. You'll be amazed how easily you can build and maintain fresh, modern designs with this wonderful framework at your fingertips.
         </p>
     </div>
@@ -89,7 +89,7 @@
             </h2>
         </div>
 
-        <p class="mt-4 text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
+        <p class="mt-4 text-zinc-500 dark:text-ta-gray-400 text-sm leading-relaxed">
             Authentication and registration views are included with Laravel Jetstream, as well as support for user email verification and resetting forgotten passwords. So, you're free to get started with what matters most: building your application.
         </p>
     </div>

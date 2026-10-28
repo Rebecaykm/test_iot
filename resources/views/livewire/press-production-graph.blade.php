@@ -1,5 +1,5 @@
 <div class="flex flex-col flex-1 min-h-[360px]">
-    <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+    <div class="bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
 
         {{-- Chart --}}
         <div x-data="productionChart" wire:ignore class="px-4 py-4 sm:px-6 flex-1 min-h-0">
@@ -63,11 +63,11 @@
                     const isDark = document.documentElement.classList.contains('dark');
 
                     const colors = {
-                        text:       isDark ? '#e4e4e7' : '#3f3f46',
-                        textMuted:  isDark ? '#a1a1aa' : '#71717a',
+                        text:       isDark ? '#e4e7ec' : '#3f3f46',
+                        textMuted:  isDark ? '#98a2b3' : '#71717a',
                         grid:       isDark ? 'rgba(82,82,91,0.25)' : 'rgba(0,0,0,0.06)',
-                        tooltipBg:  isDark ? 'rgba(24,24,27,0.95)' : 'rgba(255,255,255,0.97)',
-                        tooltipBorder: isDark ? '#3f3f46' : '#e4e4e7',
+                        tooltipBg:  isDark ? 'rgba(23,31,47,0.95)' : 'rgba(255,255,255,0.97)',
+                        tooltipBorder: isDark ? '#344054' : '#e4e4e7',
 
                         planLine:   isDark ? '#3b82f6' : '#2563eb',
                         planPoint:  isDark ? '#3b82f6' : '#1d4ed8',
@@ -95,7 +95,7 @@
                                     data: pData,
                                     borderColor: colors.planLine,
                                     pointBackgroundColor: colors.planPoint,
-                                    pointBorderColor: isDark ? '#18181b' : '#ffffff',
+                                    pointBorderColor: isDark ? '#171f2f' : '#ffffff',
                                     pointBorderWidth: 2,
                                     borderWidth: 2.5,
                                     pointRadius: 5,

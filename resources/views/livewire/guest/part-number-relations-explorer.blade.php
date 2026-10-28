@@ -1,10 +1,10 @@
 <div class="space-y-6">
     {{-- Buscador --}}
-    <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-ta-gray-800 dark:bg-ta-gray-900">
         <form wire:submit="search" class="p-3 sm:p-4">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
                 <div>
-                    <label for="partNumber" class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    <label for="partNumber" class="mb-1 block text-xs font-medium text-zinc-700 dark:text-ta-gray-300">
                         Número de parte
                     </label>
                     <div class="relative">
@@ -19,7 +19,7 @@
                             wire:model="partNumber"
                             placeholder="Ej. BJS753140"
                             autocomplete="off"
-                            class="block w-full rounded-md border-zinc-300 bg-white py-1.5 pl-8 pr-2.5 text-sm uppercase text-zinc-900 placeholder-zinc-500 focus:border-blue-500 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder-zinc-500"
+                            class="block w-full rounded-md border-zinc-300 bg-white py-1.5 pl-8 pr-2.5 text-sm uppercase text-zinc-900 placeholder-zinc-500 focus:border-blue-500 focus:ring-blue-500 dark:border-ta-gray-700 dark:bg-ta-gray-950 dark:text-ta-gray-100 dark:placeholder-ta-gray-500"
                         >
                     </div>
                     @error('partNumber')
@@ -28,13 +28,13 @@
                 </div>
 
                 <div>
-                    <label for="direction" class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    <label for="direction" class="mb-1 block text-xs font-medium text-zinc-700 dark:text-ta-gray-300">
                         Proceso
                     </label>
                     <select
                         id="direction"
                         wire:model="direction"
-                        class="block w-full cursor-pointer rounded-md border-0 bg-white py-2 pl-3 pr-8 text-sm font-medium text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 transition-shadow hover:ring-zinc-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 dark:bg-zinc-950 dark:text-zinc-100 dark:ring-zinc-700 dark:hover:ring-zinc-600 sm:w-36"
+                        class="block w-full cursor-pointer rounded-md border-0 bg-white py-2 pl-3 pr-8 text-sm font-medium text-zinc-900 shadow-sm ring-1 ring-inset ring-zinc-300 transition-shadow hover:ring-zinc-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 dark:bg-ta-gray-950 dark:text-ta-gray-100 dark:ring-ta-gray-700 dark:hover:ring-ta-gray-600 sm:w-36"
                     >
                         <option value="previous">Anterior</option>
                         <option value="next">Siguiente</option>
@@ -65,18 +65,18 @@
     {{-- Resultados --}}
     @if($searched)
         @if(!$part)
-            <div class="rounded-2xl border border-dashed border-zinc-300 bg-white/60 p-10 text-center dark:border-zinc-700 dark:bg-zinc-900/40">
-                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-zinc-300 dark:text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <div class="rounded-2xl border border-dashed border-zinc-300 bg-white/60 p-10 text-center dark:border-ta-gray-700 dark:bg-ta-gray-900/40">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-zinc-300 dark:text-ta-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <h3 class="mt-3 text-sm font-semibold text-zinc-900 dark:text-white">No se encontró el número de parte</h3>
-                <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                <p class="mt-1 text-sm text-zinc-500 dark:text-ta-gray-400">
                     Verifica que "<span class="font-mono font-medium">{{ $partNumber }}</span>" esté escrito correctamente.
                 </p>
             </div>
         @else
             {{-- Árbol: el número de parte buscado es la raíz de la lista --}}
-            <div class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
+            <div class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-ta-gray-800 dark:bg-ta-gray-900 sm:p-6">
                 <h2 class="mb-4 text-base font-semibold text-zinc-900 dark:text-white">
                     {{ $direction === 'next' ? 'Dónde se usa (ensambles superiores)' : 'De qué está compuesto (componentes)' }}
                 </h2>
@@ -86,7 +86,7 @@
                 </ul>
 
                 @if(empty($tree['children']))
-                    <p class="mt-2 pl-9 text-sm text-zinc-500 dark:text-zinc-400">
+                    <p class="mt-2 pl-9 text-sm text-zinc-500 dark:text-ta-gray-400">
                         {{ $direction === 'next'
                             ? 'Este número de parte no se usa en ningún otro ensamble registrado.'
                             : 'Este número de parte no tiene componentes registrados.' }}

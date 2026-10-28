@@ -12,33 +12,36 @@
  * también las usa /guest/part-progress.
  */
 @layer components {
-    .lp-td-day { @apply p-0 align-middle border-l border-zinc-200 dark:border-zinc-800; }
-    .lp-td-sep { @apply border-t border-t-zinc-100 dark:border-t-zinc-800/60; }
+    .lp-td-day { @apply p-0 align-middle border-l border-zinc-200 dark:border-ta-gray-800; }
+    .lp-td-sep { @apply border-t border-t-zinc-100 dark:border-t-ta-gray-800/60; }
 
     /* Punto que parpadea de "En Proceso" (sin elementos internos) */
     .lp-dot { @apply absolute top-1 right-1 flex h-2 w-2; }
     .lp-dot::before { content: ''; @apply absolute inline-flex h-full w-full rounded-full bg-[#2563eb] dark:bg-[#3b82f6] opacity-75 animate-ping; }
     .lp-dot::after { content: ''; @apply relative inline-flex h-2 w-2 rounded-full bg-[#2563eb] dark:bg-[#3b82f6]; }
 
-    .lp-wc-link { @apply block truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100 hover:text-[#2563eb] dark:hover:text-[#60a5fa] hover:underline; }
+    .lp-wc-link { @apply block truncate text-sm font-semibold text-zinc-800 dark:text-ta-gray-100 hover:text-[#2563eb] dark:hover:text-[#60a5fa] hover:underline; }
     .lp-wc-live { @apply mt-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#2563eb] dark:text-[#60a5fa]; }
     .lp-wc-live .lp-dot { @apply relative top-0 right-0; }
 
     /* Columna fija del nombre (línea, estación o número de parte) con lo que se produce debajo */
-    .lp-name { @apply sticky left-0 z-10 bg-white dark:bg-zinc-900 px-3 py-1.5 align-top border-r border-zinc-200 dark:border-zinc-800; }
+    .lp-name { @apply sticky left-0 z-10 bg-white dark:bg-ta-gray-900 px-3 py-1.5 align-top border-r border-zinc-200 dark:border-ta-gray-800; }
+    /* Clase del número de parte (vista de estación): fija junto al nombre (w-56) */
+    .lp-class { @apply sticky left-56 z-10 bg-white dark:bg-ta-gray-900 px-2 py-1.5 align-middle text-center border-r border-zinc-200 dark:border-ta-gray-800; }
+    .lp-class-tag { @apply inline-flex items-center h-5 px-1.5 rounded-md bg-zinc-100 dark:bg-ta-gray-800 text-[11px] font-semibold tracking-wide text-zinc-700 dark:text-ta-gray-200; }
     /* Estado bajo el nombre: el botón a la izquierda y la fecha a la derecha */
     .lp-act { @apply mt-1 flex items-center justify-between gap-2 min-w-0; }
 
     /* Estado: EN PROCESO (verde) o DETENIDO (rojo), como botón outline */
     .lp-state { @apply inline-flex items-center gap-1.5 h-5 px-2 rounded-md border text-[10px] font-bold tracking-wide whitespace-nowrap; }
-    button.lp-state { @apply transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-zinc-900; }
+    button.lp-state { @apply transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 dark:focus-visible:ring-offset-ta-gray-900; }
     .lp-state .lp-dot { @apply relative top-0 right-0 flex-shrink-0; }
     .lp-state-live { @apply border-emerald-600 text-emerald-700 dark:border-emerald-500 dark:text-emerald-400; }
     button.lp-state-live { @apply hover:bg-emerald-50 dark:hover:bg-emerald-500/10 focus-visible:ring-emerald-500; }
     .lp-state-stop { @apply border-red-600 text-red-600 dark:border-red-500 dark:text-red-400; }
     button.lp-state-stop { @apply hover:bg-red-50 dark:hover:bg-red-500/10 focus-visible:ring-red-500; }
-    .lp-state-time { @apply text-[11px] tabular-nums text-zinc-600 dark:text-zinc-300 truncate; }
-    .lp-state-label { @apply font-semibold text-zinc-400 dark:text-zinc-500; }
+    .lp-state-time { @apply text-[11px] tabular-nums text-zinc-600 dark:text-ta-gray-300 truncate; }
+    .lp-state-label { @apply font-semibold text-zinc-400 dark:text-ta-gray-500; }
     .lp-dot-stop { @apply inline-flex h-2 w-2 flex-shrink-0 rounded-full bg-red-600 dark:bg-red-500; }
 
     /* Punto verde de "en proceso" (estado y celda del turno), verde oscuro como el contorno del botón */
@@ -49,16 +52,28 @@
     .lp-top { @apply flex h-4 items-center justify-between gap-1 mb-0.5; }
     .lp-top .lp-dot { @apply relative top-0 right-0 flex-shrink-0; }
     .lp-pct { @apply text-[13px] font-bold leading-4 tabular-nums; }
-    .lp-sub { @apply text-[10px] font-medium text-zinc-500 dark:text-zinc-400 whitespace-nowrap; }
+    .lp-sub { @apply text-[10px] font-medium text-zinc-500 dark:text-ta-gray-400 whitespace-nowrap; }
 
     /* Color del %: rojo ≤ 70 %, ámbar 71–90 %, verde ≥ 91 % */
     .lp-t-good { @apply text-emerald-600 dark:text-emerald-400; }
     .lp-t-warn { @apply text-amber-600 dark:text-amber-400; }
     .lp-t-bad { @apply text-red-600 dark:text-red-400; }
-    .lp-t-none { @apply text-zinc-700 dark:text-zinc-200; }
+    .lp-t-none { @apply text-zinc-700 dark:text-ta-gray-200; }
 
     /* Día resaltado (el elegido en el calendario o hoy): solo su encabezado, fondo claro y contorno casi negro */
-    .lp-hl-day { @apply bg-white dark:bg-zinc-900 shadow-[inset_0_0_0_2px_theme(colors.zinc.900)] dark:shadow-[inset_0_0_0_2px_theme(colors.zinc.100)]; }
+    .lp-hl-day { @apply bg-white dark:bg-ta-gray-900 shadow-[inset_0_0_0_2px_theme(colors.zinc.900)] dark:shadow-[inset_0_0_0_2px_theme(colors.ta-gray.100)]; }
+
+    /* Estado de lo producido sin número de orden (modal): No planeado = naranja (como la columna), No verificado = rojo, En progreso = verde */
+    .lp-status { @apply inline-flex items-center gap-1.5 h-5 px-2 rounded-md border text-[11px] font-semibold whitespace-nowrap; }
+    .lp-status .lp-dot { @apply relative top-0 right-0 flex-shrink-0; }
+    .lp-status-unplanned { @apply border-orange-200 bg-orange-50 text-[#c2410c] dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-400; }
+    .lp-status-unverified { @apply border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400; }
+    .lp-status-live { @apply border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400; }
+    /* Punto de color del desglose del pie (mismo color del estado) */
+    .lp-status-dot { @apply inline-block h-2 w-2 rounded-full border-0 p-0; }
+    .lp-status-dot.lp-status-unplanned { @apply bg-[#ea580c] dark:bg-orange-400; }
+    .lp-status-dot.lp-status-unverified { @apply bg-red-600 dark:bg-red-400; }
+    .lp-status-dot.lp-status-live { @apply bg-emerald-600 dark:bg-emerald-400; }
 
     /* Sin número de orden */
     .lp-noorder { @apply w-full py-2 text-sm font-bold tabular-nums text-[#c2410c] dark:text-orange-400 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#ea580c] rounded; }
@@ -68,24 +83,27 @@
      * en lugar del medidor semicircular va la barra de /guest/wc-progress (plan =
      * contorno gris, real = contorno verde, ambos con relleno claro) con real / plan adentro.
      */
-    .pp-wc { @apply sticky left-0 z-10 bg-white dark:bg-zinc-900 px-3 py-1.5 align-middle border-r border-zinc-200 dark:border-zinc-800; }
-    .pp-part { @apply sticky left-28 z-10 bg-white dark:bg-zinc-900 px-3 py-1 align-middle text-[13px] font-semibold tracking-wide text-zinc-800 dark:text-zinc-100; }
-    .pp-class { @apply sticky left-64 z-10 bg-white dark:bg-zinc-900 px-2 py-1 align-middle text-center border-r border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-600 dark:text-zinc-300; }
+    .pp-wc { @apply sticky left-0 z-10 bg-white dark:bg-ta-gray-900 px-3 py-1.5 align-middle border-r border-zinc-200 dark:border-ta-gray-800; }
+    .pp-part { @apply sticky left-28 z-10 bg-white dark:bg-ta-gray-900 px-3 py-1 align-middle text-[13px] font-semibold tracking-wide text-zinc-800 dark:text-ta-gray-100; }
+    .pp-class { @apply sticky left-64 z-10 bg-white dark:bg-ta-gray-900 px-2 py-1 align-middle text-center border-r border-zinc-200 dark:border-ta-gray-800 text-xs font-semibold text-zinc-600 dark:text-ta-gray-300; }
     .pp-part-hit { @apply bg-blue-50 text-blue-700 dark:bg-[#1c2331] dark:text-blue-300; }
-    .pp-td-shift { @apply p-0 align-middle border-l border-zinc-200 dark:border-zinc-800; border-left-style: dashed; }
+    .pp-td-shift { @apply p-0 align-middle border-l border-zinc-200 dark:border-ta-gray-800; border-left-style: dashed; }
     .pp-today { @apply bg-blue-50/50 dark:bg-blue-400/[0.04]; }
     .pp-cell { @apply relative px-1.5 py-1; }
     .pp-live { @apply ring-2 ring-inset ring-[#2563eb] dark:ring-[#3b82f6] pr-3.5; }
     .pp-nums { @apply flex items-baseline justify-between gap-1 text-[11px] leading-4 tabular-nums whitespace-nowrap; }
-    .pp-real { @apply text-[13px] font-bold text-zinc-800 dark:text-zinc-100; }
+    .pp-real { @apply text-[13px] font-bold text-zinc-800 dark:text-ta-gray-100; }
     .pp-done { @apply text-[#047857] dark:text-emerald-400; }
-    .pp-plan { @apply font-medium text-zinc-500 dark:text-zinc-400; }
-    .pp-bar { @apply relative h-6 rounded-[3px] border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-zinc-500 dark:bg-[rgba(113,113,122,0.20)]; }
+    .pp-plan { @apply font-medium text-zinc-500 dark:text-ta-gray-400; }
+    .pp-bar { @apply relative h-6 rounded-[3px] border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-ta-gray-500 dark:bg-[rgba(113,113,122,0.20)]; }
     .pp-fill { @apply absolute -inset-y-px -left-px rounded-[3px] border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]; }
-    .pp-bar-txt { @apply absolute inset-0 flex items-center justify-between gap-1 px-1.5 text-[11px] tabular-nums whitespace-nowrap; }
-    .pp-x::after { content: '–'; @apply block py-2 text-center text-[11px] text-zinc-300 dark:text-zinc-700; }
+    .pp-bar-txt { @apply absolute inset-0 flex items-center justify-between gap-1 px-1.5 text-[11px] tabular-nums whitespace-nowrap overflow-hidden; }
+    /* Respaldo si aun compacto no cabe (pantallas angostas): se corta con "…" dentro de la barra, nunca se sale */
+    .pp-bar-txt > span, .pp-nums > span { @apply min-w-0 truncate; }
+    .pp-nums { @apply overflow-hidden; }
+    .pp-x::after { content: '–'; @apply block py-2 text-center text-[11px] text-zinc-300 dark:text-ta-gray-700; }
     .pp-shift-th { @apply px-1 py-1.5 text-center text-[11px] font-semibold border; }
     .pp-shift-D { @apply bg-amber-50 text-amber-800 border-amber-300 dark:bg-[#2a2415] dark:text-amber-300 dark:border-amber-400/40; }
     .pp-shift-N { @apply bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-[#1e1f33] dark:text-indigo-300 dark:border-indigo-400/40; }
-    .pp-noorder { @apply rounded-md border border-[#ea580c] bg-[rgba(234,88,12,0.10)] dark:bg-[rgba(234,88,12,0.18)] px-2 py-1 text-sm font-bold tabular-nums text-zinc-800 dark:text-zinc-100; }
+    .pp-noorder { @apply rounded-md border border-[#ea580c] bg-[rgba(234,88,12,0.10)] dark:bg-[rgba(234,88,12,0.18)] px-2 py-1 text-sm font-bold tabular-nums text-zinc-800 dark:text-ta-gray-100; }
 }

@@ -19,8 +19,8 @@
         type="button"
         @class([
             'flex items-center justify-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
-            'h-11 w-11 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg hover:shadow-xl text-zinc-600 dark:text-zinc-300' => !$inline,
-            'h-9 w-9 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800' => $inline,
+            'h-11 w-11 rounded-full bg-white dark:bg-ta-gray-900 border border-zinc-200 dark:border-ta-gray-800 shadow-lg hover:shadow-xl text-zinc-600 dark:text-ta-gray-300' => !$inline,
+            'h-9 w-9 rounded-lg border border-zinc-300 dark:border-ta-gray-700 bg-white dark:bg-ta-gray-900 text-zinc-600 dark:text-ta-gray-300 shadow-sm hover:bg-zinc-50 dark:hover:bg-ta-gray-800' => $inline,
         ])
         :aria-label="dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"
         :title="dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'"

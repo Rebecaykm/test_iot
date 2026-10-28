@@ -2,23 +2,27 @@
     use App\Livewire\Guest\LineProgress;
 
     // Controles compactos, iguales a los de /guest/press-efficiency
-    $control = 'h-8 border border-zinc-300 dark:border-zinc-700/70 rounded-lg bg-white dark:bg-zinc-900 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors';
-    $panel = 'absolute left-0 mt-1 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 z-50 overflow-hidden';
+    $control = 'h-8 border border-zinc-300 dark:border-ta-gray-700/70 rounded-lg bg-white dark:bg-ta-gray-900 text-xs text-zinc-700 dark:text-ta-gray-200 hover:bg-zinc-50 dark:hover:bg-ta-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors';
+    $panel = 'absolute left-0 mt-1 bg-white dark:bg-ta-gray-900 rounded-xl shadow-xl border border-zinc-200 dark:border-ta-gray-800 z-50 overflow-hidden';
 
-        $nameHeader = [1 => 'Línea', 2 => 'Estación', 3 => 'Número de parte'][$level];
+    $nameHeader = [1 => 'Línea', 2 => 'Estación', 3 => 'Número de parte'][$level];
     $filter = [1 => ['lpLinesFilter', 'Buscar área, línea o estación...'], 2 => ['lpWcFilter', 'Buscar estación...'], 3 => null][$level];
-    $colCount = count($columns) + 2;
-    $loadingTargets = 'prevWeek,nextWeek,currentWeek,goToDate,selectedLines,selectedWorkCenters,clearFilters';
+    // Vista de números de parte: columna "Clase" junto al nombre
+    $withClass = $level === 3;
+    $colCount = count($columns) + ($withClass ? 3 : 2);
+    // Estado de lo producido sin número de orden (modal)
+    $statusClass = ['No planeado' => 'lp-status-unplanned', 'No verificado' => 'lp-status-unverified', 'En progreso' => 'lp-status-live'];
+    $loadingTargets = 'prevWeek,nextWeek,currentWeek,goToDate,selectedLines,selectedWorkCenters,partSearch,clearFilters';
 @endphp
 
 <div wire:poll.30s.visible x-data class="flex flex-col gap-3 min-h-0 flex-1" @keydown.escape.window="$wire.closeModals()">
 
     {{-- Barra superior: volver y filtro a la izquierda; semana a la derecha --}}
-    <div class="relative z-20 flex-shrink-0 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm px-3 py-2 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+    <div class="relative z-20 flex-shrink-0 bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-sm px-3 py-2 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
             <div class="flex flex-wrap items-center gap-1.5">
                 @if($backLink)
-                    <a href="{{ $backLink }}" class="{{ $control }} inline-flex items-center gap-1 pl-2 pr-3 font-medium text-zinc-700 dark:text-zinc-200">
+                    <a href="{{ $backLink }}" class="{{ $control }} inline-flex items-center gap-1 pl-2 pr-3 font-medium text-zinc-700 dark:text-ta-gray-200">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
                         Volver
                     </a>
@@ -42,37 +46,53 @@
                         </button>
 
                         <div x-show="open" x-transition.opacity.duration.100ms style="display: none;" class="{{ $panel }} w-full sm:w-72">
-                            <div class="p-2 border-b border-zinc-200 dark:border-zinc-800">
+                            <div class="p-2 border-b border-zinc-200 dark:border-ta-gray-800">
                                 <input x-model="search" type="text" placeholder="{{ $filter[1] }}"
-                                    class="w-full h-7 px-2.5 py-0 text-xs border border-zinc-300 dark:border-zinc-700/70 rounded-md bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    class="w-full h-7 px-2.5 py-0 text-xs border border-zinc-300 dark:border-ta-gray-700/70 rounded-md bg-white dark:bg-ta-gray-900 text-zinc-800 dark:text-ta-gray-200 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div class="overflow-y-auto py-1" :style="`max-height: ${listMaxHeight}px`">
                                 {{-- En el inicio, agrupadas por área: la casilla del área elige o quita todas sus líneas --}}
                                 <template x-for="group in groups" :key="group.name || 'all'">
                                     <div>
-                                        <label x-show="group.name" class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                        <label x-show="group.name" class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-zinc-50 dark:hover:bg-ta-gray-800 transition-colors">
                                             <input type="checkbox" :checked="groupState(group) === 'all'" x-effect="$el.indeterminate = groupState(group) === 'some'" @change="toggleGroup(group)"
-                                                class="h-3.5 w-3.5 rounded border-zinc-400 dark:border-zinc-600 dark:bg-zinc-900 text-[#2563eb] focus:ring-blue-500 focus:ring-offset-0 flex-shrink-0">
-                                            <span class="min-w-0 uppercase tracking-wide text-zinc-800 dark:text-zinc-100" x-text="group.name"></span>
-                                            <span class="ml-auto text-[11px] font-normal text-zinc-500 dark:text-zinc-400" x-text="group.options.length"></span>
+                                                class="h-3.5 w-3.5 rounded border-zinc-400 dark:border-ta-gray-600 dark:bg-ta-gray-900 text-[#2563eb] focus:ring-blue-500 focus:ring-offset-0 flex-shrink-0">
+                                            <span class="min-w-0 uppercase tracking-wide text-zinc-800 dark:text-ta-gray-100" x-text="group.name"></span>
+                                            <span class="ml-auto text-[11px] font-normal text-zinc-500 dark:text-ta-gray-400" x-text="group.options.length"></span>
                                         </label>
                                         <template x-for="option in group.options" :key="option.id">
-                                            <label class="flex items-center gap-2 py-1.5 pr-3 text-xs cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors" :class="group.name ? 'pl-8' : 'pl-3'">
+                                            <label class="flex items-center gap-2 py-1.5 pr-3 text-xs cursor-pointer hover:bg-zinc-50 dark:hover:bg-ta-gray-800 transition-colors" :class="group.name ? 'pl-8' : 'pl-3'">
                                                 <input type="checkbox" :checked="isSelected(option.id)" @change="toggle(option.id)"
-                                                    class="h-3.5 w-3.5 rounded border-zinc-400 dark:border-zinc-600 dark:bg-zinc-900 text-[#2563eb] focus:ring-blue-500 focus:ring-offset-0 flex-shrink-0">
-                                                <span class="min-w-0 text-zinc-700 dark:text-zinc-200" x-text="option.name"></span>
-                                                <span x-show="sub(option)" class="ml-auto text-[11px] text-zinc-500 dark:text-zinc-400 truncate" x-text="sub(option)"></span>
+                                                    class="h-3.5 w-3.5 rounded border-zinc-400 dark:border-ta-gray-600 dark:bg-ta-gray-900 text-[#2563eb] focus:ring-blue-500 focus:ring-offset-0 flex-shrink-0">
+                                                <span class="min-w-0 text-zinc-700 dark:text-ta-gray-200" x-text="option.name"></span>
+                                                <span x-show="sub(option)" class="ml-auto text-[11px] text-zinc-500 dark:text-ta-gray-400 truncate" x-text="sub(option)"></span>
                                             </label>
                                         </template>
                                     </div>
                                 </template>
-                                <p x-show="filtered.length === 0" class="text-center text-xs text-zinc-500 dark:text-zinc-400 py-4">Sin resultados</p>
+                                <p x-show="filtered.length === 0" class="text-center text-xs text-zinc-500 dark:text-ta-gray-400 py-4">Sin resultados</p>
                             </div>
-                            <div x-show="selected.length > 0" style="display: none;" class="p-1.5 border-t border-zinc-200 dark:border-zinc-800">
+                            <div x-show="selected.length > 0" style="display: none;" class="p-1.5 border-t border-zinc-200 dark:border-ta-gray-800">
                                 <button @click="clear()" type="button" x-text="clearText"
                                     class="w-full px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"></button>
                             </div>
                         </div>
+                    </div>
+                @else
+                    {{-- Vista de números de parte: buscador en vivo (va en la URL como ?q=) --}}
+                    <div class="relative w-full sm:w-56">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                        </svg>
+                        <input type="search" wire:model.live.debounce.300ms="partSearch" placeholder="Buscar número de parte..." autocomplete="off" spellcheck="false"
+                            aria-label="Buscar número de parte" @keydown.escape.stop="$wire.set('partSearch', '')"
+                            class="{{ $control }} w-full pl-8 pr-7 uppercase placeholder:normal-case placeholder-zinc-500 [&::-webkit-search-cancel-button]:hidden">
+                        @if($partSearch !== '')
+                            <button type="button" wire:click="$set('partSearch', '')" title="Limpiar búsqueda" aria-label="Limpiar búsqueda"
+                                class="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-ta-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                            </button>
+                        @endif
                     </div>
                 @endif
 
@@ -92,39 +112,39 @@
                     }"
                     x-show="($wire.selectedLines || []).length || ($wire.selectedWorkCenters || []).length"
                     @click="clear()"
-                    class="h-8 inline-flex items-center gap-1 rounded-lg px-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
+                    class="h-8 inline-flex items-center gap-1 rounded-lg px-2 text-xs font-medium text-zinc-500 dark:text-ta-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                     Limpiar filtros
                 </button>
             </div>
         </div>
 
-        <div class="flex items-center gap-2 text-xs xl:justify-end text-zinc-600 dark:text-zinc-300">
+        <div class="flex items-center gap-2 text-xs xl:justify-end text-zinc-600 dark:text-ta-gray-300">
             {{-- Ayuda visual y gráficas de prensa: solo estaciones de estampado (igual que /guest/wc-progress) --}}
             @if($isStamping)
-                <a href="{{ route('visual-aids.current-part', $wc['name']) }}" title="Ayuda visual" aria-label="Ayuda visual" class="p-1 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
+                <a href="{{ route('visual-aids.current-part', $wc['name']) }}" title="Ayuda visual" aria-label="Ayuda visual" class="p-1 rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
                     </svg>
                 </a>
-                <a href="{{ route('press-production', $wc['name']) }}" title="Gráfica de producción" aria-label="Gráfica de producción" class="p-1 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
+                <a href="{{ route('press-production', $wc['name']) }}" title="Gráfica de producción" aria-label="Gráfica de producción" class="p-1 rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-4 3 3 5-6" />
                     </svg>
                 </a>
-                <a href="{{ route('press-production-timeline', $wc['name']) }}" title="Tiempo de producción" aria-label="Tiempo de producción" class="mr-1 p-1 rounded-lg border border-zinc-300 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
+                <a href="{{ route('press-production-timeline', $wc['name']) }}" title="Tiempo de producción" aria-label="Tiempo de producción" class="mr-1 p-1 rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                     </svg>
                 </a>
             @endif
-            <span wire:loading.delay wire:target="{{ $loadingTargets }}" class="text-zinc-500 dark:text-zinc-400">Cargando…</span>
+            <span wire:loading.delay wire:target="{{ $loadingTargets }}" class="text-zinc-500 dark:text-ta-gray-400">Cargando…</span>
 
             {{-- Semana: ‹ 19 – 25 Oct ›; al dar clic en las fechas se abre el calendario --}}
             @unless($isCurrentWeek)
-                <button wire:click="currentWeek" type="button" class="{{ $control }} px-2.5 font-medium text-zinc-600 dark:text-zinc-300">Semana actual</button>
+                <button wire:click="currentWeek" type="button" class="{{ $control }} px-2.5 font-medium text-zinc-600 dark:text-ta-gray-300">Semana actual</button>
             @endunless
-            <button wire:click="prevWeek" type="button" title="Semana anterior" class="{{ $control }} w-8 flex items-center justify-center text-zinc-500 dark:text-zinc-300">
+            <button wire:click="prevWeek" type="button" title="Semana anterior" class="{{ $control }} w-8 flex items-center justify-center text-zinc-500 dark:text-ta-gray-300">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
             </button>
             {{--
@@ -137,18 +157,18 @@
                 <button type="button" @click="toggle()" x-ref="trigger" :aria-expanded="open" title="Elegir fecha"
                     class="{{ $control }} min-w-[8.5rem] inline-flex items-center justify-center gap-1.5 px-2.5">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-                    <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-100 whitespace-nowrap">{{ $weekLabel }}</span>
+                    <span class="text-sm font-semibold text-zinc-800 dark:text-ta-gray-100 whitespace-nowrap">{{ $weekLabel }}</span>
                 </button>
 
                 <div wire:ignore x-show="open" x-transition.opacity.duration.100ms style="display: none;"
-                    class="absolute right-0 mt-1 w-72 p-3 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 z-50" role="dialog" aria-label="Calendario">
+                    class="absolute right-0 mt-1 w-72 p-3 bg-white dark:bg-ta-gray-900 rounded-xl shadow-xl border border-zinc-200 dark:border-ta-gray-800 z-50" role="dialog" aria-label="Calendario">
                     {{-- Mes y flechas --}}
                     <div class="flex items-center justify-between mb-2">
-                        <button type="button" @click="move(-1)" title="Mes anterior" class="p-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                        <button type="button" @click="move(-1)" title="Mes anterior" class="p-1.5 rounded-lg text-zinc-500 dark:text-ta-gray-400 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                         </button>
-                        <span class="text-sm font-semibold text-zinc-800 dark:text-zinc-100" x-text="title"></span>
-                        <button type="button" @click="move(1)" title="Mes siguiente" class="p-1.5 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                        <span class="text-sm font-semibold text-zinc-800 dark:text-ta-gray-100" x-text="title"></span>
+                        <button type="button" @click="move(1)" title="Mes siguiente" class="p-1.5 rounded-lg text-zinc-500 dark:text-ta-gray-400 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
                         </button>
                     </div>
@@ -156,7 +176,7 @@
                     {{-- Días de la semana (lunes a domingo) --}}
                     <div class="grid grid-cols-7 mb-1">
                         <template x-for="d in ['L', 'M', 'M', 'J', 'V', 'S', 'D']">
-                            <span class="h-7 flex items-center justify-center text-[11px] font-semibold text-zinc-500 dark:text-zinc-400" x-text="d"></span>
+                            <span class="h-7 flex items-center justify-center text-[11px] font-semibold text-zinc-500 dark:text-ta-gray-400" x-text="d"></span>
                         </template>
                     </div>
 
@@ -170,19 +190,19 @@
                                         ? 'bg-[#2563eb] text-white font-bold hover:bg-blue-700'
                                         : (day.iso === today
                                             ? 'font-bold text-[#2563eb] dark:text-[#60a5fa] ring-1 ring-inset ring-[#2563eb] dark:ring-[#60a5fa] hover:bg-blue-100 dark:hover:bg-blue-500/20'
-                                            : (day.inMonth ? 'text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800' : 'text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800'))"
+                                            : (day.inMonth ? 'text-zinc-700 dark:text-ta-gray-200 hover:bg-zinc-100 dark:hover:bg-ta-gray-800' : 'text-zinc-400 dark:text-ta-gray-600 hover:bg-zinc-100 dark:hover:bg-ta-gray-800'))"
                                     x-text="day.day"></button>
                             </template>
                         </div>
                     </template>
 
-                    <div class="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800 flex justify-between">
+                    <div class="mt-2 pt-2 border-t border-zinc-200 dark:border-ta-gray-800 flex justify-between">
                         <button type="button" @click="pick(today)" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-[#2563eb] dark:text-[#60a5fa] hover:bg-blue-50 dark:hover:bg-blue-500/10">Hoy</button>
-                        <button type="button" @click="open = false" class="px-2.5 py-1 rounded-lg text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800">Cerrar</button>
+                        <button type="button" @click="open = false" class="px-2.5 py-1 rounded-lg text-xs font-medium text-zinc-500 dark:text-ta-gray-400 hover:bg-zinc-100 dark:hover:bg-ta-gray-800">Cerrar</button>
                     </div>
                 </div>
             </div>
-            <button wire:click="nextWeek" type="button" title="Semana siguiente" class="{{ $control }} w-8 flex items-center justify-center text-zinc-500 dark:text-zinc-300">
+            <button wire:click="nextWeek" type="button" title="Semana siguiente" class="{{ $control }} w-8 flex items-center justify-center text-zinc-500 dark:text-ta-gray-300">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
             </button>
         </div>
@@ -194,11 +214,12 @@
         Sin flex-1: la tarjeta mide lo que sus renglones (con pocas estaciones no queda un hueco en blanco);
         con muchos, min-h-0 la deja encogerse y la tabla hace scroll por dentro.
     --}}
-    <div class="isolate min-h-0 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col">
+    <div class="isolate min-h-0 bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-sm flex flex-col">
         <div class="min-h-0 overflow-auto rounded-t-xl transition-opacity" wire:loading.delay.class="opacity-50" wire:target="{{ $loadingTargets }}">
             <table class="w-full min-w-[1600px] table-fixed border-collapse text-sm">
                 <colgroup>
                     <col class="w-56">
+                    @if($withClass)<col class="w-20">@endif
                     @foreach($columns as $col)
                         <col>
                     @endforeach
@@ -206,16 +227,21 @@
                 </colgroup>
                 <thead class="sticky top-0 z-20">
                     <tr>
-                        <th rowspan="2" class="sticky left-0 z-30 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 border-b border-r border-zinc-200 dark:border-zinc-700/70">
+                        <th rowspan="2" class="sticky left-0 z-30 bg-zinc-50 dark:bg-ta-gray-800 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-r border-zinc-200 dark:border-ta-gray-700/70">
                             {{ $nameHeader }}
                         </th>
+                        @if($withClass)
+                            <th rowspan="2" class="sticky left-56 z-30 bg-zinc-50 dark:bg-ta-gray-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-r border-zinc-200 dark:border-ta-gray-700/70">
+                                Clase
+                            </th>
+                        @endif
                         @foreach($days as $day)
-                            <th colspan="{{ count($shifts) }}" class="px-2 pt-1.5 pb-1 text-center border-l border-zinc-200 dark:border-zinc-700/70 {{ $day['highlight'] ? 'lp-hl-day' : 'bg-zinc-50 dark:bg-zinc-800' }}">
-                                <span class="text-xs font-bold {{ $day['highlight'] ? 'text-zinc-900 dark:text-zinc-50' : 'text-zinc-700 dark:text-zinc-200' }}">{{ $day['name'] }}</span>
-                                <span class="text-[11px] {{ $day['highlight'] ? 'font-semibold text-zinc-700 dark:text-zinc-200' : 'font-normal text-zinc-500 dark:text-zinc-400' }}">{{ $day['label'] }}</span>
+                            <th colspan="{{ count($shifts) }}" class="px-2 pt-1.5 pb-1 text-center border-l border-zinc-200 dark:border-ta-gray-700/70 {{ $day['highlight'] ? 'lp-hl-day' : 'bg-zinc-50 dark:bg-ta-gray-800' }}">
+                                <span class="text-xs font-bold {{ $day['highlight'] ? 'text-zinc-900 dark:text-ta-gray-50' : 'text-zinc-700 dark:text-ta-gray-200' }}">{{ $day['name'] }}</span>
+                                <span class="text-[11px] {{ $day['highlight'] ? 'font-semibold text-zinc-700 dark:text-ta-gray-200' : 'font-normal text-zinc-500 dark:text-ta-gray-400' }}">{{ $day['label'] }}</span>
                             </th>
                         @endforeach
-                        <th rowspan="2" class="bg-zinc-50 dark:bg-zinc-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300 border-b border-l border-zinc-200 dark:border-zinc-700/70">
+                        <th rowspan="2" class="bg-zinc-50 dark:bg-ta-gray-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-l border-zinc-200 dark:border-ta-gray-700/70">
                             Sin N° de orden
                         </th>
                     </tr>
@@ -232,20 +258,20 @@
                         {{-- Líneas: separador con su área --}}
                         @if($group['name'])
                             <tr>
-                                <td colspan="{{ $colCount }}" class="bg-zinc-100 dark:bg-zinc-950 px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                                    <span class="sticky left-4 text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">{{ $group['name'] }}</span>
+                                <td colspan="{{ $colCount }}" class="bg-zinc-100 dark:bg-ta-gray-950 px-4 py-1.5 border-b border-zinc-200 dark:border-ta-gray-800">
+                                    <span class="sticky left-4 text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-ta-gray-400">{{ $group['name'] }}</span>
                                 </td>
                             </tr>
                         @endif
 
                         @foreach($group['rows'] as $row)
-                            <tr wire:key="row-{{ $row['key'] }}" class="border-b border-zinc-200 dark:border-zinc-800">
+                            <tr wire:key="row-{{ $row['key'] }}" class="border-b border-zinc-200 dark:border-ta-gray-800">
                                 {{-- Nombre y, abajo, lo que se produce ahora (o lo último) --}}
                                 <td class="lp-name">
                                     @if($row['href'])
                                         <a href="{{ $row['href'] }}" class="lp-wc-link flex items-center gap-2" title="Ver {{ $level === 1 ? 'estaciones' : 'números de parte' }} de {{ $row['name'] }}">@if($row['color'])<span class="w-1 h-4 rounded-full flex-shrink-0" style="background-color: {{ $row['color'] }}"></span>@endif<span class="truncate">{{ $row['name'] }}</span></a>
                                     @else
-                                        <span class="block truncate text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-100" title="{{ $row['name'] }}">{{ $row['name'] }}</span>
+                                        <span class="block truncate text-sm font-semibold tabular-nums text-zinc-800 dark:text-ta-gray-100" title="{{ $row['name'] }}">{{ $row['name'] }}</span>
                                     @endif
 
                                     {{--
@@ -255,9 +281,9 @@
                                     @php
                                         $a = $row['activity'];
                                         $isLive = ($a['state'] ?? null) === 'live';
-                                        // EN PROCESO: "Inicio" (solo en la vista de números de parte; en las demás va en el modal).
-                                        // DETENIDO: "Fin" = última pieza producida.
-                                        $actTime = $a && !($isLive && $level !== 3) ? $a['time'] : '';
+                                        // La hora va solo en la vista de números de parte (EN PROCESO: "Ini"; DETENIDO: "Fin" = última pieza).
+                                        // En líneas y estaciones las horas de cada número de parte están en el modal.
+                                        $actTime = $a && $level === 3 ? $a['time'] : '';
                                     @endphp
                                     <div class="lp-act">
                                         @if($a && $level !== 3)
@@ -271,6 +297,12 @@
                                         @endif
                                     </div>
                                 </td>
+
+                                @if($withClass)
+                                    <td class="lp-class">
+                                        @if($row['itemClass'])<span class="lp-class-tag">{{ $row['itemClass'] }}</span>@else<span class="text-zinc-400 dark:text-ta-gray-600">–</span>@endif
+                                    </td>
+                                @endif
 
                                 {{-- Turnos: HTML armado en el componente (barra real / plan, % a la derecha) --}}
                                 {!! LineProgress::cellsHtml($row['cells'], $columns, $row['orders'] ?? []) !!}
@@ -287,8 +319,13 @@
                 @empty
                     <tbody>
                         <tr>
-                            <td colspan="{{ $colCount }}" class="px-4 py-16 text-center text-zinc-500 dark:text-zinc-400">
-                                No hay producción ni plan en esta semana.
+                            <td colspan="{{ $colCount }}" class="px-4 py-16 text-center text-zinc-500 dark:text-ta-gray-400">
+                                @if($level === 3 && trim($partSearch) !== '')
+                                    Ningún número de parte coincide con «{{ trim($partSearch) }}» en esta semana.
+                                    <button type="button" wire:click="$set('partSearch', '')" class="ml-1 font-semibold text-[#2563eb] dark:text-[#60a5fa] hover:underline">Limpiar búsqueda</button>
+                                @else
+                                    No hay producción ni plan en esta semana.
+                                @endif
                             </td>
                         </tr>
                     </tbody>
@@ -297,12 +334,12 @@
         </div>
 
         {{-- Pie: leyenda --}}
-        <div class="px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-600 dark:text-zinc-300 flex-shrink-0">
-            <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-zinc-500 dark:bg-[rgba(113,113,122,0.20)]"></span>Plan</span>
+        <div class="px-4 py-2 border-t border-zinc-200 dark:border-ta-gray-800 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-600 dark:text-ta-gray-300 flex-shrink-0">
+            <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-ta-gray-500 dark:bg-[rgba(102,112,133,0.20)]"></span>Plan</span>
             <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]"></span>Real</span>
             <span class="flex items-center gap-1.5"><span class="font-bold text-[#c2410c] dark:text-orange-400">123</span>Sin número de orden</span>
             {{-- Color del % de cada turno (mismos rangos que LineProgress::tone) --}}
-            <span class="text-zinc-300 dark:text-zinc-700" aria-hidden="true">|</span>
+            <span class="text-zinc-300 dark:text-ta-gray-700" aria-hidden="true">|</span>
             <span class="flex items-center gap-3">
                 <span class="font-semibold lp-t-bad">≤ {{ LineProgress::WARN }}%</span>
                 <span class="font-semibold lp-t-warn">{{ LineProgress::WARN + 1 }}–{{ LineProgress::GOOD - 1 }}%</span>
@@ -310,53 +347,71 @@
             </span>
             <span class="ml-auto flex items-center gap-1.5 whitespace-nowrap">
                 <span class="w-2 h-2 rounded-full bg-[#059669] animate-pulse"></span>
-                Última actualización <span class="font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">{{ $lastUpdated }}</span>
+                Última actualización <span class="font-semibold tabular-nums text-zinc-800 dark:text-ta-gray-100">{{ $lastUpdated }}</span>
             </span>
         </div>
     </div>
 
-    {{-- Modal: números de parte sin número de orden del renglón, total de la semana --}}
+    {{-- Modal: números de parte sin número de orden del renglón (No planeado, No verificado, En progreso), total de la semana --}}
     @if($noOrderDetail)
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="lp-modal-title">
             <div class="absolute inset-0 bg-zinc-900/50 dark:bg-black/60" wire:click="closeModals"></div>
-            <div class="relative w-full max-w-2xl max-h-[80vh] flex flex-col bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden">
-                <div class="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-start justify-between gap-4">
+            <div class="relative w-full max-w-2xl max-h-[80vh] flex flex-col bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-xl overflow-hidden">
+                <div class="px-5 py-4 border-b border-zinc-200 dark:border-ta-gray-800 flex items-start justify-between gap-4">
                     <div>
-                        <h2 id="lp-modal-title" class="text-base font-semibold text-zinc-800 dark:text-zinc-100">Sin número de orden · {{ $noOrderDetail['title'] }}</h2>
-                        <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{{ $weekLabel }}</p>
+                        <h2 id="lp-modal-title" class="text-base font-semibold text-zinc-800 dark:text-ta-gray-100">Sin número de orden · {{ $noOrderDetail['title'] }}</h2>
+                        <p class="mt-0.5 text-xs text-zinc-500 dark:text-ta-gray-400">{{ $weekLabel }}</p>
                     </div>
-                    <button type="button" wire:click="closeModals" title="Cerrar" class="p-1 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                    <button type="button" wire:click="closeModals" title="Cerrar" class="p-1 rounded-lg text-zinc-500 dark:text-ta-gray-400 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
                 <div class="min-h-0 overflow-y-auto">
                     <table class="w-full text-sm">
-                        <thead class="sticky top-0 bg-zinc-50 dark:bg-zinc-800">
-                            <tr class="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+                        <thead class="sticky top-0 bg-zinc-50 dark:bg-ta-gray-800">
+                            <tr class="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300">
                                 @if($noOrderDetail['withStation'])<th class="px-5 py-2 text-left">Estación</th>@endif
                                 <th class="px-5 py-2 text-left">Número de parte</th>
+                                <th class="px-5 py-2 text-left">Estado</th>
                                 <th class="px-5 py-2 text-right">Total semana</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                        <tbody class="divide-y divide-zinc-200 dark:divide-ta-gray-800">
                             @forelse($noOrderDetail['parts'] as $part)
                                 <tr>
-                                    @if($noOrderDetail['withStation'])<td class="px-5 py-2 text-zinc-600 dark:text-zinc-300 whitespace-nowrap">{{ $part['station'] }}</td>@endif
+                                    @if($noOrderDetail['withStation'])<td class="px-5 py-2 text-zinc-600 dark:text-ta-gray-300 whitespace-nowrap">{{ $part['station'] }}</td>@endif
                                     <td class="px-5 py-2">
-                                        <div class="font-semibold text-zinc-800 dark:text-zinc-100">{{ $part['number'] }}</div>
-                                        @if($part['name'])<div class="text-xs text-zinc-500 dark:text-zinc-400 truncate max-w-[16rem]">{{ $part['name'] }}</div>@endif
+                                        <div class="font-semibold text-zinc-800 dark:text-ta-gray-100">{{ $part['number'] }}</div>
+                                        @if($part['name'])<div class="text-xs text-zinc-500 dark:text-ta-gray-400 truncate max-w-[16rem]">{{ $part['name'] }}</div>@endif
                                     </td>
-                                    <td class="px-5 py-2 text-right font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">{{ number_format($part['total']) }}</td>
+                                    {{-- Estado; si la parte tiene varios, cada uno con su cantidad --}}
+                                    <td class="px-5 py-2">
+                                        <div class="flex flex-wrap gap-1">
+                                            @foreach($part['statuses'] as $status => $qty)
+                                                <span class="lp-status {{ $statusClass[$status] ?? 'lp-status-unplanned' }}" @if(count($part['statuses']) > 1) title="{{ number_format($qty) }} pzs" @endif>@if($status === 'En progreso')<span class="lp-dot lp-dot-green"></span>@endif{{ $status }}@if(count($part['statuses']) > 1)<span class="font-semibold tabular-nums opacity-80">{{ number_format($qty) }}</span>@endif</span>
+                                            @endforeach
+                                        </div>
+                                    </td>
+                                    <td class="px-5 py-2 text-right font-semibold tabular-nums text-zinc-800 dark:text-ta-gray-100">{{ number_format($part['total']) }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="3" class="px-5 py-8 text-center text-zinc-500 dark:text-zinc-400">Ya no hay piezas sin número de orden en este renglón.</td></tr>
+                                <tr><td colspan="4" class="px-5 py-8 text-center text-zinc-500 dark:text-ta-gray-400">Ya no hay piezas sin número de orden en este renglón.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
-                <div class="px-5 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-sm">
-                    <span class="font-medium text-zinc-600 dark:text-zinc-300">Total de la semana</span>
-                    <span class="font-bold tabular-nums text-[#c2410c] dark:text-orange-400">{{ number_format($noOrderDetail['total']) }}</span>
+                <div class="px-5 py-3 border-t border-zinc-200 dark:border-ta-gray-800 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+                    <span class="font-medium text-zinc-600 dark:text-ta-gray-300">Total de la semana</span>
+                    <span class="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {{-- Desglose por estado (solo si hay más de uno) --}}
+                        @if(count($noOrderDetail['byStatus']) > 1)
+                            @foreach($noOrderDetail['byStatus'] as $status => $qty)
+                                <span class="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-ta-gray-400"><span class="lp-status-dot {{ $statusClass[$status] ?? 'lp-status-unplanned' }}"></span>{{ $status }} <span class="font-semibold tabular-nums text-zinc-700 dark:text-ta-gray-200">{{ number_format($qty) }}</span></span>
+                            @endforeach
+                            <span class="text-zinc-300 dark:text-ta-gray-700" aria-hidden="true">|</span>
+                        @endif
+                        <span class="font-bold tabular-nums text-[#c2410c] dark:text-orange-400">{{ number_format($noOrderDetail['total']) }}</span>
+                    </span>
                 </div>
             </div>
         </div>
@@ -366,40 +421,40 @@
     @if($activityDetail)
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="lp-activity-title">
             <div class="absolute inset-0 bg-zinc-900/50 dark:bg-black/60" wire:click="closeModals"></div>
-            <div class="relative w-full max-w-xl max-h-[80vh] flex flex-col bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden">
-                <div class="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-start justify-between gap-4">
+            <div class="relative w-full max-w-xl max-h-[80vh] flex flex-col bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-xl overflow-hidden">
+                <div class="px-5 py-4 border-b border-zinc-200 dark:border-ta-gray-800 flex items-start justify-between gap-4">
                     <div>
-                        <h2 id="lp-activity-title" class="text-base font-semibold text-zinc-800 dark:text-zinc-100">
+                        <h2 id="lp-activity-title" class="text-base font-semibold text-zinc-800 dark:text-ta-gray-100">
                             {{ $activityDetail['state'] === 'live' ? 'En proceso' : 'Detenido · última producción' }} · {{ $activityDetail['title'] }}
                         </h2>
-                        <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{{ count($activityDetail['items']) }} números de parte</p>
+                        <p class="mt-0.5 text-xs text-zinc-500 dark:text-ta-gray-400">{{ count($activityDetail['items']) }} números de parte</p>
                     </div>
-                    <button type="button" wire:click="closeModals" title="Cerrar" class="p-1 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                    <button type="button" wire:click="closeModals" title="Cerrar" class="p-1 rounded-lg text-zinc-500 dark:text-ta-gray-400 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
                 <div class="min-h-0 overflow-y-auto">
                     <table class="w-full text-sm">
-                        <thead class="sticky top-0 bg-zinc-50 dark:bg-zinc-800">
-                            <tr class="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+                        <thead class="sticky top-0 bg-zinc-50 dark:bg-ta-gray-800">
+                            <tr class="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300">
                                 <th class="px-5 py-2 text-left">Estación</th>
                                 <th class="px-5 py-2 text-left">Número de parte</th>
                                 <th class="px-5 py-2 text-right">Inicio</th>
                                 <th class="px-5 py-2 text-right">Última pieza</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                        <tbody class="divide-y divide-zinc-200 dark:divide-ta-gray-800">
                             @foreach($activityDetail['items'] as $item)
                                 <tr>
-                                    <td class="px-5 py-2 text-zinc-600 dark:text-zinc-300 whitespace-nowrap">{{ $item['station'] }}</td>
+                                    <td class="px-5 py-2 text-zinc-600 dark:text-ta-gray-300 whitespace-nowrap">{{ $item['station'] }}</td>
                                     <td class="px-5 py-2">
-                                        <div class="flex items-center gap-2 font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+                                        <div class="flex items-center gap-2 font-semibold tabular-nums text-zinc-800 dark:text-ta-gray-100">
                                             @if($item['live'])<span class="lp-dot lp-dot-green !relative !top-0 !right-0 flex-shrink-0" title="En proceso"></span>@endif{{ $item['number'] }}
                                         </div>
-                                        @if($item['name'])<div class="text-xs text-zinc-500 dark:text-zinc-400 truncate max-w-[18rem] {{ $item['live'] ? 'pl-4' : '' }}">{{ $item['name'] }}</div>@endif
+                                        @if($item['name'])<div class="text-xs text-zinc-500 dark:text-ta-gray-400 truncate max-w-[18rem] {{ $item['live'] ? 'pl-4' : '' }}">{{ $item['name'] }}</div>@endif
                                     </td>
-                                    <td class="px-5 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300 whitespace-nowrap">{{ $item['startLabel'] }}</td>
-                                    <td class="px-5 py-2 text-right tabular-nums text-zinc-600 dark:text-zinc-300 whitespace-nowrap">{{ $item['endLabel'] }}</td>
+                                    <td class="px-5 py-2 text-right tabular-nums text-zinc-600 dark:text-ta-gray-300 whitespace-nowrap">{{ $item['startLabel'] }}</td>
+                                    <td class="px-5 py-2 text-right tabular-nums text-zinc-600 dark:text-ta-gray-300 whitespace-nowrap">{{ $item['endLabel'] }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

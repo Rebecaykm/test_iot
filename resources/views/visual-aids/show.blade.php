@@ -1,5 +1,5 @@
 <x-guest-layout :floating-theme-toggle="false">
-    <div class="h-screen flex flex-col bg-zinc-100 dark:bg-zinc-950">
+    <div class="h-screen flex flex-col bg-zinc-100 dark:bg-ta-gray-950">
         <x-guest-header />
 
         {{-- El renglón de Volver/estación/MID/reloj va dentro del componente: el MID cambia con cada actualización --}}

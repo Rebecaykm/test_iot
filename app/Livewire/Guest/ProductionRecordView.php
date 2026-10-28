@@ -163,7 +163,7 @@ class ProductionRecordView extends Component
 
         return static::statusStyleMap()[$normalizedStatus] ?? [
             'label' => $status,
-            'row' => 'bg-zinc-50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/60',
+            'row' => 'bg-zinc-50 dark:bg-ta-gray-800/40 hover:bg-zinc-100 dark:hover:bg-ta-gray-800/60',
             'dot' => 'bg-zinc-400',
         ];
     }

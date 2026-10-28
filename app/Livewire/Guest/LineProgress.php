@@ -89,6 +89,10 @@ class LineProgress extends Component
     #[Url(as: 'wcs', except: [])]
     public array $selectedWorkCenters = [];
 
+    /** Buscador de la vista 3: parte del número de parte (vacío = todos). Va en la URL. */
+    #[Url(as: 'q', except: '')]
+    public string $partSearch = '';
+
     /** Modales: renglón abierto ("line:3", "wc:12", "part:340"); null = cerrado */
     public ?string $noOrderRow = null;
     public ?string $activityRow = null;
@@ -140,6 +144,18 @@ class LineProgress extends Component
         Cache::store(self::CACHE_STORE)->forget(self::CATALOG_KEY);
     }
 
+    /**
+     * Vista de avance de la línea de una estación (por nombre), para el botón "Volver" de
+     * /press-production, /press-production-timeline y /show-visual-aids. Sale del catálogo
+     * en caché; null si la estación no está (p. ej. su línea está oculta en el avance).
+     */
+    public static function lineUrlFor(string $workCenterName): ?string
+    {
+        $wc = collect(self::catalog()['workCenters'])->firstWhere('name', $workCenterName);
+
+        return $wc ? route('guest.progress.line', $wc['line_id']) : null;
+    }
+
     public function mount(?int $lineId = null, ?int $wcId = null): void
     {
         $catalog = self::catalog();
@@ -179,6 +195,7 @@ class LineProgress extends Component
     {
         $this->selectedLines = [];
         $this->selectedWorkCenters = [];
+        $this->partSearch = '';
     }
 
     // Modales
@@ -284,7 +301,7 @@ class LineProgress extends Component
      */
     private function weekRows(Carbon $start, Carbon $end): array
     {
-        return $this->cached("line_progress:v4:week:{$start->toDateString()}", $end, function () use ($start, $end) {
+        return $this->cached("line_progress:v5:week:{$start->toDateString()}", $end, function () use ($start, $end) {
             return ProductionRecord::getLineWeeklyProgress([], $start->toDateString(), $end->toDateString())
                 ->map(fn ($r) => [
                     'line_id' => (int) $r->line_id,
@@ -303,11 +320,13 @@ class LineProgress extends Component
     /** Lo mismo que weekRows(), pero por número de parte y solo de una estación (vista 3) */
     private function partRows(Carbon $start, Carbon $end, int $wcId): array
     {
-        return $this->cached("line_progress:v4:parts:{$start->toDateString()}:{$wcId}", $end, function () use ($start, $end, $wcId) {
+        // v6: incluye la clase del número de parte y "Sin orden" por estado (UNPLANNED_SQL)
+        return $this->cached("line_progress:v6:parts:{$start->toDateString()}:{$wcId}", $end, function () use ($start, $end, $wcId) {
             return ProductionRecord::getPartWeeklyProgress($start->toDateString(), $end->toDateString(), null, $wcId)
                 ->map(fn ($r) => [
                     'part_id' => (int) $r->part_number_id,
                     'part_number' => $r->part_number,
+                    'item_class' => $r->item_class,
                     'shift' => $r->shift,
                     'date' => Carbon::parse($r->planned_date)->toDateString(),
                     'plan' => (int) $r->plan,
@@ -516,11 +535,12 @@ class LineProgress extends Component
                 . ($c['live'] ? '<span class="lp-dot lp-dot-green"></span>' : '');
 
             // Barra igual que /guest/part-progress: plan = contorno gris, real = relleno verde, "real / plan" adentro
-            $realHtml = '<span class="pp-real' . ($c['plan'] > 0 && $c['real'] >= $c['plan'] ? ' pp-done' : '') . '">' . number_format($c['real']) . '</span>';
+            [$real, $plan] = self::barQty($c['real'], $c['plan']);
+            $realHtml = '<span class="pp-real' . ($c['plan'] > 0 && $c['real'] >= $c['plan'] ? ' pp-done' : '') . '">' . $real . '</span>';
             $bar = $c['plan'] > 0
                 ? '<div class="pp-bar">'
                     . ($c['fill'] > 0 ? "<div class=\"pp-fill\" style=\"width:calc({$c['fill']}% + 2px)\"></div>" : '')
-                    . "<div class=\"pp-bar-txt\">{$realHtml}<span class=\"pp-plan\">/ " . number_format($c['plan']) . '</span></div></div>'
+                    . "<div class=\"pp-bar-txt\">{$realHtml}<span class=\"pp-plan\">/ {$plan}</span></div></div>"
                 : "<div class=\"pp-nums\">{$realHtml}<span class=\"pp-plan\">pzs</span></div>";
 
             $html .= "<td class=\"{$class}\"><div class=\"pp-cell\" title=\"" . e($title) . '">'
@@ -528,6 +548,37 @@ class LineProgress extends Component
         }
 
         return $html;
+    }
+
+    /**
+     * Real y plan para el texto de la barra de un turno. La celda deja ~65 px para
+     * "real / plan": con miles ("12,345 / 15,000") no cabe, así que si juntos pasan de
+     * 8 caracteres van los dos compactos ("12k / 15k"). El exacto queda en el title.
+     * Con $plan = 0 (sin plan) solo cuenta el real. También la usa PartProgress.
+     */
+    public static function barQty(int $real, int $plan = 0): array
+    {
+        $full = [number_format($real), number_format($plan)];
+        $len = strlen($full[0]) + ($plan > 0 ? strlen($full[1]) : 0);
+
+        return $len > ($plan > 0 ? 8 : 5) ? [self::compactQty($real), self::compactQty($plan)] : $full;
+    }
+
+    /**
+     * 980 → "980", 1,234 → "1.2k", 12,345 → "12k", 1,250,000 → "1.2M". Trunca en lugar de
+     * redondear: así un real abajo del plan nunca se ve igual o mayor (14,600 / 15,000 → 14k / 15k).
+     */
+    public static function compactQty(int $n): string
+    {
+        $abs = abs($n);
+        [$value, $suffix] = match (true) {
+            $abs < 1_000 => [$n, ''],
+            $abs < 10_000 => [floor($n / 100) / 10, 'k'],
+            $abs < 1_000_000 => [floor($n / 1_000), 'k'],
+            default => [floor($n / 100_000) / 10, 'M'],
+        };
+
+        return rtrim(rtrim(number_format($value, 1, '.', ''), '0'), '.') . $suffix;
     }
 
     /** Fecha corta: "23/10 14:20" (día/mes hora:minutos) */
@@ -619,11 +670,15 @@ class LineProgress extends Component
         if ($level === 3) {
             $rows = [];
             $orders = $this->partOrders($start, $end, $wc['name']);
-            foreach (collect($this->partRows($start, $end, $wc['id']))->groupBy('part_id') as $partId => $records) {
+            $search = mb_strtoupper(trim($this->partSearch));
+            $partRows = collect($this->partRows($start, $end, $wc['id']))
+                ->when($search !== '', fn ($c) => $c->filter(fn ($r) => str_contains(mb_strtoupper((string) $r['part_number']), $search)));
+            foreach ($partRows->groupBy('part_id') as $partId => $records) {
                 $state = $activity['part'][$wc['id'] . '|' . $partId] ?? null;
                 $rows[] = $this->buildRow($records->all(), $columns) + [
                     'key' => "part:{$partId}",
                     'name' => $records->first()['part_number'],
+                    'itemClass' => $records->first()['item_class'] ?? null,
                     'orders' => $orders[$records->first()['part_number']] ?? [],
                     'color' => null,
                     'href' => null,
@@ -684,14 +739,20 @@ class LineProgress extends Component
                 default => [$wc['id']],
             };
             $partId = $type === 'part' ? $id : null;
-            $key = 'line_progress:v4:no_order:' . $start->toDateString() . ':' . md5(implode(',', $wcIds) . '|' . $partId);
+            // v5: por estado (No planeado / No verificado / En progreso)
+            $key = 'line_progress:v5:no_order:' . $start->toDateString() . ':' . md5(implode(',', $wcIds) . '|' . $partId);
             $parts = $this->cached($key, $end, function () use ($wcIds, $start, $end, $partId) {
                 $pivot = [];
                 foreach (ProductionRecord::getNoOrderParts($wcIds, $start->toDateString(), $end->toDateString(), $partId) as $p) {
                     $k = $p->work_center_name . '|' . $p->part_number;
-                    $pivot[$k] ??= ['station' => $p->work_center_name, 'number' => $p->part_number, 'name' => $p->part_name, 'total' => 0];
+                    $pivot[$k] ??= ['station' => $p->work_center_name, 'number' => $p->part_number, 'name' => $p->part_name, 'total' => 0, 'statuses' => []];
                     $pivot[$k]['total'] += (int) $p->quantity;
+                    $pivot[$k]['statuses'][$p->status] = ($pivot[$k]['statuses'][$p->status] ?? 0) + (int) $p->quantity;
                 }
+                foreach ($pivot as &$part) {
+                    arsort($part['statuses']);
+                }
+                unset($part);
                 $pivot = array_values($pivot);
                 usort($pivot, fn ($a, $b) => $b['total'] <=> $a['total']);
 
@@ -703,6 +764,9 @@ class LineProgress extends Component
                 'withStation' => count($wcIds) > 1,
                 'parts' => $parts,
                 'total' => array_sum(array_column($parts, 'total')),
+                // Total por estado para el pie del modal
+                'byStatus' => collect($parts)->flatMap(fn ($p) => collect($p['statuses'])->map(fn ($qty, $status) => compact('status', 'qty'))->values())
+                    ->groupBy('status')->map->sum('qty')->sortDesc()->all(),
             ];
         }
 

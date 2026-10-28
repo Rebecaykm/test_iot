@@ -1,4 +1,4 @@
-<nav x-data="{ open: false }" class="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+<nav x-data="{ open: false }" class="bg-white dark:bg-ta-gray-900 border-b border-zinc-200 dark:border-ta-gray-800">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -31,7 +31,7 @@
                         <x-dropdown align="right" width="60">
                             <x-slot name="trigger">
                                 <span class="inline-flex rounded-md">
-                                    <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 hover:text-zinc-700 dark:hover:text-zinc-300 focus:outline-none focus:bg-zinc-50 dark:focus:bg-zinc-800 active:bg-zinc-50 dark:active:bg-zinc-800 transition ease-in-out duration-150">
+                                    <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-zinc-500 dark:text-ta-gray-400 bg-white dark:bg-ta-gray-900 hover:text-zinc-700 dark:hover:text-ta-gray-300 focus:outline-none focus:bg-zinc-50 dark:focus:bg-ta-gray-800 active:bg-zinc-50 dark:active:bg-ta-gray-800 transition ease-in-out duration-150">
                                         {{ Auth::user()->currentTeam->name }}
 
                                         <svg class="ms-2 -me-0.5 size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -61,7 +61,7 @@
 
                                     <!-- Team Switcher -->
                                     @if (Auth::user()->allTeams()->count() > 1)
-                                        <div class="border-t border-zinc-200 dark:border-zinc-700"></div>
+                                        <div class="border-t border-zinc-200 dark:border-ta-gray-700"></div>
 
                                         <div class="block px-4 py-2 text-xs text-zinc-500">
                                             {{ __('Switch Teams') }}
@@ -87,7 +87,7 @@
                                 </button>
                             @else
                                 <span class="inline-flex rounded-md">
-                                    <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 hover:text-zinc-700 dark:hover:text-zinc-300 focus:outline-none focus:bg-zinc-50 dark:focus:bg-zinc-800 active:bg-zinc-50 dark:active:bg-zinc-800 transition ease-in-out duration-150">
+                                    <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-zinc-500 dark:text-ta-gray-400 bg-white dark:bg-ta-gray-900 hover:text-zinc-700 dark:hover:text-ta-gray-300 focus:outline-none focus:bg-zinc-50 dark:focus:bg-ta-gray-800 active:bg-zinc-50 dark:active:bg-ta-gray-800 transition ease-in-out duration-150">
                                         {{ Auth::user()->name }}
 
                                         <svg class="ms-2 -me-0.5 size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -114,7 +114,7 @@
                                 </x-dropdown-link>
                             @endif
 
-                            <div class="border-t border-zinc-200 dark:border-zinc-700"></div>
+                            <div class="border-t border-zinc-200 dark:border-ta-gray-700"></div>
 
                             <!-- Authentication -->
                             <form method="POST" action="{{ route('logout') }}" x-data>
@@ -132,7 +132,7 @@
 
             <!-- Hamburger -->
             <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-500 dark:hover:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-950 focus:outline-none focus:bg-zinc-100 dark:focus:bg-zinc-950 focus:text-zinc-500 dark:focus:text-zinc-400 transition duration-150 ease-in-out">
+                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-zinc-500 dark:text-ta-gray-400 hover:text-zinc-500 dark:hover:text-ta-gray-400 hover:bg-zinc-100 dark:hover:bg-ta-gray-950 focus:outline-none focus:bg-zinc-100 dark:focus:bg-ta-gray-950 focus:text-zinc-500 dark:focus:text-ta-gray-400 transition duration-150 ease-in-out">
                     <svg class="size-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -151,7 +151,7 @@
         </div>
 
         <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-zinc-200 dark:border-zinc-700">
+        <div class="pt-4 pb-1 border-t border-zinc-200 dark:border-ta-gray-700">
             <div class="flex items-center px-4">
                 @if (Laravel\Jetstream\Jetstream::managesProfilePhotos())
                     <div class="shrink-0 me-3">
@@ -160,7 +160,7 @@
                 @endif
 
                 <div>
-                    <div class="font-medium text-base text-zinc-800 dark:text-zinc-200">{{ Auth::user()->name }}</div>
+                    <div class="font-medium text-base text-zinc-800 dark:text-ta-gray-200">{{ Auth::user()->name }}</div>
                     <div class="font-medium text-sm text-zinc-500">{{ Auth::user()->email }}</div>
                 </div>
             </div>
@@ -189,7 +189,7 @@
 
                 <!-- Team Management -->
                 @if (Laravel\Jetstream\Jetstream::hasTeamFeatures())
-                    <div class="border-t border-zinc-200 dark:border-zinc-700"></div>
+                    <div class="border-t border-zinc-200 dark:border-ta-gray-700"></div>
 
                     <div class="block px-4 py-2 text-xs text-zinc-500">
                         {{ __('Manage Team') }}
@@ -208,7 +208,7 @@
 
                     <!-- Team Switcher -->
                     @if (Auth::user()->allTeams()->count() > 1)
-                        <div class="border-t border-zinc-200 dark:border-zinc-700"></div>
+                        <div class="border-t border-zinc-200 dark:border-ta-gray-700"></div>
 
                         <div class="block px-4 py-2 text-xs text-zinc-500">
                             {{ __('Switch Teams') }}
