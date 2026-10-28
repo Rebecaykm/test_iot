@@ -4,12 +4,7 @@
 
 @section('content_header')
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-        <div>
-            <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Sincronización a Infor</h1>
-            <small class="text-muted">
-                Selecciona las estaciones que se envían a Infor y la fecha planeada desde la que se envían.
-            </small>
-        </div>
+        <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.4rem;">Sincronización a Infor</h1>
     </div>
 @stop
 
@@ -73,6 +68,14 @@
 
                         return [$savedDates->has($workCenterId), $savedDates->get($workCenterId)];
                     };
+
+                    // Clases que se envían: lo capturado, lo guardado o, si el ambiente
+                    // todavía no se configura, las M por defecto
+                    $selectedClassIds = $hasOldInput
+                        ? collect(old("{$envKey}.item_classes", []))->map(fn ($id) => (int) $id)
+                        : ($setting
+                            ? $setting->itemClasses->pluck('id')
+                            : $itemClasses->whereIn('abbreviation', \App\Models\InforSyncSetting::DEFAULT_ITEM_CLASSES)->pluck('id'));
                 @endphp
 
                 <div class="col-xl-6 mb-4">
@@ -108,143 +111,176 @@
                             </div>
                         </div>
 
-                        {{-- Búsqueda y controles de la lista --}}
-                        <div class="env-toolbar d-flex align-items-center flex-wrap gap-2">
-                            <div class="filter-group flex-grow-1">
-                                <i class="fas fa-search filter-icon"></i>
-                                <input type="search" class="filter-input w-100 station-search" data-env="{{ $envKey }}"
-                                    placeholder="Buscar línea, estación o número"
-                                    aria-label="Buscar línea, estación o número en {{ $env['title'] }}">
-                            </div>
-                            <div class="d-flex gap-1">
-                                <button type="button" class="btn-action btn-action-secondary btn-action-sm expand-all"
-                                    data-env="{{ $envKey }}">
-                                    <i class="fas fa-angle-double-down mr-1"></i>Expandir
-                                </button>
-                                <button type="button" class="btn-action btn-action-secondary btn-action-sm collapse-all"
-                                    data-env="{{ $envKey }}">
-                                    <i class="fas fa-angle-double-up mr-1"></i>Contraer
-                                </button>
-                            </div>
-                            <small class="env-summary w-100" data-env="{{ $envKey }}"></small>
-                        </div>
+                        <div class="env-body {{ $enabled ? '' : 'env-body-disabled' }}">
+                            {{-- Clases de número de parte que se envían --}}
+                            <section class="env-section">
+                                <div class="env-section-head">
+                                    <span class="env-section-icon"><i class="fas fa-layer-group" aria-hidden="true"></i></span>
+                                    <h2 class="env-section-title">Clases</h2>
+                                    <span class="badge-soft env-class-count ml-auto" data-env="{{ $envKey }}"></span>
+                                </div>
 
-                        {{-- Líneas (contraídas) con sus estaciones --}}
-                        <div class="card-body p-0 env-body {{ $enabled ? '' : 'env-body-disabled' }}">
-                            <div class="line-list">
-                                @forelse ($lines as $line)
-                                    @php
-                                        $lineDomId = "{$envKey}-line-{$line->id}";
-                                        $lineSelectedCount = $line->workCenters
-                                            ->filter(fn ($wc) => $stationState($wc->id)[0])
-                                            ->count();
-                                        $lineTotal = $line->workCenters->count();
-                                        $lineHasErrors = $line->workCenters
-                                            ->contains(fn ($wc) => $errors->has("{$envKey}.stations.{$wc->id}.sync_from"));
-                                    @endphp
+                                <x-multi-select name="{{ $envKey }}[item_classes]" label="Clases" class="env-class-select"
+                                    placeholder="Ninguna clase: no se envía nada"
+                                    search-placeholder="Buscar clase"
+                                    :options="$itemClasses->map(fn ($itemClass) => [
+                                        'value' => $itemClass->id,
+                                        'label' => $itemClass->abbreviation . ' · ' . $itemClass->name,
+                                        'chip' => $itemClass->abbreviation,
+                                        'selected' => $selectedClassIds->contains($itemClass->id),
+                                    ])" />
+                            </section>
 
-                                    <div class="line-item" data-env="{{ $envKey }}" data-line="{{ $line->id }}"
-                                        data-search="{{ Str::lower(Str::ascii($line->name)) }}">
-                                        <div class="line-header d-flex align-items-center">
-                                            <div class="custom-control custom-checkbox line-check-wrap">
-                                                <input type="checkbox" class="custom-control-input line-check"
-                                                    id="{{ $lineDomId }}" data-env="{{ $envKey }}"
-                                                    data-line="{{ $line->id }}">
-                                                <label class="custom-control-label" for="{{ $lineDomId }}">
-                                                    <span class="sr-only">Seleccionar todas las estaciones de {{ $line->name }}</span>
-                                                </label>
-                                            </div>
+                            {{-- Estaciones por línea con su fecha de inicio de envío --}}
+                            <section class="env-section">
+                                <div class="env-section-head">
+                                    <span class="env-section-icon"><i class="fas fa-industry" aria-hidden="true"></i></span>
+                                    <h2 class="env-section-title">Estaciones</h2>
+                                    <span class="badge-soft env-summary ml-auto" data-env="{{ $envKey }}"></span>
+                                </div>
 
-                                            <button type="button" class="line-toggle d-flex align-items-center gap-2"
-                                                data-toggle="collapse" data-target="#{{ $lineDomId }}-stations"
-                                                aria-controls="{{ $lineDomId }}-stations"
-                                                aria-expanded="{{ $lineHasErrors ? 'true' : 'false' }}">
-                                                <span class="line-dot" style="background-color: {{ $line->color ?: '#cbd5e1' }};"></span>
-                                                <span class="line-name">{{ $line->name }}</span>
-                                                <span class="badge-soft line-counter {{ $lineSelectedCount === 0 ? 'badge-secondary' : ($lineSelectedCount === $lineTotal ? 'badge-success' : 'badge-primary') }}"
-                                                    data-env="{{ $envKey }}" data-line="{{ $line->id }}">
-                                                    {{ $lineSelectedCount }}/{{ $lineTotal }}
-                                                </span>
-                                                <span class="badge-soft badge-warning line-missing d-none"
-                                                    data-env="{{ $envKey }}" data-line="{{ $line->id }}"></span>
-                                                <i class="fas fa-chevron-down line-chevron ml-auto" aria-hidden="true"></i>
-                                            </button>
-                                        </div>
+                                <div class="env-toolbar d-flex align-items-center flex-wrap gap-2">
+                                    <div class="filter-group flex-grow-1">
+                                        <i class="fas fa-search filter-icon"></i>
+                                        <input type="search" class="filter-input w-100 station-search" data-env="{{ $envKey }}"
+                                            placeholder="Buscar línea, estación o número"
+                                            aria-label="Buscar línea, estación o número en {{ $env['title'] }}">
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="btn-action btn-action-secondary btn-action-sm expand-all"
+                                            data-env="{{ $envKey }}">
+                                            <i class="fas fa-angle-double-down mr-1"></i>Expandir
+                                        </button>
+                                        <button type="button" class="btn-action btn-action-secondary btn-action-sm collapse-all"
+                                            data-env="{{ $envKey }}">
+                                            <i class="fas fa-angle-double-up mr-1"></i>Contraer
+                                        </button>
+                                    </div>
+                                </div>
 
-                                        <div class="collapse {{ $lineHasErrors ? 'show' : '' }}" id="{{ $lineDomId }}-stations">
-                                            <div class="station-list">
-                                                <div class="station-row station-head" aria-hidden="true">
-                                                    <span class="station-name-col">Estación</span>
-                                                    <span class="station-number-col">Número</span>
-                                                    <span class="station-date-col">Enviar desde</span>
+                                {{-- Líneas (contraídas) con sus estaciones --}}
+                                <div class="line-box">
+                                    <div class="line-list">
+                                        @forelse ($lines as $line)
+                                            @php
+                                                $lineDomId = "{$envKey}-line-{$line->id}";
+                                                $lineSelectedCount = $line->workCenters
+                                                    ->filter(fn ($wc) => $stationState($wc->id)[0])
+                                                    ->count();
+                                                $lineTotal = $line->workCenters->count();
+                                                $lineHasErrors = $line->workCenters
+                                                    ->contains(fn ($wc) => $errors->has("{$envKey}.stations.{$wc->id}.sync_from"));
+                                            @endphp
+
+                                            <div class="line-item" data-env="{{ $envKey }}" data-line="{{ $line->id }}"
+                                                data-search="{{ Str::lower(Str::ascii($line->name)) }}">
+                                                <div class="line-header d-flex align-items-center">
+                                                    <div class="custom-control custom-checkbox line-check-wrap">
+                                                        <input type="checkbox" class="custom-control-input line-check"
+                                                            id="{{ $lineDomId }}" data-env="{{ $envKey }}"
+                                                            data-line="{{ $line->id }}">
+                                                        <label class="custom-control-label" for="{{ $lineDomId }}">
+                                                            <span class="sr-only">Seleccionar todas las estaciones de {{ $line->name }}</span>
+                                                        </label>
+                                                    </div>
+
+                                                    <button type="button" class="line-toggle d-flex align-items-center gap-2"
+                                                        data-toggle="collapse" data-target="#{{ $lineDomId }}-stations"
+                                                        aria-controls="{{ $lineDomId }}-stations"
+                                                        aria-expanded="{{ $lineHasErrors ? 'true' : 'false' }}">
+                                                        <span class="line-dot" style="background-color: {{ $line->color ?: '#cbd5e1' }};"></span>
+                                                        <span class="line-name">{{ $line->name }}</span>
+                                                        <span class="badge-soft line-counter {{ $lineSelectedCount === 0 ? 'badge-secondary' : ($lineSelectedCount === $lineTotal ? 'badge-success' : 'badge-primary') }}"
+                                                            data-env="{{ $envKey }}" data-line="{{ $line->id }}">
+                                                            {{ $lineSelectedCount }}/{{ $lineTotal }}
+                                                        </span>
+                                                        <span class="badge-soft badge-warning line-missing d-none"
+                                                            data-env="{{ $envKey }}" data-line="{{ $line->id }}"></span>
+                                                        <i class="fas fa-chevron-down line-chevron ml-auto" aria-hidden="true"></i>
+                                                    </button>
                                                 </div>
 
-                                                @foreach ($line->workCenters as $workCenter)
-                                                    @php
-                                                        $wcDomId = "{$envKey}-wc-{$workCenter->id}";
-                                                        [$wcSelected, $wcSyncFrom] = $stationState($workCenter->id);
-                                                        $dateErrorKey = "{$envKey}.stations.{$workCenter->id}.sync_from";
-                                                    @endphp
-
-                                                    <div class="station-row {{ $wcSelected ? 'is-selected' : '' }}"
-                                                        data-search="{{ Str::lower(Str::ascii($workCenter->name . ' ' . $workCenter->number)) }}">
-                                                        <div class="station-name-col custom-control custom-checkbox">
-                                                            <input type="checkbox" class="custom-control-input wc-check"
-                                                                id="{{ $wcDomId }}"
-                                                                name="{{ $envKey }}[stations][{{ $workCenter->id }}][selected]"
-                                                                value="1" data-env="{{ $envKey }}"
-                                                                data-line="{{ $line->id }}"
-                                                                data-date="{{ $wcDomId }}-date"
-                                                                @checked($wcSelected)>
-                                                            <label class="custom-control-label" for="{{ $wcDomId }}">
-                                                                <span class="fw-500 station-name">{{ $workCenter->name }}</span>
-                                                            </label>
+                                                <div class="collapse {{ $lineHasErrors ? 'show' : '' }}" id="{{ $lineDomId }}-stations">
+                                                    <div class="station-list">
+                                                        <div class="station-row station-head" aria-hidden="true">
+                                                            <span class="station-name-col">Estación</span>
+                                                            <span class="station-number-col">Número</span>
+                                                            <span class="station-date-col">Enviar desde</span>
                                                         </div>
 
-                                                        <div class="station-number-col">
-                                                            <span class="badge-soft badge-secondary station-number">{{ $workCenter->number }}</span>
-                                                        </div>
+                                                        @foreach ($line->workCenters as $workCenter)
+                                                            @php
+                                                                $wcDomId = "{$envKey}-wc-{$workCenter->id}";
+                                                                [$wcSelected, $wcSyncFrom] = $stationState($workCenter->id);
+                                                                $dateErrorKey = "{$envKey}.stations.{$workCenter->id}.sync_from";
+                                                            @endphp
 
-                                                        <div class="station-date-col">
-                                                            <input type="date" id="{{ $wcDomId }}-date"
-                                                                name="{{ $envKey }}[stations][{{ $workCenter->id }}][sync_from]"
-                                                                value="{{ $wcSyncFrom }}"
-                                                                class="field-input station-date @error($dateErrorKey) is-invalid @enderror"
-                                                                aria-label="Enviar a Infor desde (fecha planeada) — {{ $workCenter->name }}"
-                                                                @required($wcSelected)>
-                                                            @error($dateErrorKey)
-                                                                <div class="field-error">{{ $message }}</div>
-                                                            @enderror
-                                                        </div>
+                                                            <div class="station-row {{ $wcSelected ? 'is-selected' : '' }}"
+                                                                data-search="{{ Str::lower(Str::ascii($workCenter->name . ' ' . $workCenter->number)) }}">
+                                                                <div class="station-name-col custom-control custom-checkbox">
+                                                                    <input type="checkbox" class="custom-control-input wc-check"
+                                                                        id="{{ $wcDomId }}"
+                                                                        name="{{ $envKey }}[stations][{{ $workCenter->id }}][selected]"
+                                                                        value="1" data-env="{{ $envKey }}"
+                                                                        data-line="{{ $line->id }}"
+                                                                        data-date="{{ $wcDomId }}-date"
+                                                                        @checked($wcSelected)>
+                                                                    <label class="custom-control-label" for="{{ $wcDomId }}">
+                                                                        <span class="fw-500 station-name">{{ $workCenter->name }}</span>
+                                                                    </label>
+                                                                </div>
+
+                                                                <div class="station-number-col">
+                                                                    <span class="badge-soft badge-secondary station-number">{{ $workCenter->number }}</span>
+                                                                </div>
+
+                                                                <div class="station-date-col">
+                                                                    <input type="date" id="{{ $wcDomId }}-date"
+                                                                        name="{{ $envKey }}[stations][{{ $workCenter->id }}][sync_from]"
+                                                                        value="{{ $wcSyncFrom }}"
+                                                                        class="field-input station-date @error($dateErrorKey) is-invalid @enderror"
+                                                                        aria-label="Enviar a Infor desde (fecha planeada) — {{ $workCenter->name }}"
+                                                                        @required($wcSelected)>
+                                                                    @error($dateErrorKey)
+                                                                        <div class="field-error">{{ $message }}</div>
+                                                                    @enderror
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
                                                     </div>
-                                                @endforeach
+                                                </div>
                                             </div>
+                                        @empty
+                                            <div class="text-center py-5 text-muted">
+                                                <i class="fas fa-inbox fa-3x mb-3 d-block" style="color: #cbd5e1;"></i>
+                                                <p class="mb-1 fw-500" style="color: #475569;">No hay líneas con estaciones</p>
+                                                <small>Asigna estaciones a una línea para poder enviarlas a Infor.</small>
+                                            </div>
+                                        @endforelse
+
+                                        <div class="search-empty text-center py-4 text-muted d-none" data-env="{{ $envKey }}">
+                                            <i class="fas fa-search fa-2x mb-2 d-block" style="color: #cbd5e1;"></i>
+                                            <p class="mb-1 fw-500" style="color: #475569;">Ninguna línea o estación coincide</p>
+                                            <small>Prueba con el nombre de la línea, de la estación o su número.</small>
                                         </div>
                                     </div>
-                                @empty
-                                    <div class="text-center py-5 text-muted">
-                                        <i class="fas fa-inbox fa-3x mb-3 d-block" style="color: #cbd5e1;"></i>
-                                        <p class="mb-1 fw-500" style="color: #475569;">No hay líneas con estaciones</p>
-                                        <small>Asigna estaciones a una línea para poder enviarlas a Infor.</small>
-                                    </div>
-                                @endforelse
-
-                                <div class="search-empty text-center py-4 text-muted d-none" data-env="{{ $envKey }}">
-                                    <i class="fas fa-search fa-2x mb-2 d-block" style="color: #cbd5e1;"></i>
-                                    <p class="mb-1 fw-500" style="color: #475569;">Ninguna línea o estación coincide</p>
-                                    <small>Prueba con el nombre de la línea, de la estación o su número.</small>
                                 </div>
-                            </div>
+                            </section>
                         </div>
                     </div>
                 </div>
             @endforeach
         </div>
 
-        <div class="d-flex justify-content-end mb-4">
-            <button type="submit" class="btn-action btn-action-solid" id="infor-sync-submit">
-                <i class="fas fa-save mr-1"></i>Guardar configuración
-            </button>
+        <div class="form-actions card border-0 shadow-sm rounded-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle mr-1" aria-hidden="true"></i>Los cambios se aplican desde la siguiente sincronización.
+                </small>
+                <button type="submit" class="btn-action btn-action-solid" id="infor-sync-submit">
+                    <i class="fas fa-save mr-1"></i>Guardar configuración
+                </button>
+            </div>
         </div>
     </form>
 @stop
@@ -272,17 +308,56 @@
             color: #64748b;
         }
 
-        /* ── Barra de búsqueda / resumen ── */
-        .env-toolbar {
-            padding: 0.75rem 1rem;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
+        /* ── Secciones del ambiente: Clases y Estaciones ── */
+        .env-section { padding: 1rem 1.25rem; }
+        .env-section + .env-section { border-top: 1px solid #e2e8f0; }
+        .env-section-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.65rem;
         }
+        .env-section-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.7rem;
+        }
+        .env-section-title {
+            margin: 0;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* La sección ya tiene su título: la etiqueta del selector queda solo para lectores de pantalla */
+        .env-class-select { margin: 0; }
+        .env-class-select .filter-label-text {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+        }
+
+        /* ── Búsqueda y controles de la lista ── */
+        .env-toolbar { margin-bottom: 0.65rem; }
         .env-toolbar .filter-group { background: #fff; min-width: 200px; }
-        .env-summary { font-size: 0.75rem; color: #64748b; }
 
         /* ── Lista de líneas ── */
-        .line-list { max-height: 600px; overflow-y: auto; }
+        .line-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .line-list { max-height: 560px; overflow-y: auto; }
         .line-item { border-bottom: 1px solid #e2e8f0; }
         .line-item:last-of-type { border-bottom: 0; }
         .line-header { padding: 0 1rem; }
@@ -361,6 +436,9 @@
             .station-date-col { flex: 1 1 auto; }
         }
 
+        /* ── Barra de guardado ── */
+        .form-actions { padding: 0.85rem 1.25rem; }
+
         /* ── Cuerpo deshabilitado (solo visual, sigue siendo editable) ── */
         .env-body-disabled { opacity: 0.55; }
 
@@ -428,8 +506,10 @@
                 const summary = document.querySelector(`.env-summary[data-env="${env}"]`);
 
                 summary.textContent = checked.length === 0
-                    ? 'Ninguna estación seleccionada'
-                    : `${checked.length} ${checked.length === 1 ? 'estación seleccionada' : 'estaciones seleccionadas'} en ${lines} ${lines === 1 ? 'línea' : 'líneas'}`;
+                    ? 'No se envía nada'
+                    : `${lines} ${lines === 1 ? 'Línea' : 'Líneas'} / ${checked.length} ${checked.length === 1 ? 'Estación' : 'Estaciones'}`;
+                summary.classList.toggle('badge-warning', checked.length === 0);
+                summary.classList.toggle('badge-primary', checked.length > 0);
             };
 
             // Búsqueda: muestra solo las líneas/estaciones que coinciden y las abre
@@ -532,6 +612,25 @@
                     body.classList.toggle('env-body-disabled', !toggle.checked);
                 });
             });
+
+            // Contador de clases seleccionadas por ambiente. El selector marca sus
+            // casillas por JS sin disparar change, así que se recalcula después de
+            // cada clic (en captura, porque quitar un chip detiene la propagación).
+            const refreshClassCount = env => {
+                const boxes = [...document.querySelectorAll(`input[name="${env}[item_classes][]"]`)];
+                const checked = boxes.filter(cb => cb.checked).length;
+                const badge = document.querySelector(`.env-class-count[data-env="${env}"]`);
+
+                badge.textContent = checked === 0 ? 'No se envía nada' : `${checked} de ${boxes.length}`;
+                badge.classList.toggle('badge-warning', checked === 0);
+                badge.classList.toggle('badge-primary', checked > 0);
+            };
+            const envKeys = [...document.querySelectorAll('.env-card')].map(card => card.dataset.env);
+
+            document.addEventListener('click', () => {
+                setTimeout(() => envKeys.forEach(refreshClassCount));
+            }, true);
+            envKeys.forEach(refreshClassCount);
 
             // Estado inicial de todas las líneas
             document.querySelectorAll('.line-check').forEach(lineCheck => {

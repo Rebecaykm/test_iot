@@ -16,17 +16,12 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Envía a la tabla de paso YF013 de Infor los registros Completado con orden
- * de las estaciones seleccionadas en /infor-sync. Live y Proto solo cambian
+ * de las estaciones y clases de parte seleccionadas en /infor-sync. Live y Proto solo cambian
  * el ambiente, la tabla YF013, el canal de log y el procedimiento.
  */
 abstract class SyncProductionRecordsToInfor implements ShouldQueue
 {
     use Queueable, CallsInforProcedure;
-
-    /**
-     * Clases de parte que se reportan a Infor.
-     */
-    public const ITEM_CLASSES = ['M1', 'M2', 'M3', 'M4'];
 
     public $tries = 3;
     public $backoff = 60;
@@ -94,7 +89,14 @@ abstract class SyncProductionRecordsToInfor implements ShouldQueue
                 return;
             }
 
-            $productionRecords = $this->getEligibleProductionRecords($setting, $workCenterNumbers);
+            $itemClassIds = $setting->itemClasses()->pluck('item_classes.id')->all();
+
+            if (empty($itemClassIds)) {
+                $this->log()->info("[OMITIDO] {$this->jobName()}: no hay clases de número de parte seleccionadas en /infor-sync, no se envía nada");
+                return;
+            }
+
+            $productionRecords = $this->getEligibleProductionRecords($setting, $workCenterNumbers, $itemClassIds);
 
             if ($productionRecords->isEmpty()) {
                 return;
@@ -138,7 +140,7 @@ abstract class SyncProductionRecordsToInfor implements ShouldQueue
         }
     }
 
-    protected function getEligibleProductionRecords(InforSyncSetting $setting, array $workCenterNumbers)
+    protected function getEligibleProductionRecords(InforSyncSetting $setting, array $workCenterNumbers, array $itemClassIds)
     {
         [$from, $to] = $this->sendWindow();
 
@@ -162,7 +164,6 @@ abstract class SyncProductionRecordsToInfor implements ShouldQueue
                 'statuses.name AS status_name',
             ])
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
-            ->join('item_classes', 'part_numbers.item_class_id', '=', 'item_classes.id')
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
@@ -171,7 +172,7 @@ abstract class SyncProductionRecordsToInfor implements ShouldQueue
             ->where('statuses.name', 'Completado')
             ->whereNotNull('production_records.shop_order_number')
             ->where('part_numbers.is_obsolete', false)
-            ->whereIn('item_classes.abbreviation', self::ITEM_CLASSES)
+            ->whereIn('part_numbers.item_class_id', $itemClassIds)
             ->whereIn('work_centers.number', $workCenterNumbers)
             // Solo desde la fecha de inicio de envío de cada estación
             ->tap(fn ($query) => $setting->applySyncFrom($query))

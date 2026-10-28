@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\InforSyncSetting;
+use App\Models\ItemClass;
 use App\Models\Line;
 use App\Models\WorkCenter;
 use Illuminate\Http\Request;
@@ -22,10 +23,11 @@ class InforSyncSettingController extends Controller
             ->orderBy('name')
             ->get();
 
-        $settings = InforSyncSetting::with('workCenters')->get()->keyBy('environment');
+        $settings = InforSyncSetting::with(['workCenters', 'itemClasses'])->get()->keyBy('environment');
 
         return view('infor-sync.index', [
             'lines' => $lines,
+            'itemClasses' => ItemClass::orderBy('abbreviation')->get(),
             'liveSetting' => $settings->get(InforSyncSetting::ENVIRONMENT_LIVE),
             'protoSetting' => $settings->get(InforSyncSetting::ENVIRONMENT_PROTO),
         ]);
@@ -33,7 +35,8 @@ class InforSyncSettingController extends Controller
 
     /**
      * Guarda la configuración de ambos ambientes. Cada estación seleccionada
-     * requiere su fecha de inicio de envío (corte por fecha planeada).
+     * requiere su fecha de inicio de envío (corte por fecha planeada). Las
+     * clases se guardan por ambiente; sin ninguna, el ambiente no envía nada.
      */
     public function update(Request $request)
     {
@@ -42,6 +45,8 @@ class InforSyncSettingController extends Controller
 
         foreach (self::ENVIRONMENTS as $environment) {
             $rules["{$environment}.enabled"] = ['nullable', 'boolean'];
+            $rules["{$environment}.item_classes"] = ['nullable', 'array'];
+            $rules["{$environment}.item_classes.*"] = ['integer', 'exists:item_classes,id'];
             $rules["{$environment}.stations"] = ['nullable', 'array'];
             $rules["{$environment}.stations.*.selected"] = ['nullable', 'boolean'];
             $rules["{$environment}.stations.*.sync_from"] = [
@@ -62,6 +67,8 @@ class InforSyncSettingController extends Controller
                     ['environment' => $environment],
                     ['enabled' => (bool) ($validated[$environment]['enabled'] ?? false)]
                 );
+
+                $setting->itemClasses()->sync($validated[$environment]['item_classes'] ?? []);
 
                 $syncDates = collect($validated[$environment]['stations'] ?? [])
                     ->filter(fn ($station) => filter_var($station['selected'] ?? false, FILTER_VALIDATE_BOOLEAN))

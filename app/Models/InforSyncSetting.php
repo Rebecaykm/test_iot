@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Query\JoinClause;
 
@@ -11,6 +12,11 @@ class InforSyncSetting extends Model
 {
     public const ENVIRONMENT_LIVE = 'live';
     public const ENVIRONMENT_PROTO = 'proto';
+
+    /**
+     * Clases que vienen seleccionadas en un ambiente que todavía no se configura.
+     */
+    public const DEFAULT_ITEM_CLASSES = ['M1', 'M2', 'M3', 'M4'];
 
     protected $fillable = [
         'environment',
@@ -35,6 +41,15 @@ class InforSyncSetting extends Model
     public function workCenters(): HasMany
     {
         return $this->hasMany(InforSyncWorkCenter::class, 'infor_sync_setting_id');
+    }
+
+    /**
+     * Clases de número de parte que se envían en este ambiente
+     */
+    public function itemClasses(): BelongsToMany
+    {
+        return $this->belongsToMany(ItemClass::class, 'infor_sync_item_classes', 'infor_sync_setting_id', 'item_class_id')
+            ->withTimestamps();
     }
 
     /**

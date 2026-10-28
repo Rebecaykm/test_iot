@@ -34,7 +34,8 @@
                         @php $selected = !empty($option['selected']); @endphp
                         <label class="ms-option {{ $selected ? 'ms-selected' : '' }}"
                             data-value="{{ $option['value'] }}"
-                            data-label="{{ $option['label'] }}">
+                            data-label="{{ $option['label'] }}"
+                            data-chip="{{ $option['chip'] ?? $option['label'] }}">
                             <span class="ms-checkbox">
                                 <i class="fas fa-check ms-check-icon" aria-hidden="true"></i>
                             </span>
@@ -115,8 +116,14 @@
                         selected.forEach(opt => {
                             const chip = document.createElement('span');
                             chip.className = 'ms-chip';
-                            chip.innerHTML = `${opt.dataset.label}<span class="ms-chip-remove" data-value="${opt.dataset.value}">&#x2715;</span>`;
-                            chip.querySelector('.ms-chip-remove').addEventListener('click', e => {
+                            chip.title = opt.dataset.label;
+                            chip.textContent = opt.dataset.chip;
+                            const remove = document.createElement('span');
+                            remove.className = 'ms-chip-remove';
+                            remove.dataset.value = opt.dataset.value;
+                            remove.innerHTML = '&#x2715;';
+                            chip.appendChild(remove);
+                            remove.addEventListener('click', e => {
                                 e.stopPropagation();
                                 deselect(opt.dataset.value);
                             });
