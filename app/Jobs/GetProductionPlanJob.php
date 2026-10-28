@@ -8,6 +8,7 @@ use App\Models\InforSyncWorkCenter;
 use App\Models\PartNumber;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
+use App\Models\Status;
 use Carbon\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -26,33 +27,41 @@ class GetProductionPlanJob implements ShouldQueue
     public function __construct(
         protected ?string $from = null,
         protected ?string $to = null,
-    ) {
-    }
+    ) {}
 
     /**
      * Execute the job.
      */
     public function handle(): void
     {
-        $today = Carbon::today();
+        $currentShift = Shift::getCurrentShiftInfo(Carbon::now());
 
-        $windowStart = ProductionRecord::applyHistoryFloor($this->from ? Carbon::parse($this->from) : $today->copy()->subWeek())->toDateString();
-        $windowEnd = ($this->to ? Carbon::parse($this->to) : $today->copy()->addWeek())->toDateString();
+        if ($currentShift->shift === null) {
+            Log::warning('[GetProductionPlanJob] No se pudo determinar el turno actual; se omite la ejecución.');
+            return;
+        }
 
-        Log::info("[GetProductionPlanJob] Rango de plan: {$windowStart} - {$windowEnd}");
+        $operatingDate = $currentShift->date->copy()->startOfDay();
+        $monthStart = $operatingDate->copy()->startOfMonth()->toDateString();
+        $monthEnd = $operatingDate->copy()->endOfMonth()->startOfDay();
+
+        $windowStart = ProductionRecord::applyHistoryFloor($this->from ? Carbon::parse($this->from) : Carbon::parse($monthStart))->toDateString();
+        $windowEnd = ($this->to ? Carbon::parse($this->to) : $monthEnd->max($operatingDate->copy()->addWeek()))->toDateString();
+
+        Log::info("[GetProductionPlanJob] Rango de plan: {$windowStart} - {$windowEnd}; turno operativo {$operatingDate->toDateString()} {$currentShift->shift->abbreviation}");
 
         $syncFromByWorkCenter = InforSyncWorkCenter::query()
-            ->whereHas('setting', fn ($query) => $query->where('environment', InforSyncSetting::ENVIRONMENT_LIVE))
+            ->whereHas('setting', fn($query) => $query->where('environment', InforSyncSetting::ENVIRONMENT_LIVE))
             ->get(['work_center_id', 'sync_from'])
-            ->mapWithKeys(fn (InforSyncWorkCenter $workCenter) => [$workCenter->work_center_id => $workCenter->sync_from->toDateString()]);
+            ->mapWithKeys(fn(InforSyncWorkCenter $workCenter) => [$workCenter->work_center_id => $workCenter->sync_from->toDateString()]);
 
-        // Si un número de parte está duplicado, manda la estación del id más reciente.
         $workCenterByPartNumber = PartNumber::query()
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->where(fn($query) => $query->where('part_numbers.is_obsolete', false))
             ->orderBy('part_numbers.id')
             ->get(['part_numbers.number', 'part_numbers.work_center_id'])
-            ->mapWithKeys(fn (PartNumber $partNumber) => [trim($partNumber->number) => $partNumber->work_center_id]);
+            ->mapWithKeys(fn(PartNumber $partNumber) => [trim($partNumber->number) => $partNumber->work_center_id]);
 
         $productionPlans = FSO::query()
             ->select(
@@ -68,19 +77,26 @@ class GetProductionPlanJob implements ShouldQueue
             ->orderBy('SORD')
             ->get();
 
-        // D antes que N, para llenar en el orden real de los turnos.
         $shiftPosition = Shift::query()->orderBy('start_time')->pluck('abbreviation')->flip();
 
-        // Un job por número de parte con sus órdenes en orden de fecha y turno: el
-        // acumulador solo llena hacia adelante, así que el orden importa.
-        foreach ($productionPlans->groupBy(fn ($productionPlan) => trim($productionPlan->PART_NUMBER)) as $partNumber => $plans) {
+        $ordersByPartNumber = $productionPlans->groupBy(fn($productionPlan) => trim($productionPlan->PART_NUMBER));
+
+        // PHP convierte a int las llaves numéricas ("5724204010"); se regresan a
+        // string para que SQL Server compare contra nvarchar.
+        $partNumbers = $ordersByPartNumber->keys()
+            ->merge($this->partNumbersWithAccumulators($monthStart, $monthEnd->toDateString()))
+            ->map(fn($partNumber) => (string) $partNumber)
+            ->filter(fn($partNumber) => $workCenterByPartNumber->has($partNumber))
+            ->unique();
+
+        foreach ($partNumbers as $partNumber) {
             $syncFrom = $syncFromByWorkCenter->get($workCenterByPartNumber->get($partNumber));
             $partStart = $syncFrom !== null && $syncFrom > $windowStart ? $syncFrom : $windowStart;
 
-            $orders = $plans
-                ->filter(fn ($productionPlan) => $productionPlan->PLANNED_DATE >= $partStart)
-                ->sortBy(fn ($productionPlan) => $productionPlan->PLANNED_DATE . '|' . ($shiftPosition[$productionPlan->PLANNED_SHIFT] ?? PHP_INT_MAX))
-                ->map(fn ($productionPlan) => [
+            $orders = $ordersByPartNumber->get($partNumber, collect())
+                ->filter(fn($productionPlan) => $productionPlan->PLANNED_DATE >= $partStart)
+                ->sortBy(fn($productionPlan) => $productionPlan->PLANNED_DATE . '|' . ($shiftPosition[$productionPlan->PLANNED_SHIFT] ?? PHP_INT_MAX))
+                ->map(fn($productionPlan) => [
                     'shop_order_number' => $productionPlan->shop_order_number,
                     'planned_quantity' => $productionPlan->planned_quantity,
                     'planned_date' => $productionPlan->PLANNED_DATE,
@@ -89,11 +105,31 @@ class GetProductionPlanJob implements ShouldQueue
                 ->values()
                 ->all();
 
-            if (empty($orders)) {
-                continue;
-            }
-
-            StoreProductionPlanJob::dispatch($partNumber, $orders, $syncFrom, $windowEnd);
+            StoreProductionPlanJob::dispatch($partNumber, $orders, $syncFrom, $operatingDate->toDateString(), $currentShift->shift->id);
         }
+    }
+
+    /**
+     * Números de parte con acumulado "No planeado" en el mes operativo.
+     */
+    protected function partNumbersWithAccumulators(string $monthStart, string $monthEnd): array
+    {
+        $accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
+
+        if (!$accumulatorStatus) {
+            return [];
+        }
+
+        return ProductionRecord::query()
+            ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
+            ->where('production_records.status_id', $accumulatorStatus->id)
+            ->where(fn($query) => $query->whereNull('production_records.shop_order_number')->orWhere('production_records.shop_order_number', ''))
+            ->where('production_records.planned_quantity', 0)
+            ->where('production_records.produced_quantity', '>', 0)
+            ->whereBetween('production_records.planned_date', [$monthStart, $monthEnd])
+            ->distinct()
+            ->pluck('part_numbers.number')
+            ->map(fn($number) => trim($number))
+            ->all();
     }
 }

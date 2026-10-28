@@ -23,7 +23,8 @@ class StoreProductionPlanJob implements ShouldQueue
     protected $part_number;
     protected $orders;
     protected $sync_from;
-    protected $window_end;
+    protected $operating_date;
+    protected $operating_shift_id;
 
     // Orden que se está conciliando; handle() la asigna antes de cada reconcile().
     protected $shop_order_number;
@@ -39,14 +40,16 @@ class StoreProductionPlanJob implements ShouldQueue
      *
      * @param  array  $orders  Órdenes de FSO de la parte, en orden de fecha y turno.
      * @param  string|null  $sync_from  Fecha de arranque (sync_from de Live) de su estación.
-     * @param  string  $window_end  Última fecha que se trajo de FSO.
+     * @param  string  $operating_date  Fecha operativa del turno en curso (el N de madrugada es del día anterior).
+     * @param  int  $operating_shift_id  Turno en curso.
      */
-    public function __construct($part_number, array $orders, ?string $sync_from, string $window_end)
+    public function __construct(string $part_number, array $orders, ?string $sync_from, string $operating_date, int $operating_shift_id)
     {
         $this->part_number = $part_number;
         $this->orders = $orders;
         $this->sync_from = $sync_from;
-        $this->window_end = $window_end;
+        $this->operating_date = $operating_date;
+        $this->operating_shift_id = $operating_shift_id;
     }
 
     /**
@@ -85,7 +88,7 @@ class StoreProductionPlanJob implements ShouldQueue
                     $this->reconcile();
                 }
 
-                $this->parkAccumulatorsAtMonthEnd();
+                $this->consolidateAccumulators();
             });
         } catch (LockTimeoutException $e) {
             Log::warning("StoreProductionPlanJob: la parte {$this->part_number} sigue bloqueada por otro job; sus " . count($this->orders) . ' órdenes regresan a la cola.');
@@ -467,75 +470,63 @@ class StoreProductionPlanJob implements ShouldQueue
     }
 
     /**
-     * Lo que sobra de un mes se queda en su acumulador. Si después de él ya no
-     * hay órdenes del mes que rellenar, se mueve al último día del mes en el
-     * último turno (N). Solo en meses que ya caben completos en la ventana
-     * (todas sus órdenes ya se trajeron de FSO) y nunca "En progreso" (el PLC
-     * puede estar escribiendo). Si ya hay otro acumulador ahí, se juntan.
+     * Lo que sobró del mes operativo, ya llenadas las órdenes, se junta en un
+     * solo acumulador "No planeado" en la fecha/turno operativo actual. Así no
+     * quedan acumulados en fechas anteriores y el último día del mes todo queda
+     * en su último turno. Si ya está en ese turno, solo se suman las cantidades.
+     * Los "En progreso" no se mueven ni se juntan (el recolector puede estar
+     * escribiendo en ellos).
      */
-    protected function parkAccumulatorsAtMonthEnd(): void
+    protected function consolidateAccumulators(): void
     {
         $partNumber = PartNumber::query()->where('number', $this->part_number)->orderByDesc('id')->first();
         $accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
-        $lastShift = $this->shifts->last();
+        $operatingShift = $this->shifts->firstWhere('id', $this->operating_shift_id);
 
-        if (!$partNumber || !$accumulatorStatus || !$lastShift) {
+        if (!$partNumber || !$accumulatorStatus || !$operatingShift) {
             return;
         }
 
-        $windowEnd = Carbon::parse($this->window_end);
-        $lastClosedMonthEnd = $windowEnd->isLastOfMonth() ? $windowEnd : $windowEnd->copy()->startOfMonth()->subDay();
+        $operatingMonth = Carbon::parse($this->operating_date);
 
         $accumulators = ProductionRecord::accumulators($partNumber->id)
             ->where('status_id', $accumulatorStatus->id)
-            ->where('planned_date', '<=', $lastClosedMonthEnd->toDateString())
+            ->whereBetween('planned_date', [
+                $operatingMonth->copy()->startOfMonth()->toDateString(),
+                $operatingMonth->copy()->endOfMonth()->toDateString(),
+            ])
             ->when($this->sync_from !== null, fn ($query) => $query->where('planned_date', '>=', $this->sync_from))
-            ->orderBy('planned_date')
             ->orderBy('id')
             ->get();
 
-        foreach ($accumulators as $accumulator) {
-            $plannedDate = Carbon::parse($accumulator->planned_date)->toDateString();
-            $monthEnd = Carbon::parse($plannedDate)->endOfMonth()->toDateString();
-            $accumulatorShift = $this->shifts->firstWhere('id', $accumulator->shift_id);
+        $isAtOperatingSlot = fn (ProductionRecord $record) => Carbon::parse($record->planned_date)->toDateString() === $this->operating_date
+            && (int) $record->shift_id === (int) $operatingShift->id;
 
-            if (!$accumulatorShift || ($plannedDate === $monthEnd && (int) $accumulatorShift->id === (int) $lastShift->id)) {
-                continue;
-            }
+        // Se conserva el que ya está en el turno actual; si no hay, el más antiguo.
+        $keeper = $accumulators->first($isAtOperatingSlot) ?? $accumulators->first();
 
-            $hasOrdersToFill = ProductionRecord::query()
-                ->where('part_number_id', $partNumber->id)
-                ->whereNotNull('shop_order_number')
-                ->where('shop_order_number', '<>', '')
-                ->where('synced_to_infor', false)
-                ->whereColumn('produced_quantity', '<', 'planned_quantity')
-                ->where('planned_date', '<=', $monthEnd)
-                ->where(fn ($query) => $query->where('planned_date', '>', $plannedDate)
-                    ->orWhere(fn ($query) => $query->where('planned_date', $plannedDate)
-                        ->whereIn('shift_id', $this->shiftIdsWhere('>', $accumulatorShift))))
-                ->exists();
+        if ($keeper === null) {
+            return;
+        }
 
-            if ($hasOrdersToFill) {
-                continue;
-            }
+        if (!$isAtOperatingSlot($keeper)) {
+            $previousSlot = Carbon::parse($keeper->planned_date)->toDateString() . " turno #{$keeper->shift_id}";
 
-            $producedQuantity = (int) $accumulator->produced_quantity;
-
-            $accumulator->update([
-                'planned_date' => $monthEnd,
-                'shift_id' => $lastShift->id,
+            $keeper->update([
+                'planned_date' => $this->operating_date,
+                'shift_id' => $operatingShift->id,
             ]);
 
-            $sharesSlot = ProductionRecord::accumulators($partNumber->id)
-                ->where('status_id', $accumulatorStatus->id)
-                ->where('id', '!=', $accumulator->id)
-                ->where('planned_date', $monthEnd)
-                ->where('shift_id', $lastShift->id)
-                ->exists();
+            Log::info("Acumulador #{$keeper->id} (parte {$this->part_number}, {$keeper->produced_quantity} piezas) se movió de {$previousSlot} a {$this->operating_date} turno {$operatingShift->abbreviation}.");
+        }
 
-            $target = $sharesSlot ? ProductionRecord::moveToAccumulator($partNumber, $accumulator) : $accumulator;
+        foreach ($accumulators->reject(fn (ProductionRecord $record) => $record->is($keeper)) as $record) {
+            $producedQuantity = (int) $record->produced_quantity;
+            $previousSlot = Carbon::parse($record->planned_date)->toDateString() . " turno #{$record->shift_id}";
 
-            Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) ya no tiene órdenes que rellenar en su mes; sus {$producedQuantity} piezas pasaron de {$plannedDate} turno {$accumulatorShift->abbreviation} a {$monthEnd} turno {$lastShift->abbreviation}" . ($sharesSlot ? " y se juntaron con el acumulador #{$target->id}." : '.'));
+            ProductionRecord::moveToAccumulator($partNumber, $record, $keeper);
+
+            Log::info("Acumulador #{$record->id} (parte {$this->part_number}, {$previousSlot}) se juntó con el acumulador #{$keeper->id}: {$producedQuantity} piezas en {$this->operating_date} turno {$operatingShift->abbreviation}.");
         }
     }
 
@@ -552,8 +543,9 @@ class StoreProductionPlanJob implements ShouldQueue
      * Si el sistema externo escribió producción sin orden en un id viejo
      * (duplicado) de este número de parte, se pasa al acumulador del id
      * correcto para que se reparta en las órdenes. Los "En progreso" se dejan
-     * (el PLC puede seguir escribiendo en ellos) y los ya sincronizados con
-     * Infor no se tocan. Los que traen orden los mueve la búsqueda por orden.
+     * (el PLC puede seguir escribiendo en ellos), los "No verificado" no son
+     * acumulado y se ignoran, y los ya sincronizados con Infor no se tocan. Los
+     * que traen orden los mueve la búsqueda por orden.
      */
     protected function absorbDuplicatedPartNumberRecords(PartNumber $partNumber, Collection $partNumberIds, ?Status $inProgressStatus): void
     {
@@ -563,6 +555,8 @@ class StoreProductionPlanJob implements ShouldQueue
             return;
         }
 
+        $unverifiedStatus = Status::where('name', 'LIKE', 'No verificado')->first();
+
         ProductionRecord::query()
             ->whereIn('part_number_id', $oldIds)
             ->where('synced_to_infor', false)
@@ -571,6 +565,9 @@ class StoreProductionPlanJob implements ShouldQueue
             ->where('planned_date', '>=', ProductionRecord::HISTORY_FLOOR_DATE)
             ->when($inProgressStatus, fn ($query) => $query->where(
                 fn ($query) => $query->whereNull('status_id')->orWhere('status_id', '!=', $inProgressStatus->id)
+            ))
+            ->when($unverifiedStatus, fn ($query) => $query->where(
+                fn ($query) => $query->whereNull('status_id')->orWhere('status_id', '!=', $unverifiedStatus->id)
             ))
             ->orderBy('id')
             ->get()

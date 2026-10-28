@@ -230,16 +230,17 @@ class ProductionRecord extends Model
      * $source (el más antiguo), para que la producción no cambie de mes ni
      * llene órdenes anteriores a cuando se hizo. Nunca uno "En progreso",
      * porque el PLC puede estar escribiendo en él. Si no hay ninguno, crea uno
-     * en la fecha/turno de $source.
+     * en la fecha/turno de $source. Con $into se junta en ese acumulador en vez
+     * de buscarlo.
      */
-    public static function moveToAccumulator(PartNumber $partNumber, self $source): self
+    public static function moveToAccumulator(PartNumber $partNumber, self $source, ?self $into = null): self
     {
-        return DB::transaction(function () use ($partNumber, $source) {
+        return DB::transaction(function () use ($partNumber, $source, $into) {
             $accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
             $producedQuantity = (int) $source->produced_quantity;
             $scrapQuantity = (int) $source->scrap_quantity;
 
-            $accumulator = self::accumulators($partNumber->id)
+            $accumulator = $into ?? self::accumulators($partNumber->id)
                 ->where('id', '!=', $source->id)
                 ->where('status_id', $accumulatorStatus->id)
                 ->where('planned_date', Carbon::parse($source->planned_date)->toDateString())

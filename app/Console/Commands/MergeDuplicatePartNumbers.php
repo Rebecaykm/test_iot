@@ -43,6 +43,8 @@ class MergeDuplicatePartNumbers extends Command
 
     protected ?Status $accumulatorStatus = null;
 
+    protected ?Status $unverifiedStatus = null;
+
     public function handle()
     {
         $dryRun = (bool) $this->option('dry-run');
@@ -53,6 +55,7 @@ class MergeDuplicatePartNumbers extends Command
 
         $this->inProgressStatus = Status::where('name', 'LIKE', 'En progreso')->first();
         $this->accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
+        $this->unverifiedStatus = Status::where('name', 'LIKE', 'No verificado')->first();
 
         $numbers = $this->targetNumbers(collect($this->argument('numbers'))->map(fn ($number) => trim($number))->filter());
 
@@ -162,7 +165,8 @@ class MergeDuplicatePartNumbers extends Command
                 continue;
             }
 
-            if (empty($record->shop_order_number) && (int) $record->produced_quantity > 0) {
+            // "No verificado" no es acumulado: se pasa tal cual al id correcto.
+            if (empty($record->shop_order_number) && (int) $record->produced_quantity > 0 && !$this->isUnverified($record)) {
                 $producedQuantity = (int) $record->produced_quantity;
                 $accumulator = ProductionRecord::moveToAccumulator($target, $record);
                 $this->line("  {$label}: sin orden, {$producedQuantity} pzs pasan al acumulador #{$accumulator->id}.");
@@ -330,6 +334,11 @@ class MergeDuplicatePartNumbers extends Command
     protected function isInProgress(ProductionRecord $record): bool
     {
         return $this->inProgressStatus !== null && (int) $record->status_id === (int) $this->inProgressStatus->id;
+    }
+
+    protected function isUnverified(ProductionRecord $record): bool
+    {
+        return $this->unverifiedStatus !== null && (int) $record->status_id === (int) $this->unverifiedStatus->id;
     }
 
     protected function describe(ProductionRecord $record): string
