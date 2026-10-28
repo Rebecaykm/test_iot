@@ -105,6 +105,10 @@
                                     'Completado'  => ['badge' => 'success', 'icon' => 'check-circle'],
                                     'En progreso' => ['badge' => 'primary', 'icon' => 'sync-alt'],
                                     'Detenido'    => ['badge' => 'danger',  'icon' => 'stop-circle'],
+                                    'Incompleto'  => ['badge' => 'orange',  'icon' => 'adjust'],
+                                    'Expirado'    => ['badge' => 'secondary', 'icon' => 'clock'],
+                                    'Cancelado'   => ['badge' => 'dark',    'icon' => 'ban'],
+                                    'No verificado' => ['badge' => 'warning', 'icon' => 'question-circle'],
                                 ];
                                 $statusCfg = $statusConfig[$record->status_name] ?? ['badge' => 'secondary', 'icon' => 'info-circle'];
                             @endphp

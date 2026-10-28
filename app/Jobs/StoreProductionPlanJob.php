@@ -152,6 +152,14 @@ class StoreProductionPlanJob implements ShouldQueue
             return;
         }
 
+        // Cerrada con su mes (iot:close-previous-month): aunque Infor la reprograme
+        // no se mueve al mes nuevo ni se crea otro registro con la misma orden.
+        $closedStatusIds = Status::whereIn('name', ['Incompleto', 'Expirado'])->pluck('id')->map(fn ($id) => (int) $id);
+        if ($orderRecords->contains(fn ($record) => $closedStatusIds->contains((int) $record->status_id))) {
+            Log::info("Orden {$this->shop_order_number} (parte {$this->part_number}) se cerró con su mes; no se modifica.");
+            return;
+        }
+
         if ($orderRecords->count() > 1) {
             Log::warning("Orden {$this->shop_order_number} (parte {$this->part_number}) repetida en los registros #" . $orderRecords->pluck('id')->implode(', #') . "; se usa #{$orderRecords->first()->id}. Correr iot:merge-duplicate-part-numbers.");
         }
@@ -572,8 +580,9 @@ class StoreProductionPlanJob implements ShouldQueue
      * (duplicado) de este número de parte, se pasa al acumulador del id
      * correcto para que se reparta en las órdenes. Los "En progreso" se dejan
      * (el PLC puede seguir escribiendo en ellos), los "No verificado" no son
-     * acumulado y se ignoran, y los ya sincronizados con Infor no se tocan. Los
-     * que traen orden los mueve la búsqueda por orden.
+     * acumulado, los "Expirado" y "Cancelado" ya se cerraron, y los ya
+     * sincronizados con Infor no se tocan. Los que traen orden los mueve la
+     * búsqueda por orden.
      */
     protected function absorbDuplicatedPartNumberRecords(PartNumber $partNumber, Collection $partNumberIds, ?Status $inProgressStatus): void
     {
@@ -583,7 +592,7 @@ class StoreProductionPlanJob implements ShouldQueue
             return;
         }
 
-        $unverifiedStatus = Status::where('name', 'LIKE', 'No verificado')->first();
+        $keptStatusIds = Status::whereIn('name', ['No verificado', 'Expirado', 'Cancelado'])->pluck('id')->all();
 
         ProductionRecord::query()
             ->whereIn('part_number_id', $oldIds)
@@ -594,8 +603,8 @@ class StoreProductionPlanJob implements ShouldQueue
             ->when($inProgressStatus, fn ($query) => $query->where(
                 fn ($query) => $query->whereNull('status_id')->orWhere('status_id', '!=', $inProgressStatus->id)
             ))
-            ->when($unverifiedStatus, fn ($query) => $query->where(
-                fn ($query) => $query->whereNull('status_id')->orWhere('status_id', '!=', $unverifiedStatus->id)
+            ->when($keptStatusIds, fn ($query) => $query->where(
+                fn ($query) => $query->whereNull('status_id')->orWhereNotIn('status_id', $keptStatusIds)
             ))
             ->orderBy('id')
             ->get()

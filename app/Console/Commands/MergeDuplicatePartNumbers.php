@@ -43,7 +43,11 @@ class MergeDuplicatePartNumbers extends Command
 
     protected ?Status $accumulatorStatus = null;
 
-    protected ?Status $unverifiedStatus = null;
+    /**
+     * Estados que no son acumulado ("No verificado") o ya se cerraron
+     * ("Expirado", "Cancelado"): sus registros se pasan tal cual al id correcto.
+     */
+    protected array $keptStatusIds = [];
 
     public function handle()
     {
@@ -55,7 +59,7 @@ class MergeDuplicatePartNumbers extends Command
 
         $this->inProgressStatus = Status::where('name', 'LIKE', 'En progreso')->first();
         $this->accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
-        $this->unverifiedStatus = Status::where('name', 'LIKE', 'No verificado')->first();
+        $this->keptStatusIds = Status::whereIn('name', ['No verificado', 'Expirado', 'Cancelado'])->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         $numbers = $this->targetNumbers(collect($this->argument('numbers'))->map(fn ($number) => trim($number))->filter());
 
@@ -165,8 +169,8 @@ class MergeDuplicatePartNumbers extends Command
                 continue;
             }
 
-            // "No verificado" no es acumulado: se pasa tal cual al id correcto.
-            if (empty($record->shop_order_number) && (int) $record->produced_quantity > 0 && !$this->isUnverified($record)) {
+            // "No verificado", "Expirado" y "Cancelado" se pasan tal cual al id correcto.
+            if (empty($record->shop_order_number) && (int) $record->produced_quantity > 0 && !$this->keepsStatus($record)) {
                 $producedQuantity = (int) $record->produced_quantity;
                 $accumulator = ProductionRecord::moveToAccumulator($target, $record);
                 $this->line("  {$label}: sin orden, {$producedQuantity} pzs pasan al acumulador #{$accumulator->id}.");
@@ -336,9 +340,9 @@ class MergeDuplicatePartNumbers extends Command
         return $this->inProgressStatus !== null && (int) $record->status_id === (int) $this->inProgressStatus->id;
     }
 
-    protected function isUnverified(ProductionRecord $record): bool
+    protected function keepsStatus(ProductionRecord $record): bool
     {
-        return $this->unverifiedStatus !== null && (int) $record->status_id === (int) $this->unverifiedStatus->id;
+        return in_array((int) $record->status_id, $this->keptStatusIds, true);
     }
 
     protected function describe(ProductionRecord $record): string

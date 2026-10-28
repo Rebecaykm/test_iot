@@ -16,6 +16,9 @@ Schedule::command('iot:die-identifier')->dailyAt('03:00')->withoutOverlapping();
 Schedule::command('iot:part-shots')->dailyAt('03:10')->withoutOverlapping();
 Schedule::command('iot:part-number-relations')->dailyAt('03:20')->withoutOverlapping();
 Schedule::command('iot:production-plan')->hourly()->withoutOverlapping();
+// Cierra el mes anterior después del turno N del último día (termina a las 08:00);
+// diario para que, si el día 1 no corrió, se cierre al siguiente.
+Schedule::command('iot:close-previous-month')->dailyAt('08:10')->withoutOverlapping();
 
 // Schedule::command('iot:recover-production-order-numbers-live')->hourly()->withoutOverlapping();
 // Schedule::command('iot:recover-production-order-numbers-proto')->hourly()->withoutOverlapping();

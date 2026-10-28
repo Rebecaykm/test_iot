@@ -15,9 +15,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Envía a la tabla de paso YF013 de Infor los registros Completado con orden
- * de las estaciones y clases de parte seleccionadas en /infor-sync. Live y Proto solo cambian
- * el ambiente, la tabla YF013, el canal de log y el procedimiento.
+ * Envía a la tabla de paso YF013 de Infor los registros Completado (y los
+ * Incompleto del mes anterior) con orden de las estaciones y clases de parte
+ * seleccionadas en /infor-sync. Live y Proto solo cambian el ambiente, la
+ * tabla YF013, el canal de log y el procedimiento.
  */
 abstract class SyncProductionRecordsToInfor implements ShouldQueue
 {
@@ -142,7 +143,7 @@ abstract class SyncProductionRecordsToInfor implements ShouldQueue
 
     protected function getEligibleProductionRecords(InforSyncSetting $setting, array $workCenterNumbers, array $itemClassIds)
     {
-        [$from, $to] = $this->sendWindow();
+        [$monthFrom, $monthTo, $previousFrom, $previousTo] = $this->sendWindow();
 
         return ProductionRecord::query()
             ->select([
@@ -169,38 +170,41 @@ abstract class SyncProductionRecordsToInfor implements ShouldQueue
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
             ->where('production_records.synced_to_infor', false)
             ->where('production_records.produced_quantity', '>', 0)
-            ->where('statuses.name', 'Completado')
             ->whereNotNull('production_records.shop_order_number')
             ->where('part_numbers.is_obsolete', false)
             ->whereIn('part_numbers.item_class_id', $itemClassIds)
             ->whereIn('work_centers.number', $workCenterNumbers)
             // Solo desde la fecha de inicio de envío de cada estación
             ->tap(fn ($query) => $setting->applySyncFrom($query))
-            ->whereBetween('production_records.planned_date', [$from, $to])
+            // Completado del mes operativo, más lo que quedó del mes anterior al
+            // cerrarlo (iot:close-previous-month): Completado e Incompleto
+            ->where(fn ($query) => $query
+                ->where(fn ($query) => $query->where('statuses.name', 'Completado')
+                    ->whereBetween('production_records.planned_date', [$monthFrom, $monthTo]))
+                ->orWhere(fn ($query) => $query->whereIn('statuses.name', ['Completado', 'Incompleto'])
+                    ->whereBetween('production_records.planned_date', [$previousFrom, $previousTo])))
             ->get();
     }
 
     /**
-     * Fechas planeadas que se envían: solo el mes operativo (el N antes de las
-     * 08:00 es del día anterior). El día 1 en turno D también se envía el
-     * último día del mes anterior, porque su turno N termina el 1 a las 08:00.
+     * Fechas planeadas que se envían: el mes operativo (el N antes de las 08:00
+     * es del día anterior) y el mes inmediato anterior, del que solo salen los
+     * Completado e Incompleto que quedaron sin enviar. Así lo del último turno N
+     * del mes, que termina el día 1 a las 08:00, también se envía.
      *
-     * @return array{0: string, 1: string}
+     * @return array{0: string, 1: string, 2: string, 3: string}
      */
     protected function sendWindow(): array
     {
         $currentShift = Shift::getCurrentShiftInfo(Carbon::now());
-        $operatingDate = $currentShift->date->copy()->startOfDay();
-
-        $from = $operatingDate->copy()->startOfMonth();
-
-        if ($operatingDate->day === 1 && $currentShift->shift?->abbreviation === 'D') {
-            $from = $operatingDate->copy()->subDay();
-        }
+        $monthStart = $currentShift->date->copy()->startOfMonth();
+        $previousMonthStart = $monthStart->copy()->subMonth();
 
         return [
-            ProductionRecord::applyHistoryFloor($from)->toDateString(),
-            $operatingDate->copy()->endOfMonth()->toDateString(),
+            ProductionRecord::applyHistoryFloor($monthStart->copy())->toDateString(),
+            $monthStart->copy()->endOfMonth()->toDateString(),
+            ProductionRecord::applyHistoryFloor($previousMonthStart->copy())->toDateString(),
+            $previousMonthStart->copy()->endOfMonth()->toDateString(),
         ];
     }
 

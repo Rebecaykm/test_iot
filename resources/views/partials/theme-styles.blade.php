@@ -232,6 +232,8 @@
     .badge-soft.badge-danger    { background: #fef2f2; color: #b91c1c; }
     .badge-soft.badge-warning   { background: #fefce8; color: #92400e; }
     .badge-soft.badge-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+    .badge-soft.badge-orange    { background: #fff7ed; color: #c2410c; }
+    .badge-soft.badge-dark      { background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; }
 
     /* ── Campos de formulario ── */
     .field-label {
