@@ -48,6 +48,8 @@ class GetProductionPlanJob implements ShouldQueue
         $windowStart = ProductionRecord::applyHistoryFloor($this->from ? Carbon::parse($this->from) : Carbon::parse($monthStart))->toDateString();
         $windowEnd = ($this->to ? Carbon::parse($this->to) : $monthEnd->max($operatingDate->copy()->addWeek()))->toDateString();
 
+        $this->cancelObsoletePartRecords();
+
         Log::info("[GetProductionPlanJob] Rango de plan: {$windowStart} - {$windowEnd}; turno operativo {$operatingDate->toDateString()} {$currentShift->shift->abbreviation}");
 
         $syncFromByWorkCenter = InforSyncWorkCenter::query()
@@ -110,7 +112,49 @@ class GetProductionPlanJob implements ShouldQueue
     }
 
     /**
-     * Números de parte con acumulado "No planeado" en el mes operativo.
+     * Los registros de partes obsoletas (sin ningún id vigente con ese número)
+     * pasan a "Cancelado" para que no se envíen a Infor. Se quedan en su fecha
+     * y turno, sin juntarse, para revisar después por qué hubo producción. No se
+     * tocan los "En progreso" (el recolector puede estar escribiendo) ni los ya
+     * sincronizados. Los ids viejos de partes duplicadas no entran: su número
+     * todavía tiene un id vigente.
+     */
+    protected function cancelObsoletePartRecords(): void
+    {
+        $cancelledStatus = Status::where('name', 'LIKE', 'Cancelado')->first();
+        $inProgressStatus = Status::where('name', 'LIKE', 'En progreso')->first();
+
+        if (!$cancelledStatus) {
+            return;
+        }
+
+        $recordIds = ProductionRecord::query()
+            ->whereIn('part_number_id', fn($query) => $query->select('obsolete.id')
+                ->from('part_numbers as obsolete')
+                ->where('obsolete.is_obsolete', true)
+                ->whereNotExists(fn($query) => $query->from('part_numbers as active')
+                    ->whereColumn('active.number', 'obsolete.number')
+                    ->where('active.is_obsolete', false)))
+            ->where('synced_to_infor', false)
+            ->where('planned_date', '>=', ProductionRecord::HISTORY_FLOOR_DATE)
+            ->where(fn($query) => $query->whereNull('status_id')
+                ->orWhereNotIn('status_id', array_filter([$cancelledStatus->id, $inProgressStatus?->id])))
+            ->orderBy('id')
+            ->pluck('id');
+
+        // SQL Server acepta máximo 2100 parámetros por consulta.
+        foreach ($recordIds->chunk(1000) as $chunk) {
+            ProductionRecord::query()->whereIn('id', $chunk->all())->update(['status_id' => $cancelledStatus->id]);
+        }
+
+        if ($recordIds->isNotEmpty()) {
+            Log::info('[GetProductionPlanJob] ' . $recordIds->count() . ' registros de partes obsoletas pasaron a Cancelado: #' . $recordIds->implode(', #'));
+        }
+    }
+
+    /**
+     * Números de parte con acumulado "No planeado" en el mes operativo,
+     * incluidos los que quedaron en cero (se descartan al consolidar).
      */
     protected function partNumbersWithAccumulators(string $monthStart, string $monthEnd): array
     {
@@ -125,7 +169,6 @@ class GetProductionPlanJob implements ShouldQueue
             ->where('production_records.status_id', $accumulatorStatus->id)
             ->where(fn($query) => $query->whereNull('production_records.shop_order_number')->orWhere('production_records.shop_order_number', ''))
             ->where('production_records.planned_quantity', 0)
-            ->where('production_records.produced_quantity', '>', 0)
             ->whereBetween('production_records.planned_date', [$monthStart, $monthEnd])
             ->distinct()
             ->pluck('part_numbers.number')

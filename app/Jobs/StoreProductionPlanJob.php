@@ -487,6 +487,8 @@ class StoreProductionPlanJob implements ShouldQueue
             return;
         }
 
+        $this->discardEmptyAccumulators($partNumber, $accumulatorStatus);
+
         $operatingMonth = Carbon::parse($this->operating_date);
 
         $accumulators = ProductionRecord::accumulators($partNumber->id)
@@ -528,6 +530,32 @@ class StoreProductionPlanJob implements ShouldQueue
 
             Log::info("Acumulador #{$record->id} (parte {$this->part_number}, {$previousSlot}) se juntó con el acumulador #{$keeper->id}: {$producedQuantity} piezas en {$this->operating_date} turno {$operatingShift->abbreviation}.");
         }
+    }
+
+    /**
+     * Un acumulador "No planeado" sin orden, sin plan y sin producción ya no
+     * guarda nada: se borra. Los que tienen etiquetas no se pueden borrar y se
+     * dejan. Los "En progreso" no entran porque el recolector puede estar
+     * escribiendo en ellos.
+     */
+    protected function discardEmptyAccumulators(PartNumber $partNumber, Status $accumulatorStatus): void
+    {
+        ProductionRecord::query()
+            ->where('part_number_id', $partNumber->id)
+            ->whereNotExists(fn ($query) => $query->from('production_labels')->whereColumn('production_labels.production_record_id', 'production_records.id'))
+            ->where('status_id', $accumulatorStatus->id)
+            ->where(fn ($query) => $query->whereNull('shop_order_number')->orWhere('shop_order_number', ''))
+            ->where('planned_quantity', 0)
+            ->where('produced_quantity', 0)
+            ->where('synced_to_infor', false)
+            ->where('planned_date', '>=', ProductionRecord::HISTORY_FLOOR_DATE)
+            ->orderBy('id')
+            ->get()
+            ->each(function (ProductionRecord $record) use ($partNumber) {
+                ProductionRecord::discard($record, $partNumber);
+
+                Log::info("Acumulador #{$record->id} (parte {$this->part_number}, " . Carbon::parse($record->planned_date)->toDateString() . ") estaba en cero y se descartó.");
+            });
     }
 
     /**
