@@ -37,7 +37,8 @@ class GetProductionPlanJob implements ShouldQueue
         $defaultEnd = $today->copy()->addWeek()->endOfWeek();
 
         $startDate = ProductionRecord::applyHistoryFloor($this->from ? Carbon::parse($this->from) : $defaultStart)->format('Ymd');
-        $endDate = ($this->to ? Carbon::parse($this->to) : $defaultEnd)->format('Ymd');
+        // Temporal: no se traen órdenes después de PLAN_CUTOFF_DATE.
+        $endDate = ($this->to ? Carbon::parse($this->to) : $defaultEnd)->min(Carbon::parse(ProductionRecord::PLAN_CUTOFF_DATE))->format('Ymd');
 
         Log::info("[GetProductionPlanJob] Rango de plan: {$startDate} - {$endDate}");
 

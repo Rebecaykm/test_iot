@@ -47,6 +47,12 @@ class ProductionRecord extends Model
      */
     const HISTORY_FLOOR_DATE = '2026-09-21';
 
+    /**
+     * Temporal: último día de plan que se trae de FSO y que se envía a Infor.
+     * Se quita al desplegar los cambios de noviembre.
+     */
+    const PLAN_CUTOFF_DATE = '2026-10-31';
+
     /** Recorta una fecha para que nunca quede antes de HISTORY_FLOOR_DATE. */
     public static function applyHistoryFloor(Carbon $date): Carbon
     {

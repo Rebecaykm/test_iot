@@ -139,6 +139,8 @@ class SyncProductionRecordsLive implements ShouldQueue
                 ProductionRecord::applyHistoryFloor(Carbon::now()->subWeek()->startOfWeek()),
                 Carbon::now()->addWeek()->endOfWeek()
             ])
+            // Temporal: nada con fecha planeada después de PLAN_CUTOFF_DATE se envía a Infor.
+            ->where('production_records.planned_date', '<=', ProductionRecord::PLAN_CUTOFF_DATE)
             ->get();
     }
 
