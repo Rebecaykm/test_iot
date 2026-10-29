@@ -26,10 +26,8 @@ class GetDieIdentifier extends Command
      */
     public function handle()
     {
-        info("Process GetDieIdentifier is running at " . now());
+        $this->info("GetDieIdentifier en cola");
 
         GetDieIdentifierJob::dispatch();
-
-        info("Process GetDieIdentifier completed at " . now());
     }
 }

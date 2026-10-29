@@ -26,11 +26,9 @@ class GetPartShots extends Command
      */
     public function handle()
     {
-        info("Process GetPartShotsJob is running at " . now());
+        $this->info("GetPartShotsJob en cola");
 
         GetPartShotsJob::dispatch();
-
-        info("Process GetPartShotsJob completed at " . now());
 
         /**
          * Query

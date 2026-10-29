@@ -37,7 +37,7 @@ class GetProductionPlanJob implements ShouldQueue
         $currentShift = Shift::getCurrentShiftInfo(Carbon::now());
 
         if ($currentShift->shift === null) {
-            Log::warning('[GetProductionPlanJob] No se pudo determinar el turno actual; se omite la ejecución.');
+            Log::warning('[Plan] No se pudo determinar el turno actual; se omite la ejecución.');
             return;
         }
 
@@ -49,8 +49,6 @@ class GetProductionPlanJob implements ShouldQueue
         $windowEnd = ($this->to ? Carbon::parse($this->to) : $monthEnd->max($operatingDate->copy()->addWeek()))->toDateString();
 
         $this->cancelObsoletePartRecords();
-
-        Log::info("[GetProductionPlanJob] Rango de plan: {$windowStart} - {$windowEnd}; turno operativo {$operatingDate->toDateString()} {$currentShift->shift->abbreviation}");
 
         $syncFromByWorkCenter = InforSyncWorkCenter::query()
             ->whereHas('setting', fn($query) => $query->where('environment', InforSyncSetting::ENVIRONMENT_LIVE))
@@ -109,6 +107,8 @@ class GetProductionPlanJob implements ShouldQueue
 
             StoreProductionPlanJob::dispatch($partNumber, $orders, $syncFrom, $operatingDate->toDateString(), $currentShift->shift->id);
         }
+
+        Log::info("[Plan] Rango {$windowStart} a {$windowEnd} · turno {$operatingDate->toDateString()} {$currentShift->shift->abbreviation} · {$productionPlans->count()} órdenes de FSO · {$partNumbers->count()} partes en cola");
     }
 
     /**
@@ -148,7 +148,9 @@ class GetProductionPlanJob implements ShouldQueue
         }
 
         if ($recordIds->isNotEmpty()) {
-            Log::info('[GetProductionPlanJob] ' . $recordIds->count() . ' registros de partes obsoletas pasaron a Cancelado: #' . $recordIds->implode(', #'));
+            $rest = $recordIds->count() - 20;
+
+            Log::info("[Plan] {$recordIds->count()} registros de partes obsoletas pasaron a Cancelado: #" . $recordIds->take(20)->implode(', #') . ($rest > 0 ? " y {$rest} más" : ''));
         }
     }
 

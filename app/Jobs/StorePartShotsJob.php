@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\PartNumber;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
 
 class StorePartShotsJob implements ShouldQueue
 {
@@ -31,7 +30,6 @@ class StorePartShotsJob implements ShouldQueue
         $part = PartNumber::where('number', $this->partNumber)->orderByDesc('id')->first();
 
         if ($part) {
-            Log::debug("GetPartShotsJob", ['partNumber' => $this->partNumber, 'piecesPerShot' => $this->piecesPerShot]);
             $currentValue = $part->getCustomAttributeValue('pieces_per_shot');
 
             if ($currentValue != $this->piecesPerShot) {

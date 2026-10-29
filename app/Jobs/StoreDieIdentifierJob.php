@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\PartNumber;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
 
 class StoreDieIdentifierJob implements ShouldQueue
 {
@@ -33,12 +32,6 @@ class StoreDieIdentifierJob implements ShouldQueue
         $part = PartNumber::where('number', $this->partNumber)->orderByDesc('id')->first();
 
         if ($part) {
-            Log::debug("StoreDieIdentifierJob", [
-                'partNumber'    => $this->partNumber,
-                'dieNumber'     => $this->dieNumber,
-                'piecesPerShot' => $this->piecesPerShot,
-            ]);
-
             if ($part->getCustomAttributeValue('mid') != $this->dieNumber) {
                 $part->setCustomAttributeValue('mid', $this->dieNumber);
             }

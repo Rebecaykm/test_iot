@@ -36,6 +36,23 @@ class StoreProductionPlanJob implements ShouldQueue
     protected ?Collection $shifts = null;
 
     /**
+     * Cambios de la corrida, por tipo; al final se escribe una sola línea por
+     * parte. Las órdenes sin cambios no se registran.
+     *
+     * @var array<string, list<string>>
+     */
+    protected array $changes = [];
+
+    /** @var list<string> */
+    protected array $warnings = [];
+
+    /** Máximo de detalles por tipo de cambio en la línea del log. */
+    protected const LOG_DETAILS = 10;
+
+    /** Horas que una advertencia idéntica no se vuelve a escribir. */
+    protected const WARNING_SILENCE_HOURS = 24;
+
+    /**
      * Create a new job instance.
      *
      * @param  array  $orders  Órdenes de FSO de la parte, en orden de fecha y turno.
@@ -89,9 +106,11 @@ class StoreProductionPlanJob implements ShouldQueue
                 }
 
                 $this->consolidateAccumulators();
+
+                $this->writeLog();
             });
         } catch (LockTimeoutException $e) {
-            Log::warning("StoreProductionPlanJob: la parte {$this->part_number} sigue bloqueada por otro job; sus " . count($this->orders) . ' órdenes regresan a la cola.');
+            Log::warning("[Plan] {$this->part_number} · bloqueada por otro job; sus " . count($this->orders) . ' órdenes regresan a la cola');
             $this->release(15);
         }
     }
@@ -148,7 +167,6 @@ class StoreProductionPlanJob implements ShouldQueue
 
         // Ya está en Infor: no se mueve ni se crea otro registro con la misma orden.
         if ($orderRecords->contains(fn ($record) => $record->synced_to_infor)) {
-            Log::info("Orden {$this->shop_order_number} (parte {$this->part_number}) ya está sincronizada con Infor; no se modifica.");
             return;
         }
 
@@ -156,12 +174,11 @@ class StoreProductionPlanJob implements ShouldQueue
         // no se mueve al mes nuevo ni se crea otro registro con la misma orden.
         $closedStatusIds = Status::whereIn('name', ['Incompleto', 'Expirado'])->pluck('id')->map(fn ($id) => (int) $id);
         if ($orderRecords->contains(fn ($record) => $closedStatusIds->contains((int) $record->status_id))) {
-            Log::info("Orden {$this->shop_order_number} (parte {$this->part_number}) se cerró con su mes; no se modifica.");
             return;
         }
 
         if ($orderRecords->count() > 1) {
-            Log::warning("Orden {$this->shop_order_number} (parte {$this->part_number}) repetida en los registros #" . $orderRecords->pluck('id')->implode(', #') . "; se usa #{$orderRecords->first()->id}. Correr iot:merge-duplicate-part-numbers.");
+            $this->warn("orden {$this->shop_order_number} repetida en #" . $orderRecords->pluck('id')->implode(', #') . "; se usa #{$orderRecords->first()->id}. Correr iot:merge-duplicate-part-numbers");
         }
 
         $existingRecord = $orderRecords->first();
@@ -171,15 +188,13 @@ class StoreProductionPlanJob implements ShouldQueue
             || Carbon::parse($existingRecord->planned_date)->toDateString() !== $plannedDateStr
             || (int) $existingRecord->shift_id !== (int) $shift->id
         )) {
-            $previousSlot = Carbon::parse($existingRecord->planned_date)->toDateString() . " turno #{$existingRecord->shift_id}, parte #{$existingRecord->part_number_id}";
-
             $existingRecord->update([
                 'part_number_id' => $partNumber->id,
                 'planned_date' => $this->planned_date,
                 'shift_id' => $shift->id,
             ]);
 
-            Log::info("Orden {$this->shop_order_number} (parte {$this->part_number}) cambió en Infor; el registro #{$existingRecord->id} se movió de {$previousSlot} a {$plannedDateStr} turno {$this->planned_shift}, parte #{$partNumber->id}.");
+            $this->change('reprogramadas', "{$this->shop_order_number} → {$plannedDateStr} {$this->planned_shift}");
         }
 
         // Si la orden todavía no existe, se usa un registro libre (sin orden) del
@@ -227,12 +242,8 @@ class StoreProductionPlanJob implements ShouldQueue
                 : $accumulatorCandidates->first();
 
             if ($accumulator === null && $accumulatorCandidates->count() > 1) {
-                Log::warning("Varios acumuladores En progreso para la parte {$this->part_number} (IDs: " . $accumulatorCandidates->pluck('id')->implode(', ') . "). Se omite conciliación de la orden {$this->shop_order_number}; revisar manualmente.");
+                $this->warn("orden {$this->shop_order_number} sin conciliar: varios acumulados En progreso (#" . $accumulatorCandidates->pluck('id')->implode(', #') . ')');
             } elseif ($accumulator !== null) {
-                if ($accumulatorCandidates->count() > 1) {
-                    Log::info("Varios acumuladores para la parte {$this->part_number} (IDs: " . $accumulatorCandidates->pluck('id')->implode(', ') . "); se usa #{$accumulator->id} para la orden {$this->shop_order_number}.");
-                }
-
                 // "En progreso" no se toca (el PLC puede seguir escribiendo sobre él).
                 $existingRecordIsInProgress = $existingRecord !== null && $inProgressStatus && (int) $existingRecord->status_id === $inProgressStatus->id;
 
@@ -252,7 +263,7 @@ class StoreProductionPlanJob implements ShouldQueue
                     && DB::table('production_labels')->where('production_record_id', $existingRecord->id)->exists();
 
                 if ($existingRecordHasOwnProduction && ($existingRecordIsInProgress || !$existingRecordHasOwnOrderOrPlan)) {
-                    Log::warning("Acumulador #{$accumulator->id} y registro #{$existingRecord->id} (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) tienen producción propia. Se omite conciliación; revisar manualmente.");
+                    $this->warn("orden {$this->shop_order_number} sin conciliar: el acumulado #{$accumulator->id} y el registro #{$existingRecord->id} ({$this->planned_date} {$this->planned_shift}) tienen producción propia");
                 } elseif ($existingRecordHasOwnOrderOrPlan && $existingRecordMissingQuantity === 0) {
                     // Ya llegó al plan: no recibe nada del acumulador, sigue la actualización normal.
                 } elseif ($existingRecordHasOwnOrderOrPlan) {
@@ -292,16 +303,15 @@ class StoreProductionPlanJob implements ShouldQueue
                             'shift_id' => $shift->id,
                             'produced_quantity' => $remainingQuantity,
                         ]);
-
-                        Log::info("Registro #{$existingRecord->id} (orden {$this->shop_order_number}) se rellenó con {$transferQuantity} piezas del acumulador #{$accumulator->id} ({$newProducedQuantity}/{$plannedQuantityInt}). El acumulador conservó el restante ({$remainingQuantity}) en {$this->planned_date}/{$this->planned_shift}.");
                     } else {
                         ProductionRecord::discard($accumulator, $partNumber, $existingRecord);
-                        Log::info("Registro #{$existingRecord->id} (orden {$this->shop_order_number}) se rellenó con {$transferQuantity} piezas del acumulador #{$accumulator->id} ({$newProducedQuantity}/{$plannedQuantityInt}); el acumulador quedó vacío y se descartó.");
                     }
+
+                    $this->change('llenadas con acumulado', "{$this->shop_order_number} +{$transferQuantity} ({$newProducedQuantity}/{$plannedQuantityInt})");
 
                     return;
                 } elseif ($existingRecordHasLabels) {
-                    Log::warning("Registro #{$existingRecord->id} (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) está vacío pero tiene etiquetas de producción; no se puede conciliar. Revisar manualmente.");
+                    $this->warn("orden {$this->shop_order_number} sin conciliar: el registro #{$existingRecord->id} ({$this->planned_date} {$this->planned_shift}) está vacío pero tiene etiquetas");
                 } else {
                     if ($existingRecord !== null) {
                         $existingRecord->delete();
@@ -337,7 +347,7 @@ class StoreProductionPlanJob implements ShouldQueue
                             'produced_quantity' => $excessQuantity,
                         ]);
 
-                        Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) cubrió el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}; se creó un registro Completado. El restante ({$excessQuantity}) se movió a {$this->planned_date}/{$this->planned_shift}.");
+                        $this->change('completadas con acumulado', "{$this->shop_order_number} ({$plannedQuantityInt}, sobran {$excessQuantity})");
                     } else {
                         $accumulatorUpdate = [
                             'planned_date' => $this->planned_date,
@@ -362,7 +372,7 @@ class StoreProductionPlanJob implements ShouldQueue
 
                         $accumulator->update($accumulatorUpdate);
 
-                        Log::info("Acumulador #{$accumulator->id} (parte {$this->part_number}) tenía la fecha equivocada. Se movió a {$this->planned_date}/{$this->planned_shift} con la orden {$this->shop_order_number} y plan {$plannedQuantityInt} (producido {$producedQuantity}).");
+                        $this->change('llenadas con acumulado', "{$this->shop_order_number} +{$producedQuantity} ({$producedQuantity}/{$plannedQuantityInt})");
                     }
 
                     return;
@@ -406,7 +416,7 @@ class StoreProductionPlanJob implements ShouldQueue
                         'produced_quantity' => $excessQuantity,
                     ]);
 
-                    Log::info("Registro #{$existingRecord->id} (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) en progreso cubrió el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}; se creó un registro Completado. El restante ({$excessQuantity}) se quedó en este registro, sin orden ni plan.");
+                    $this->change('completadas', "{$this->shop_order_number} ({$plannedQuantityInt}, sobran {$excessQuantity})");
                 } else {
                     $completedStatus = Status::where('name', 'LIKE', 'Completado')->first();
 
@@ -440,7 +450,7 @@ class StoreProductionPlanJob implements ShouldQueue
                         'synced_to_infor' => false,
                     ]);
 
-                    Log::info("Registro (parte {$this->part_number}, {$this->planned_date} turno {$this->planned_shift}) produjo {$producedQuantity}, más que el plan ({$plannedQuantityInt}) de la orden {$this->shop_order_number}. Se limitó al plan y el restante ({$excessQuantity}) pasó a un registro nuevo sin planear.");
+                    $this->change('completadas', "{$this->shop_order_number} ({$plannedQuantityInt}, sobran {$excessQuantity})");
                 }
             } elseif ((int) $existingRecord->planned_quantity !== $plannedQuantityInt || $existingRecord->shop_order_number !== $this->shop_order_number) {
                 $existingRecordUpdate = [
@@ -470,10 +480,11 @@ class StoreProductionPlanJob implements ShouldQueue
                 }
 
                 $existingRecord->update($existingRecordUpdate);
-                Log::info("Registro actualizado: parte {$this->part_number}, orden {$this->shop_order_number}, {$this->planned_date} turno {$this->planned_shift}, plan {$this->planned_quantity}.");
+                $this->change('plan actualizado', "{$this->shop_order_number} ({$plannedQuantityInt})");
             }
         } else {
             ProductionRecord::store($partNumber->id, $plannedQuantityInt, $this->planned_date, $shift->id, $this->shop_order_number, $productionOrderForRecord);
+            $this->change('nuevas', $this->shop_order_number);
         }
     }
 
@@ -519,24 +530,26 @@ class StoreProductionPlanJob implements ShouldQueue
             return;
         }
 
-        if (!$isAtOperatingSlot($keeper)) {
-            $previousSlot = Carbon::parse($keeper->planned_date)->toDateString() . " turno #{$keeper->shift_id}";
+        $moved = !$isAtOperatingSlot($keeper);
 
+        if ($moved) {
             $keeper->update([
                 'planned_date' => $this->operating_date,
                 'shift_id' => $operatingShift->id,
             ]);
-
-            Log::info("Acumulador #{$keeper->id} (parte {$this->part_number}, {$keeper->produced_quantity} piezas) se movió de {$previousSlot} a {$this->operating_date} turno {$operatingShift->abbreviation}.");
         }
 
-        foreach ($accumulators->reject(fn (ProductionRecord $record) => $record->is($keeper)) as $record) {
-            $producedQuantity = (int) $record->produced_quantity;
-            $previousSlot = Carbon::parse($record->planned_date)->toDateString() . " turno #{$record->shift_id}";
+        $merged = $accumulators->reject(fn (ProductionRecord $record) => $record->is($keeper));
 
+        foreach ($merged as $record) {
             ProductionRecord::moveToAccumulator($partNumber, $record, $keeper);
+        }
 
-            Log::info("Acumulador #{$record->id} (parte {$this->part_number}, {$previousSlot}) se juntó con el acumulador #{$keeper->id}: {$producedQuantity} piezas en {$this->operating_date} turno {$operatingShift->abbreviation}.");
+        if ($moved || $merged->isNotEmpty()) {
+            $keeper->refresh();
+
+            $this->change('acumulado', "#{$keeper->id} en {$this->operating_date} {$operatingShift->abbreviation}, {$keeper->produced_quantity} pzs"
+                . ($merged->isNotEmpty() ? ", juntó #" . $merged->pluck('id')->implode(', #') : ''));
         }
     }
 
@@ -562,7 +575,7 @@ class StoreProductionPlanJob implements ShouldQueue
             ->each(function (ProductionRecord $record) use ($partNumber) {
                 ProductionRecord::discard($record, $partNumber);
 
-                Log::info("Acumulador #{$record->id} (parte {$this->part_number}, " . Carbon::parse($record->planned_date)->toDateString() . ") estaba en cero y se descartó.");
+                $this->change('acumulados en cero descartados', "#{$record->id}");
             });
     }
 
@@ -610,10 +623,51 @@ class StoreProductionPlanJob implements ShouldQueue
             ->get()
             ->each(function (ProductionRecord $record) use ($partNumber) {
                 $producedQuantity = (int) $record->produced_quantity;
-                $oldPartNumberId = $record->part_number_id;
                 $accumulator = ProductionRecord::moveToAccumulator($partNumber, $record);
 
-                Log::info("Parte {$this->part_number}: el registro #{$record->id} estaba en el id viejo #{$oldPartNumberId}; sus {$producedQuantity} piezas pasaron al acumulador #{$accumulator->id} del id #{$partNumber->id}.");
+                $this->change('de ids viejos al acumulado', "#{$record->id} +{$producedQuantity} → #{$accumulator->id}");
             });
+    }
+
+    protected function change(string $type, string $detail): void
+    {
+        $this->changes[$type][] = $detail;
+    }
+
+    protected function warn(string $message): void
+    {
+        $this->warnings[] = $message;
+    }
+
+    /**
+     * Una línea por parte con lo que cambió (nada si no hubo cambios) y cada
+     * advertencia una sola vez cada WARNING_SILENCE_HOURS, aunque el plan
+     * corra cada hora sobre las mismas órdenes.
+     *
+     * Ej.: [Plan] DGH954570A · nuevas: 4202801 · reprogramadas: 4202796 → 2026-10-30 N
+     */
+    protected function writeLog(): void
+    {
+        if ($this->changes !== []) {
+            $parts = collect($this->changes)->map(function (array $details, string $type) {
+                $shown = array_slice($details, 0, self::LOG_DETAILS);
+                $rest = count($details) - count($shown);
+
+                return "{$type}: " . implode(', ', $shown) . ($rest > 0 ? " y {$rest} más" : '');
+            });
+
+            Log::info("[Plan] {$this->part_number} · " . $parts->implode(' · '));
+        }
+
+        foreach (array_unique($this->warnings) as $message) {
+            $key = 'plan-warning:' . md5($this->part_number . '|' . $message);
+
+            if (Cache::add($key, true, now()->addHours(self::WARNING_SILENCE_HOURS))) {
+                Log::warning("[Plan] {$this->part_number} · {$message}");
+            }
+        }
+
+        $this->changes = [];
+        $this->warnings = [];
     }
 }

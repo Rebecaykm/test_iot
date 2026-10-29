@@ -56,7 +56,6 @@ class StorePartNumberJob implements ShouldQueue
             'standard_pack_id' => $standardPack ? $standardPack->id : null,
             'standard_pack_quantity' => $this->quantityStandardPack ?? null,
         ]);
-        Log::info("StorePartNumberJob.- Guardado No. Parte : {$partNumber->number}, Nombre : {$partNumber->name}");
         $this->syncProjects($partNumber);
     }
 

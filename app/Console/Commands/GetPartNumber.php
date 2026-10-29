@@ -32,7 +32,7 @@ class GetPartNumber extends Command
             $this->warn('Se forzó la liberación de cualquier bloqueo de sincronización previo.');
         }
 
-        info("Process GetPartNumberJob is running at ". now());
+        $this->info("GetPartNumberJob en cola");
 
         GetPartNumberJob::dispatch();
     }

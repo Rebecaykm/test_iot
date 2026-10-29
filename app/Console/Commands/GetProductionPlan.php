@@ -44,7 +44,8 @@ class GetProductionPlan extends Command
             return self::FAILURE;
         }
 
-        info("Process GetProductionPlanJob is running at " . now() . ($from || $to ? " (from: {$from}, to: {$to})" : ''));
+        // Solo en consola: el job ya deja una línea de resumen en el log.
+        $this->info('GetProductionPlanJob en cola' . ($from || $to ? " (from: {$from}, to: {$to})" : ''));
 
         GetProductionPlanJob::dispatch($from, $to);
 
