@@ -23,10 +23,10 @@
 
             {{-- Resumen del turno (alto según contenido) y gráfica (llena el resto de la pantalla) --}}
             <div class="flex-shrink-0">
-                <livewire:press-production-table :work-center="$workCenter" :realTime="true" />
+                <livewire:press-production-table :work-center="$workCenter" :realTime="true" lazy />
             </div>
 
-            <livewire:press-production-graph :work-center="$workCenter" :real-time="'true'" />
+            <livewire:press-production-graph :work-center="$workCenter" :real-time="'true'" lazy />
         </main>
     </div>
 </x-guest-layout>

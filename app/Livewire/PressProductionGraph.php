@@ -6,7 +6,9 @@ use App\Models\History;
 use App\Models\PartNumber;
 use App\Models\ProductionRecord;
 use App\Models\Shift;
+use App\Models\WorkCenter;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -141,24 +143,44 @@ class PressProductionGraph extends Component
      */
     private function producedShotsByBlock(Carbon $start, Carbon $end): array
     {
-        // Historial de producción del turno (sólo part, quantity y created_at)
-        $histories = History::getProducedTimeline($this->workCenter, $start, $end);
+        $build = function () use ($start, $end) {
+            // Piezas por part y bloque sumadas en SQL Server (un turno son ~12k filas de histories).
+            // Bloque = hora par: horas desde 1900-01-01 00:00 redondeadas a múltiplo de 2, como blockStart().
+            $rows = History::query()
+                ->whereIn('part_number_id', PartNumber::where('work_center_id', WorkCenter::where('name', $this->workCenter)->value('id'))->select('id'))
+                ->where('created_at', '>=', $start->format('Y-m-d H:i:s'))
+                ->where('created_at', '<=', $end->format('Y-m-d H:i:s'))
+                ->groupByRaw('part_number_id, DATEADD(hour, DATEDIFF(hour, 0, created_at) / ' . self::BLOCK_HOURS . ' * ' . self::BLOCK_HOURS . ', 0)')
+                ->selectRaw('part_number_id, DATEADD(hour, DATEDIFF(hour, 0, created_at) / ' . self::BLOCK_HOURS . ' * ' . self::BLOCK_HOURS . ', 0) AS block, SUM(quantity) AS qty')
+                ->toBase()
+                ->get();
 
-        // Divisor piezas -> golpes con los parts que realmente se produjeron en el
-        // turno (igual que PressProductionTable). Con el divisor del plan, un part
-        // producido fuera del plan del turno se quedaba sin divisor y sus piezas se
-        // contaban como golpes.
-        $divisors = PartNumber::buildShotDivisorsForPartIds(
-            $histories->pluck('part_number_id')->unique()->all()
-        );
+            // Divisor piezas -> golpes con los parts que realmente se produjeron en el
+            // turno (igual que PressProductionTable). Con el divisor del plan, un part
+            // producido fuera del plan del turno se quedaba sin divisor y sus piezas se
+            // contaban como golpes.
+            $divisors = PartNumber::buildShotDivisorsForPartIds($rows->pluck('part_number_id')->unique()->all());
 
-        $shots = [];
-        foreach ($histories as $item) {
-            $label = $this->blockLabel($this->blockStart($item->created_at));
-            $shots[$label] = ($shots[$label] ?? 0) + $item->quantity / ($divisors[$item->part_number_id] ?? 1);
+            $shots = [];
+            foreach ($rows as $row) {
+                $label = $this->blockLabel(Carbon::parse($row->block));
+                $shots[$label] = ($shots[$label] ?? 0) + $row->qty / ($divisors[$row->part_number_id] ?? 1);
+            }
+
+            return $shots;
+        };
+
+        // Turno ya cerrado (con margen para lecturas tardías): sus golpes no cambian
+        if ($end->copy()->addMinutes(5)->lte(now())) {
+            return Cache::store('file')->remember("press_graph:v1:{$this->workCenter}:{$start->format('YmdHi')}", now()->addDays(7), $build);
         }
 
-        return $shots;
+        return $build();
+    }
+
+    public function placeholder()
+    {
+        return view('livewire.placeholders.chart');
     }
 
     public function render()

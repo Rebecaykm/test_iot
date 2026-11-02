@@ -154,6 +154,11 @@ class PressProductionTable extends Component
         $this->nowTime        = '';
     }
 
+    public function placeholder()
+    {
+        return view('livewire.placeholders.press-production-table');
+    }
+
     public function render()
     {
         return view('livewire.press-production-table');

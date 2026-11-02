@@ -3,7 +3,7 @@
 
         {{-- Encabezado: estación a la izquierda; fecha y turno a la derecha --}}
         <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-ta-gray-700/70 flex-shrink-0">
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
                 <h1 class="truncate text-xl font-bold text-zinc-800 dark:text-ta-gray-50 flex items-center">
                     <span class="w-2.5 h-2.5 flex-shrink-0 bg-[#2563eb] dark:bg-[#3b82f6] rounded-full inline-block mr-2.5"></span>
                     {{ $workCenter }}
@@ -155,7 +155,10 @@
 
     </div>
 
+    {{-- @assets: con carga diferida (lazy) un <script src> suelto no se ejecuta --}}
+    @assets
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    @endassets
 
     @script
     <script>
@@ -275,7 +278,7 @@
                 // Click en la columna de etiquetas del MDI (eje Y) abre el panel de
                 // notas de ese renglón; click sobre las barras no hace nada aquí.
                 attachLabelClickHandler() {
-                    const canvas = document.getElementById('{{ $chartId }}');
+                    const canvas = this.$el.querySelector('canvas');
 
                     canvas.addEventListener('mousemove', (evt) => {
                         if (!chart) return;
@@ -348,7 +351,7 @@
                 },
 
                 createChart() {
-                    const ctx = document.getElementById('{{ $chartId }}').getContext('2d');
+                    const ctx = this.$el.querySelector('canvas').getContext('2d');
                     const dark = isDark();
 
                     const colors = {
@@ -529,7 +532,8 @@
                                     min: 0,
                                     max: {{ $durationHours }},
                                     ticks: {
-                                        stepSize: 1,
+                                        // En móvil cada 3 h: cada hora no cabe y las etiquetas se enciman
+                                        stepSize: window.innerWidth < 640 ? 3 : 1,
                                         color: colors.textMuted,
                                         font: { size: 11 },
                                         maxRotation: 0,
@@ -626,7 +630,7 @@
                     chart.data.datasets[0].data = data.planRanges;
                     chart.data.datasets[1].data = data.ranges;
                     chart.options.scales.x.max = data.durationHours;
-                    chart.options.scales.x.ticks.stepSize = 1;
+                    chart.options.scales.x.ticks.stepSize = window.innerWidth < 640 ? 3 : 1;
                     // Esperar a que el contenedor cambie de alto antes de redibujar
                     this.$nextTick(() => { chart.resize(); chart.update('none'); });
                 },

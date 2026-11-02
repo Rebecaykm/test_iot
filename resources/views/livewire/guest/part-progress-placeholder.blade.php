@@ -1,25 +1,35 @@
-{{-- Mientras llega la tabla (carga diferida): misma tarjeta, con renglones de esqueleto --}}
-<div class="flex flex-col min-h-0">
-    <div class="bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-sm flex flex-col min-h-0 overflow-hidden">
-        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-ta-gray-700/70 flex items-center justify-between gap-4">
-            <div class="h-[34px] w-80 rounded-lg bg-zinc-100 dark:bg-ta-gray-800 animate-pulse"></div>
-            <div class="flex items-center gap-2 text-sm font-medium text-zinc-500 dark:text-ta-gray-400">
-                <svg class="h-4 w-4 animate-spin text-[#2563eb] dark:text-[#60a5fa]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
-                Cargando producción…
+{{-- Esqueleto: con $cardsOnly solo las tarjetas (cambio de filtro o turno); sin él, también la barra (carga diferida) --}}
+<div class="flex flex-col gap-3" aria-busy="true" aria-label="Cargando producción">
+    @unless($cardsOnly ?? false)
+        <div class="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-ta-gray-800 dark:bg-ta-gray-900 lg:flex-row lg:items-center">
+            <div class="h-10 w-full rounded-lg bg-zinc-100 animate-pulse dark:bg-ta-gray-800 lg:w-96"></div>
+            <div class="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
+                @for($i = 0; $i < 3; $i++)
+                    <div class="h-10 rounded-lg bg-zinc-100 animate-pulse dark:bg-ta-gray-800"></div>
+                @endfor
             </div>
         </div>
-        <div class="h-[68px] bg-zinc-50 dark:bg-ta-gray-800 border-b border-zinc-200 dark:border-ta-gray-700/70"></div>
-        <div class="divide-y divide-zinc-100 dark:divide-ta-gray-800">
-            @for($i = 0; $i < 8; $i++)
-                <div class="flex items-center gap-4 px-4 py-3">
-                    <div class="h-4 w-20 rounded bg-zinc-100 dark:bg-ta-gray-800 animate-pulse"></div>
-                    <div class="h-4 w-28 rounded bg-zinc-100 dark:bg-ta-gray-800 animate-pulse"></div>
-                    <div class="h-6 flex-1 rounded bg-zinc-50 dark:bg-ta-gray-800/60 animate-pulse"></div>
+    @endunless
+
+    <div class="h-5 w-64 rounded bg-zinc-200 animate-pulse dark:bg-ta-gray-800"></div>
+
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        @for($i = 0; $i < 6; $i++)
+            <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-ta-gray-800 dark:bg-ta-gray-900">
+                <div class="flex items-center justify-between border-b border-zinc-100 px-3 py-2.5 dark:border-ta-gray-800">
+                    <div class="h-4 w-24 rounded bg-zinc-200 animate-pulse dark:bg-ta-gray-800"></div>
+                    <div class="h-4 w-12 rounded bg-zinc-100 animate-pulse dark:bg-ta-gray-800"></div>
                 </div>
-            @endfor
-        </div>
+                @for($j = 0; $j < 3; $j++)
+                    <div class="flex items-center gap-3 px-3 py-2.5">
+                        <div class="flex-1 space-y-1.5">
+                            <div class="h-3.5 w-28 rounded bg-zinc-200 animate-pulse dark:bg-ta-gray-800"></div>
+                            <div class="h-3 w-40 rounded bg-zinc-100 animate-pulse dark:bg-ta-gray-800/60"></div>
+                        </div>
+                        <div class="h-5 w-12 rounded bg-zinc-200 animate-pulse dark:bg-ta-gray-800"></div>
+                    </div>
+                @endfor
+            </div>
+        @endfor
     </div>
 </div>

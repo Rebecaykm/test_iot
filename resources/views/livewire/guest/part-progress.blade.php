@@ -1,138 +1,127 @@
-{{-- poll(): si los datos no cambiaron, el servidor no re-renderiza nada --}}
-<div wire:poll.30s.visible="poll" class="flex flex-col min-h-0">
-    <div class="bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-sm flex flex-col min-h-0">
+@php($busy = 'line,wc,part,prevShift,nextShift,goNow,clearFilters')
 
-        {{-- Encabezado: número de parte y navegación de semana --}}
-        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-ta-gray-700/70 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between flex-shrink-0">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 min-w-0">
-                <form wire:submit="applyPart" class="flex items-center gap-2">
-                    <div class="relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                        </svg>
-                        <input type="text" wire:model="partInput" placeholder="Número de parte..." autocomplete="off"
-                            class="w-full sm:w-64 pl-8 pr-3 py-1.5 text-sm uppercase border border-zinc-300 dark:border-ta-gray-700/70 rounded-lg bg-white dark:bg-ta-gray-900 text-zinc-700 dark:text-ta-gray-200 placeholder-zinc-500 placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+<div @if($isLive) wire:poll.60s="poll" @endif class="flex flex-col gap-3">
+    {{-- Turno + filtros --}}
+    <div class="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-ta-gray-800 dark:bg-ta-gray-900 lg:flex-row lg:items-center">
+        <div class="flex items-center gap-2">
+            <button type="button" wire:click="prevShift" title="Turno anterior" aria-label="Turno anterior"
+                class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-zinc-300 text-zinc-600 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-ta-gray-700 dark:text-ta-gray-300 dark:hover:bg-ta-gray-800">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+            </button>
+
+            <div class="min-w-0 flex-1 text-center lg:w-64 lg:flex-none">
+                <div class="truncate text-sm font-semibold text-zinc-800 dark:text-ta-gray-100">{{ $shiftName }} · {{ $shiftHours }}</div>
+                <div class="truncate text-xs capitalize text-zinc-500 dark:text-ta-gray-400">{{ $dateLabel }}</div>
+            </div>
+
+            <button type="button" wire:click="nextShift" @disabled($isLive) title="Turno siguiente" aria-label="Turno siguiente"
+                class="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-zinc-300 text-zinc-600 hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-ta-gray-700 dark:text-ta-gray-300 dark:hover:bg-ta-gray-800">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+            </button>
+
+            @unless($isLive)
+                <button type="button" wire:click="goNow"
+                    class="inline-flex h-10 flex-shrink-0 items-center gap-1.5 rounded-lg border border-emerald-600 px-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-500/10">
+                    <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-600"></span></span>
+                    Turno actual
+                </button>
+            @endunless
+        </div>
+
+        <div class="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+            <x-tw-multi-select wire:model.live="line" :options="$lineOptions" placeholder="Todas las líneas" label="Líneas" />
+            {{-- wire:key con las líneas: al cambiarlas se rehace la lista de estaciones --}}
+            <x-tw-multi-select wire:model.live="wc" :options="$stationOptions" placeholder="Todas las estaciones" label="Estaciones" wire:key="wc-{{ implode('-', $line) }}" />
+
+            <div class="relative col-span-2 sm:col-span-1">
+                <label class="sr-only" for="pp-part">Número de parte</label>
+                <input id="pp-part" type="search" wire:model.live.debounce.400ms="part" placeholder="Buscar número de parte" autocomplete="off"
+                    class="h-10 w-full rounded-lg border-zinc-300 bg-white pl-9 text-sm uppercase text-zinc-800 placeholder:normal-case placeholder:text-zinc-400 focus:border-blue-500 focus:ring-blue-500 dark:border-ta-gray-700 dark:bg-ta-gray-800 dark:text-ta-gray-100 dark:placeholder:text-ta-gray-500">
+                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+            </div>
+
+            <button type="button" wire:click="clearFilters" @disabled(!$line && !$wc && trim($part) === '')
+                class="col-span-2 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:hidden sm:col-span-1 sm:disabled:inline-flex sm:disabled:cursor-not-allowed sm:disabled:opacity-40 dark:border-ta-gray-700 dark:bg-ta-gray-800 dark:text-ta-gray-200 dark:hover:bg-ta-gray-700">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                Limpiar filtros
+            </button>
+        </div>
+    </div>
+
+    {{-- Esqueleto al cambiar filtro o turno (el refresco de cada minuto no lo muestra) --}}
+    <div wire:loading.delay wire:target="{{ $busy }}" class="w-full">
+        @include('livewire.guest.part-progress-placeholder', ['cardsOnly' => true])
+    </div>
+
+    <div wire:loading.delay.remove wire:target="{{ $busy }}" class="flex flex-col gap-3">
+        {{-- Número de parte buscado: info y su cadena anterior / posterior --}}
+        @if($detail)
+            @php($p = $detail['part'])
+            <section class="rounded-xl border border-blue-200 bg-white shadow-sm dark:border-blue-500/30 dark:bg-ta-gray-900">
+                <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-xl font-bold tracking-wide text-zinc-900 dark:text-ta-gray-50">{{ $p['number'] }}</h2>
+                            @if($p['item_class'])<span class="lp-class-tag">{{ $p['item_class'] }}</span>@endif
+                            @include('livewire.guest.partials.part-state', ['state' => $p['state']])
+                        </div>
+                        <p class="mt-0.5 text-sm text-zinc-600 dark:text-ta-gray-300">{{ $p['name'] ?: 'Sin nombre' }}</p>
+                        <p class="mt-0.5 text-xs text-zinc-500 dark:text-ta-gray-400">{{ collect([$p['line_name'], $p['wc_name']])->filter()->join(' · ') ?: 'Sin estación' }}</p>
                     </div>
-                    <button type="submit"
-                        class="inline-flex h-[34px] items-center rounded-lg bg-[#2563eb] px-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
-                        Buscar
-                    </button>
-                    @if($partNumber !== '')
-                        <button type="button" wire:click="clearPart"
-                            class="inline-flex h-[34px] items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-zinc-600 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors whitespace-nowrap">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                            Limpiar
-                        </button>
-                    @endif
-                </form>
+                    <div class="flex items-start justify-between gap-4 sm:flex-col sm:items-end">
+                        <div class="sm:text-right">
+                            <div class="text-3xl font-bold tabular-nums text-zinc-900 dark:text-ta-gray-50">{{ number_format($p['qty']) }}</div>
+                            <div class="text-xs text-zinc-500 dark:text-ta-gray-400">piezas en el turno</div>
+                        </div>
+                    </div>
+                </div>
 
-                @if($notFound)
-                    <p class="text-xs font-medium text-red-600 dark:text-red-400">No existe el número de parte {{ $partNumber }}.</p>
-                @endif
-            </div>
-
-            <div class="flex items-center justify-end gap-1.5">
-                {{-- Cargando (cambio de semana o búsqueda; el refresco automático no lo muestra) --}}
-                <svg wire:loading.delay wire:target="prevWeek,nextWeek,currentWeek,applyPart,clearPart" class="mr-1 h-4 w-4 animate-spin text-[#2563eb] dark:text-[#60a5fa]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
-                @unless($isCurrentWeek)
-                    <button wire:click="currentWeek" type="button"
-                        class="px-2.5 py-1 mr-1 rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-xs font-medium text-zinc-600 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors">
-                        Semana actual
-                    </button>
-                @endunless
-                <button wire:click="prevWeek" type="button" title="Semana anterior"
-                    class="p-1 rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
-                </button>
-                <span class="text-sm font-semibold text-zinc-700 dark:text-ta-gray-200 whitespace-nowrap min-w-[10rem] text-center">{{ $weekLabel }}</span>
-                <button wire:click="nextWeek" type="button" title="Semana siguiente"
-                    class="p-1 rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
-                </button>
-            </div>
-        </div>
-
-        {{-- Tabla: días (divididos por turno) fijos arriba; estación y número de parte fijos a la izquierda --}}
-        {{--
-            wire:replace.self: cuando los datos cambian, la tabla se reemplaza completa en vez de
-            compararse nodo por nodo (con ~12,000 celdas el morph de Livewire congelaba la pantalla).
-            El scroll lo lleva el div, así que no se pierde la posición.
-        --}}
-        <div class="min-h-0 overflow-auto transition-opacity" wire:loading.delay.class="opacity-50" wire:target="prevWeek,nextWeek,currentWeek,applyPart,clearPart">
-            <table wire:replace.self class="w-full min-w-[1700px] table-fixed border-collapse text-sm">
-                <colgroup>
-                    <col class="w-28">
-                    <col class="w-36">
-                    <col class="w-16">
-                    @foreach($days as $day)
-                        @foreach($shifts as $shift)
-                            <col>
-                        @endforeach
+                <div class="grid grid-cols-1 border-t border-zinc-100 dark:border-ta-gray-800 md:grid-cols-2 md:divide-x md:divide-zinc-100 dark:md:divide-ta-gray-800">
+                    @foreach(['prev' => 'Anteriores (componentes)', 'next' => 'Posteriores (dónde se usa)'] as $dir => $title)
+                        <div class="min-w-0 {{ $loop->first ? '' : 'border-t border-zinc-100 dark:border-ta-gray-800 md:border-t-0' }}">
+                            <h3 class="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-ta-gray-400">{{ $title }} · {{ count($detail[$dir]) }}</h3>
+                            <div class="divide-y divide-zinc-100 dark:divide-ta-gray-800">
+                                @foreach($detail[$dir] as $c)
+                                    @include('livewire.guest.partials.part-row', ['part' => $c, 'station' => true, 'key' => $dir . '-' . $c['id']])
+                                @endforeach
+                            </div>
+                        </div>
                     @endforeach
-                    <col class="w-24">
-                </colgroup>
-                <thead class="sticky top-0 z-20">
-                    <tr>
-                        <th rowspan="2" class="sticky left-0 z-30 bg-zinc-50 dark:bg-ta-gray-800 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-zinc-200 dark:border-ta-gray-700/70">
-                            Estación
-                        </th>
-                        <th rowspan="2" class="sticky left-28 z-30 bg-zinc-50 dark:bg-ta-gray-800 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-zinc-200 dark:border-ta-gray-700/70">
-                            Número de Parte
-                        </th>
-                        <th rowspan="2" class="sticky left-64 z-30 bg-zinc-50 dark:bg-ta-gray-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-r border-zinc-200 dark:border-ta-gray-700/70">
-                            Clase
-                        </th>
-                        @foreach($days as $day)
-                            <th colspan="{{ count($shifts) }}" class="px-2 pt-1.5 pb-1 text-center border-l border-zinc-200 dark:border-ta-gray-700/70 {{ $day['isToday'] ? 'bg-blue-50 dark:bg-[#1c2331]' : 'bg-zinc-50 dark:bg-ta-gray-800' }}">
-                                <span class="text-xs font-bold {{ $day['isToday'] ? 'text-blue-700 dark:text-blue-300' : 'text-zinc-700 dark:text-ta-gray-200' }}">{{ $day['name'] }}</span>
-                                <span class="text-[11px] font-normal {{ $day['isToday'] ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-ta-gray-400' }}">{{ $day['label'] }}</span>
-                            </th>
-                        @endforeach
-                        <th rowspan="2" class="bg-zinc-50 dark:bg-ta-gray-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-l border-zinc-200 dark:border-ta-gray-700/70">
-                            Cant. Sin Orden
-                        </th>
-                    </tr>
-                    <tr>
-                        @foreach($days as $day)
-                            @foreach($shifts as $si => $shift)
-                                {{-- Turno: el recuadro completo lleva el color del turno (ámbar = diurno, índigo = nocturno) --}}
-                                <th class="pp-shift-th {{ $shift['abbr'] === 'D' ? 'pp-shift-D' : 'pp-shift-N' }}">{{ $shift['name'] }}</th>
-                            @endforeach
-                        @endforeach
-                    </tr>
-                </thead>
+                </div>
+            </section>
+        @endif
 
-                @include('livewire.guest.part-progress-body')
-            </table>
-        </div>
+        @forelse($lines as $ln)
+            <section wire:key="line-{{ $ln['id'] }}" class="flex flex-col gap-2">
+                <h2 class="flex items-center gap-2 text-base font-bold text-zinc-800 dark:text-ta-gray-100">
+                    <span class="h-2.5 w-2.5 flex-shrink-0 rounded-full" style="background-color: {{ $ln['color'] ?: '#71717a' }}"></span>
+                    {{ $ln['name'] }}
+                    <span class="text-sm font-medium tabular-nums text-zinc-500 dark:text-ta-gray-400">{{ number_format($ln['total']) }}</span>
+                </h2>
 
-        {{-- Pie: leyenda y última actualización --}}
-        <div class="pl-4 pr-16 py-2 border-t border-zinc-200 dark:border-ta-gray-800 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-ta-gray-400 flex-shrink-0">
-            <div class="flex flex-wrap items-center gap-3 font-medium text-zinc-600 dark:text-ta-gray-300">
-                <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-ta-gray-500 dark:bg-[rgba(102,112,133,0.20)]"></span>Plan</span>
-                <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]"></span>Real</span>
-                <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-[#ea580c] bg-[rgba(234,88,12,0.15)] dark:bg-[rgba(234,88,12,0.22)]"></span>Sin orden</span>
-                <span class="text-zinc-500 dark:text-ta-gray-400">Real / Plan por turno</span>
+                <div class="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    @foreach($ln['stations'] as $st)
+                        <article wire:key="wc-{{ $st['id'] }}" class="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-ta-gray-800 dark:bg-ta-gray-900">
+                            <header class="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2 dark:border-ta-gray-800">
+                                <a href="{{ route('guest.progress.station', $st['id']) }}" class="lp-wc-link">{{ $st['name'] }}</a>
+                                <span class="text-sm font-semibold tabular-nums text-zinc-500 dark:text-ta-gray-400">{{ number_format($st['total']) }}</span>
+                            </header>
+                            <div class="divide-y divide-zinc-100 dark:divide-ta-gray-800">
+                                @foreach($st['parts'] as $pt)
+                                    @include('livewire.guest.partials.part-row', ['part' => $pt, 'station' => false, 'key' => 'p-' . $pt['id']])
+                                @endforeach
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
+        @empty
+            <div class="rounded-xl border border-dashed border-zinc-300 bg-white px-4 py-12 text-center dark:border-ta-gray-700 dark:bg-ta-gray-900">
+                <p class="font-semibold text-zinc-700 dark:text-ta-gray-200">Sin producción en este turno</p>
+                <p class="mt-1 text-sm text-zinc-500 dark:text-ta-gray-400">
+                    {{ $search !== '' || $line || $wc ? 'Prueba con otros filtros o un turno anterior.' : 'Aún no hay piezas registradas.' }}
+                </p>
             </div>
-            {{--
-                La hora se actualiza también cuando poll() se salta el render. Si solo cambiaron algunos
-                renglones, poll() los manda en part-progress-patch y aquí se reemplazan por su id.
-            --}}
-            <div class="flex items-center gap-1.5" x-data="{ time: @js($lastUpdated) }"
-                @part-progress-checked.window="time = $event.detail.time"
-                @part-progress-patch.window="
-                    time = $event.detail.time;
-                    for (const [id, html] of Object.entries($event.detail.rows)) {
-                        const row = document.getElementById(id);
-                        if (row) row.outerHTML = html;
-                    }
-                ">
-                <span class="w-2 h-2 rounded-full bg-[#059669] animate-pulse"></span>
-                Actualización automática · <span x-text="time">{{ $lastUpdated }}</span>
-            </div>
-        </div>
+        @endforelse
     </div>
 </div>

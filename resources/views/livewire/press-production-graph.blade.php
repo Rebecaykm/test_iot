@@ -10,8 +10,11 @@
 
     </div>
 
+    {{-- @assets: con carga diferida (lazy) un <script src> suelto no se ejecuta --}}
+    @assets
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    @endassets
 
     @script
     <script>
@@ -56,7 +59,7 @@
                 },
 
                 createChart() {
-                    const ctx = document.getElementById('{{ $chartId }}').getContext('2d');
+                    const ctx = this.$el.querySelector('canvas').getContext('2d');
                     const pData = current.planned;
                     const rData = current.produced;
                     const dData = current.difference;
@@ -186,7 +189,9 @@
                                         color: colors.textMuted,
                                         font: { size: 11 },
                                         maxRotation: 30,
-                                        minRotation: 0
+                                        minRotation: 0,
+                                        // Etiqueta corta en móvil ("29-10 08:00 a 10:00" → "08:00")
+                                        callback(v) { const l = this.getLabelForValue(v); return this.chart.width < 640 ? l.slice(6, 11) : l; }
                                     },
                                     grid: { color: colors.grid },
                                     border: { display: false }
@@ -204,6 +209,8 @@
                                 }
                             },
                             plugins: {
+                                // En pantallas angostas los números se enciman: ahí solo quedan en el tooltip
+                                datalabels: { display: ctx => ctx.chart.width >= 640 },
                                 legend: {
                                     display: true,
                                     position: 'top',
