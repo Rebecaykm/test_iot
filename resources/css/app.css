@@ -6,6 +6,15 @@
     display: none;
 }
 
+/* Quien pide menos movimiento en su sistema no ve pulsos, parpadeos ni transiciones (esqueletos, puntos "en proceso") */
+@media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
 /*
  * Vista / (avance semanal por línea → estación → número de parte): clases cortas
  * para lo que se repite en cada celda. Las compartidas (lp-td-*, lp-dot, lp-wc-*)

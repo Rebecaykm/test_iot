@@ -4,7 +4,7 @@
         {{-- Chart --}}
         <div x-data="productionChart" wire:ignore class="px-4 py-4 sm:px-6 flex-1 min-h-0">
             <div class="relative h-full">
-                <canvas id="{{ $chartId }}"></canvas>
+                <canvas id="{{ $chartId }}" role="img" aria-label="Golpes de {{ $workCenter }}: plan contra real acumulado por bloques de 2 horas del turno anterior y del actual"></canvas>
             </div>
         </div>
 

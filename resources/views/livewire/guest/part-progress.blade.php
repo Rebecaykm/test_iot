@@ -37,7 +37,7 @@
                 <label class="sr-only" for="pp-part">Número de parte</label>
                 <input id="pp-part" type="search" wire:model.live.debounce.400ms="part" placeholder="Buscar número de parte" autocomplete="off"
                     class="h-10 w-full rounded-lg border-zinc-300 bg-white pl-9 text-sm uppercase text-zinc-800 placeholder:normal-case placeholder:text-zinc-400 focus:border-blue-500 focus:ring-blue-500 dark:border-ta-gray-700 dark:bg-ta-gray-800 dark:text-ta-gray-100 dark:placeholder:text-ta-gray-500">
-                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 dark:text-ta-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
             </div>
 
             <button type="button" wire:click="clearFilters" @disabled(!$line && !$wc && trim($part) === '')

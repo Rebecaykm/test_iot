@@ -314,10 +314,16 @@ class PartProgress extends Component
             'part' => $info->has($part->id)
                 ? $this->partRow($info[$part->id], $produced, $states)
                 // Clase fuera de F1/M1–M4 o sin estación: se muestra lo básico
-                : ['id' => $part->id, 'number' => $part->number, 'name' => $part->name, 'item_class' => $part->itemClass?->abbreviation, 'wc_name' => $part->workCenter?->name, 'line_name' => null, 'qty' => $produced[$part->id] ?? 0, 'state' => $states[$part->id] ?? null],
+                : ['id' => $part->id, 'number' => $part->number, 'name' => $part->name, 'item_class' => $part->itemClass?->abbreviation, 'wc_name' => $part->workCenter?->name, 'line_name' => null, 'qty' => $produced[$part->id] ?? 0, 'state' => $this->state($states, $part->id)],
             'prev' => $chain('prev'),
             'next' => $chain('next'),
         ];
+    }
+
+    /** Solo hay dos estados: "En progreso" = en proceso; cualquier otro (o sin orden en el turno) = detenido */
+    private function state(array $states, int $partId): string
+    {
+        return ($states[$partId] ?? null) === 'live' ? 'live' : 'stop';
     }
 
     private function partRow(object $p, array $produced, array $states): array
@@ -330,7 +336,7 @@ class PartProgress extends Component
             'wc_name' => $p->wc_name,
             'line_name' => $p->line_name,
             'qty' => $produced[$p->id] ?? 0,
-            'state' => $states[$p->id] ?? null,
+            'state' => $this->state($states, $p->id),
         ];
     }
 

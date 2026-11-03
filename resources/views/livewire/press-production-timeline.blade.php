@@ -73,7 +73,7 @@
         {{-- Chart --}}
         <div x-data="pressTimelineChart" class="relative px-4 pt-4 sm:px-6 flex-1 min-h-0 overflow-y-auto">
             <div wire:ignore class="relative" :style="`height: ${chartHeight}px`">
-                <canvas id="{{ $chartId }}"></canvas>
+                <canvas id="{{ $chartId }}" role="img" aria-label="Línea de tiempo de {{ $workCenter }}: horario planeado y real de cada troquel (MDI) en el turno"></canvas>
             </div>
             <p x-show="isEmpty" x-cloak
                class="text-center py-8 text-zinc-500 dark:text-ta-gray-400">

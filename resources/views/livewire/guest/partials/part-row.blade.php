@@ -15,5 +15,5 @@
         </div>
     </div>
     @include('livewire.guest.partials.part-state', ['state' => $part['state']])
-    <span class="w-16 flex-shrink-0 text-right text-lg font-bold tabular-nums {{ $part['qty'] > 0 ? 'text-zinc-900 dark:text-ta-gray-50' : 'text-zinc-300 dark:text-ta-gray-600' }}">{{ number_format($part['qty']) }}</span>
+    <span class="w-16 flex-shrink-0 text-right text-lg tabular-nums {{ $part['qty'] > 0 ? 'font-bold text-zinc-900 dark:text-ta-gray-50' : 'font-medium text-zinc-500 dark:text-ta-gray-400' }}">{{ number_format($part['qty']) }}</span>
 </div>
