@@ -15,11 +15,14 @@
         'none' => 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-ta-gray-400',
     ];
 
-    $duration = function (float $minutes): string {
-        $total = (int) round($minutes);
-        $hours = intdiv($total, 60);
-        $mins = $total % 60;
-        return $hours > 0 ? "{$hours} h " . str_pad($mins, 2, '0', STR_PAD_LEFT) . ' min' : "{$mins} min";
+    // Duración exacta (h, min, s): con los segundos, SPM × minutos × piezas por golpe cuadra con las esperadas
+    $duration = function (int $seconds): string {
+        $hours = intdiv($seconds, 3600);
+        $mins = intdiv($seconds % 3600, 60);
+        $secs = str_pad($seconds % 60, 2, '0', STR_PAD_LEFT);
+        return $hours > 0
+            ? "{$hours} h " . str_pad($mins, 2, '0', STR_PAD_LEFT) . " min {$secs} s"
+            : "{$mins} min {$secs} s";
     };
 
     // Piezas de TailAdmin: tarjeta, control (botón/selector) y panel desplegable
@@ -272,7 +275,7 @@
                             </td>
                             <td class="px-3 py-2.5 text-right tabular-nums text-gray-500 dark:text-ta-gray-400 whitespace-nowrap"
                                 title="{{ $row['runs'] }} {{ $row['runs'] === 1 ? 'corrida' : 'corridas' }}">
-                                {{ $duration($row['minutes']) }}
+                                {{ $duration($row['seconds']) }}
                             </td>
                             <td class="px-3 py-2.5 text-right tabular-nums text-gray-500 dark:text-ta-gray-400"
                                 @if($row['piecesPerShot'] > 1) title="{{ $row['piecesPerShot'] }} piezas por golpe" @endif>

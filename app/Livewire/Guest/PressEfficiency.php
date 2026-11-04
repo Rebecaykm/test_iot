@@ -261,7 +261,7 @@ class PressEfficiency extends Component
     {
         sort($workCenterIds);
 
-        $key = 'press_efficiency:v4:report:' . $start->format('YmdHi') . '-' . $end->format('YmdHi')
+        $key = 'press_efficiency:v5:report:' . $start->format('YmdHi') . '-' . $end->format('YmdHi')
             . ':' . md5(implode(',', $workCenterIds));
 
         return Cache::store(self::CACHE_STORE)->remember(
@@ -411,6 +411,8 @@ class PressEfficiency extends Component
                     'spmReal' => $spmReal !== null ? round($spmReal, 1) : null,
                     'difference' => $spmStandard !== null && $spmReal !== null ? round($spmReal - $spmStandard, 1) : null,
                     'minutes' => round($minutes, 1),
+                    // Segundos exactos: la tabla los muestra para que las piezas esperadas cuadren a mano
+                    'seconds' => (int) $seconds,
                     'runs' => $dieRuns->count(),
                     'piecesPerShot' => $piecesPerShot,
                     'expected' => $expected !== null ? (int) round($expected) : null,
