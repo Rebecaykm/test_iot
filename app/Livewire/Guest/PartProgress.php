@@ -246,24 +246,45 @@ class PartProgress extends Component
         return $qty;
     }
 
-    /** [part_number_id => 'live'|'stop'] de las órdenes del turno: "En progreso" gana sobre "Detenido" */
+    /**
+     * [part_number_id => 'live'|'stop'] de las órdenes del turno: "En progreso" gana sobre "Detenido".
+     * En el turno en curso, "en proceso" es lo mismo que en / (LineProgress): un registro "En progreso"
+     * con piezas en la última hora, sin importar en qué día o turno se planeó (una orden de ayer N
+     * puede seguir corriendo hoy D y antes se veía Detenida).
+     */
     private function states(array $shift, Carbon $date): array
     {
         $range = Shift::getShiftDateTimeRange(Shift::make($shift), $date);
+        $closed = $this->isClosed($range);
 
         return $this->cache()->remember(
-            "part_progress:v8:states:{$date->toDateString()}:{$shift['abbreviation']}",
-            $this->isClosed($range) ? self::CLOSED_TTL : self::LIVE_STATES_TTL,
-            fn () => DB::table('production_records')
-                ->join('statuses', 'statuses.id', '=', 'production_records.status_id')
-                ->where('production_records.planned_date', $date->toDateString())
-                ->where('production_records.shift_id', $shift['id'])
-                ->whereIn('statuses.name', ['En progreso', 'Detenido'])
-                ->groupBy('production_records.part_number_id')
-                ->selectRaw("production_records.part_number_id, MAX(CASE WHEN statuses.name = 'En progreso' THEN 1 ELSE 0 END) AS live")
-                ->pluck('live', 'part_number_id')
-                ->map(fn ($live) => $live ? 'live' : 'stop')
-                ->all()
+            "part_progress:v9:states:{$date->toDateString()}:{$shift['abbreviation']}",
+            $closed ? self::CLOSED_TTL : self::LIVE_STATES_TTL,
+            function () use ($shift, $date, $closed) {
+                $states = DB::table('production_records')
+                    ->join('statuses', 'statuses.id', '=', 'production_records.status_id')
+                    ->where('production_records.planned_date', $date->toDateString())
+                    ->where('production_records.shift_id', $shift['id'])
+                    ->whereIn('statuses.name', ['En progreso', 'Detenido'])
+                    ->groupBy('production_records.part_number_id')
+                    ->selectRaw("production_records.part_number_id, MAX(CASE WHEN statuses.name = 'En progreso' THEN 1 ELSE 0 END) AS live")
+                    ->pluck('live', 'part_number_id')
+                    ->map(fn ($live) => $live ? 'live' : 'stop')
+                    ->all();
+
+                if ($closed) {
+                    return $states;
+                }
+
+                $states = array_map(fn () => 'stop', $states);
+                foreach (ProductionRecord::getWorkCenterActivity(Carbon::now(), LineProgress::LIVE_MINUTES) as $r) {
+                    if ((int) $r->live === 1) {
+                        $states[(int) $r->part_number_id] = 'live';
+                    }
+                }
+
+                return $states;
+            }
         );
     }
 

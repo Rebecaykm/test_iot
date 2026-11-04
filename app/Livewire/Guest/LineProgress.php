@@ -60,7 +60,7 @@ class LineProgress extends Component
     ];
 
     /** Minutos sin piezas tras los que un registro "En progreso" ya no cuenta como produciendo */
-    private const LIVE_MINUTES = 60;
+    public const LIVE_MINUTES = 60;
 
     /** Línea abierta (vista 2) */
     #[Locked]
