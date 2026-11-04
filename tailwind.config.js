@@ -1,4 +1,5 @@
 import defaultTheme from 'tailwindcss/defaultTheme';
+import colors from 'tailwindcss/colors';
 import forms from '@tailwindcss/forms';
 import typography from '@tailwindcss/typography';
 
@@ -40,6 +41,19 @@ export default {
                     900: '#171f2f',
                     950: '#101828',
                 },
+                /*
+                 * Tokens semánticos: las vistas usan el rol (brand, success…), no el color.
+                 * Cambiar la marca o el semáforo es cambiar una línea aquí.
+                 *   brand-600 = #2563eb (acción/selección), brand-400 = #60a5fa (acento en oscuro)
+                 */
+                brand: colors.blue,
+                success: colors.emerald,
+                warning: colors.amber,
+                danger: colors.red,
+            },
+            boxShadow: {
+                'theme-xs': '0px 1px 2px 0px rgba(16, 24, 40, 0.05)',
+                'theme-sm': '0px 1px 3px 0px rgba(16, 24, 40, 0.1)',
             },
         },
     },

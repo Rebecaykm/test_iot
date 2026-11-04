@@ -19,6 +19,8 @@ Schedule::command('iot:production-plan')->hourly()->withoutOverlapping();
 // Cierra el mes anterior después del turno N del último día (termina a las 08:00);
 // diario para que, si el día 1 no corrió, se cierre al siguiente.
 Schedule::command('iot:close-previous-month')->dailyAt('08:10')->withoutOverlapping();
+// Eficiencia de prensas: deja en caché semana, mes y año en curso para que /guest/press-efficiency abra rápido.
+Schedule::command('iot:warm-press-efficiency')->hourlyAt(15)->withoutOverlapping();
 
 // Schedule::command('iot:recover-production-order-numbers-live')->hourly()->withoutOverlapping();
 // Schedule::command('iot:recover-production-order-numbers-proto')->hourly()->withoutOverlapping();
