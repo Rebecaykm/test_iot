@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "resources/css/app.css"
+        ],
+        "createdAt": "2026-11-05T16:38:11.297Z",
+        "reason": "false positive: .lp-t-* tone classes only set text color on the cell wrapper; the gray qty text sits on the card's white/dark surface, not on a colored fill (agent triage, verified in screenshot)"
+      }
+    ]
+  }
+}

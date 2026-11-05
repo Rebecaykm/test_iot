@@ -31,7 +31,11 @@ Route::get('/', function () {
     return view('guest.line-progress');
 })->name('guest.line-progress');
 
-// Avance semanal de las estaciones de una línea y de los números de parte de una estación
+// Avance semanal de las líneas de un área, las estaciones de una línea y los números de parte de una estación
+Route::get('guest/progress/area/{area}', function (int $area) {
+    return view('guest.line-progress', ['areaId' => $area]);
+})->whereNumber('area')->name('guest.progress.area');
+
 Route::get('guest/progress/line/{line}', function (int $line) {
     return view('guest.line-progress', ['lineId' => $line]);
 })->whereNumber('line')->name('guest.progress.line');

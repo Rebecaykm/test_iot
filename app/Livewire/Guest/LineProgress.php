@@ -40,8 +40,8 @@ class LineProgress extends Component
     /** Catálogos (áreas, estaciones, turnos) */
     private const CATALOG_TTL = 600;
 
-    /** v4: el catálogo ya no incluye las líneas ocultas (lines.show_in_progress) */
-    private const CATALOG_KEY = 'line_progress:v4:catalog';
+    /** v5: cada línea trae su area_id (0 = sin área) */
+    private const CATALOG_KEY = 'line_progress:v5:catalog';
 
     /** Color del %: rojo hasta WARN (70 %), ámbar arriba de eso y verde desde GOOD (91 %) */
     public const GOOD = 91;
@@ -61,6 +61,10 @@ class LineProgress extends Component
 
     /** Minutos sin piezas tras los que un registro "En progreso" ya no cuenta como produciendo */
     public const LIVE_MINUTES = 60;
+
+    /** Área abierta (vista 1: sus líneas; 0 = líneas sin área) */
+    #[Locked]
+    public ?int $areaId = null;
 
     /** Línea abierta (vista 2) */
     #[Locked]
@@ -123,6 +127,7 @@ class LineProgress extends Component
                     'id' => (int) $line->id,
                     'name' => $line->name,
                     'color' => $line->color,
+                    'area_id' => (int) $line->area_id,
                     'area_name' => $line->area_name ?: 'Sin área',
                 ])->sortBy(fn ($l) => $l['area_name'] . ' ' . $l['name'], SORT_NATURAL | SORT_FLAG_CASE)->all(),
                 'workCenters' => $workCenters->map(fn ($wc) => [
@@ -156,7 +161,7 @@ class LineProgress extends Component
         return $wc ? route('guest.progress.line', $wc['line_id']) : null;
     }
 
-    public function mount(?int $lineId = null, ?int $wcId = null): void
+    public function mount(?int $areaId = null, ?int $lineId = null, ?int $wcId = null): void
     {
         $catalog = self::catalog();
 
@@ -168,6 +173,9 @@ class LineProgress extends Component
         } elseif ($lineId !== null) {
             abort_unless(isset($catalog['lines'][$lineId]), 404);
             $this->lineId = $lineId;
+        } elseif ($areaId !== null) {
+            abort_unless(collect($catalog['lines'])->contains('area_id', $areaId), 404);
+            $this->areaId = $areaId;
         }
 
         $this->normalizeFilters();
@@ -512,7 +520,7 @@ class LineProgress extends Component
      * La celda lleva el % arriba a la derecha (con el color del cumplimiento) y la
      * barra: plan = contorno gris, real = relleno verde.
      */
-    public static function cellsHtml(array $cells, array $columns, array $orders = []): string
+    public static function cellsHtml(array $cells, array $columns, array $orders = [], int $level = 3): string
     {
         $html = '';
         foreach ($columns as $col) {
@@ -527,12 +535,22 @@ class LineProgress extends Component
             // Detalle al pasar el mouse: turno y día, plan / real y, en la vista de números de parte, sus órdenes
             $title = $col['title'] . "\nPlan " . number_format($c['plan']) . ' · Real ' . number_format($c['real'])
                 . ($c['pct'] !== null ? " ({$c['pct']}%)" : '')
-                . ($c['live'] ? ' · En proceso' : '')
+                . ($c['live'] && $level >= 2 ? ' · En proceso' : '') // áreas y líneas no muestran estado
                 . (!empty($orders[$col['key']]) ? "\n" . implode("\n", $orders[$col['key']]) : '');
 
-            // Arriba: % a la izquierda (solo el % lleva el color) y el punto verde de "en proceso" a la derecha
+            // Áreas: % grande, medidor delgado y, abajo, plan a la izquierda y real a la derecha (sin estado)
+            if ($level === 0) {
+                $pct = $c['pct'] === null ? '<span class="lp-sub">Sin plan</span>' : "{$c['pct']}%";
+                $meter = $c['plan'] > 0 ? "<div class=\"lp-meter\"><div class=\"lp-meter-fill\" style=\"width:{$c['fill']}%\"></div></div>" : '';
+                $html .= "<td class=\"{$class}\"><div class=\"pp-cell lp-area-cell " . self::TONE_CLASS[$c['tone']] . '" title="' . e($title) . "\">"
+                    . "<div class=\"lp-area-pct\">{$pct}</div>{$meter}"
+                    . '<div class="lp-area-qty"><span>Plan <b>' . self::compactQty($c['plan']) . '</b></span><span>Real <b>' . self::compactQty($c['real']) . '</b></span></div></div></td>';
+                continue;
+            }
+
+            // Arriba: % a la izquierda (solo el % lleva el color) y el punto verde de "en proceso" a la derecha (no en líneas)
             $top = ($c['pct'] === null ? '<span class="lp-sub">Sin plan</span>' : '<span class="lp-pct ' . self::TONE_CLASS[$c['tone']] . "\">{$c['pct']}%</span>")
-                . ($c['live'] ? '<span class="lp-dot lp-dot-green"></span>' : '');
+                . ($c['live'] && $level >= 2 ? '<span class="lp-dot lp-dot-green"></span>' : '');
 
             // Barra igual que /guest/part-progress: plan = contorno gris, real = relleno verde, "real / plan" adentro
             [$real, $plan] = self::barQty($c['real'], $c['plan']);
@@ -663,7 +681,10 @@ class LineProgress extends Component
 
         $line = $this->lineId !== null ? ($catalog['lines'][$this->lineId] ?? null) : null;
         $wc = $this->wcId !== null ? $catalogWcs->firstWhere('id', $this->wcId) : null;
-        $level = $wc ? 3 : ($line ? 2 : 1);
+        $areaId = $line['area_id'] ?? $this->areaId; // el área de la línea abierta, para "Volver"
+        $areaName = $areaId !== null ? collect($catalog['lines'])->firstWhere('area_id', $areaId)['area_name'] ?? null : null;
+        // 0 = áreas (inicio), 1 = líneas del área, 2 = estaciones de la línea, 3 = números de parte
+        $level = $wc ? 3 : ($line ? 2 : ($this->areaId !== null ? 1 : 0));
 
         // Renglones de la vista, en grupos (las líneas van agrupadas por área; las demás vistas, un solo grupo)
         $groups = [];
@@ -709,14 +730,17 @@ class LineProgress extends Component
                 ];
             }
             $groups[] = ['name' => null, 'rows' => $rows];
-        } else {
+        } elseif ($level === 1) {
+            // Líneas del área; si hay líneas elegidas de esta área, solo esas
+            $areaLines = collect($catalog['lines'])->where('area_id', $this->areaId);
+            $picked = $areaLines->whereIn('id', $this->selectedLines);
             $byLine = collect($this->weekRows($start, $end))->groupBy('line_id');
-            foreach ($catalog['lines'] as $l) {
-                if (($this->selectedLines && !in_array($l['id'], $this->selectedLines, true)) || !isset($byLine[$l['id']])) {
+            $rows = [];
+            foreach ($picked->isNotEmpty() ? $picked : $areaLines as $l) {
+                if (!isset($byLine[$l['id']])) {
                     continue;
                 }
-                $groups[$l['area_name']]['name'] = $l['area_name'];
-                $groups[$l['area_name']]['rows'][] = $this->buildRow($byLine[$l['id']]->all(), $columns) + [
+                $rows[] = $this->buildRow($byLine[$l['id']]->all(), $columns) + [
                     'key' => "line:{$l['id']}",
                     'name' => $l['name'],
                     'color' => $l['color'] ?: '#71717a',
@@ -724,6 +748,30 @@ class LineProgress extends Component
                     'activity' => $this->activityFor($catalogWcs->where('line_id', $l['id'])->pluck('id')->all(), $wcNames, $activity),
                 ];
             }
+            $groups[] = ['name' => null, 'rows' => $rows];
+        } else {
+            // Inicio: un renglón por área con el avance de todas sus líneas
+            $byLine = collect($this->weekRows($start, $end))->groupBy('line_id');
+            $areas = [];
+            foreach ($catalog['lines'] as $l) {
+                $areas[$l['area_id']]['name'] = $l['area_name'];
+                $areas[$l['area_id']]['lines'][] = $l['id'];
+                $areas[$l['area_id']]['records'] = array_merge($areas[$l['area_id']]['records'] ?? [], $byLine->get($l['id'])?->all() ?? []);
+            }
+            $rows = [];
+            foreach ($areas as $id => $a) {
+                if (!$a['records']) {
+                    continue;
+                }
+                $rows[] = $this->buildRow($a['records'], $columns) + [
+                    'key' => "area:{$id}",
+                    'name' => $a['name'],
+                    'color' => null,
+                    'href' => $this->link('guest.progress.area', $id),
+                    'activity' => $this->activityFor($catalogWcs->whereIn('line_id', $a['lines'])->pluck('id')->all(), $wcNames, $activity),
+                ];
+            }
+            $groups[] = ['name' => null, 'rows' => $rows];
         }
         $groups = array_values(array_filter($groups, fn ($g) => $g['rows']));
         $rowsByKey = array_column(array_merge([], ...array_column($groups, 'rows')), null, 'key');
@@ -781,9 +829,11 @@ class LineProgress extends Component
             // Botón "Volver": de los números de parte a las estaciones de la línea; de las estaciones al inicio
             'backLink' => match ($level) {
                 3 => $this->link('guest.progress.line', $line['id']),
-                2 => $this->link('guest.line-progress'),
+                2 => $this->link('guest.progress.area', $areaId),
+                1 => $this->link('guest.line-progress'),
                 default => null,
             },
+            'areaName' => $areaName,
             'line' => $line,
             'wc' => $wc,
             'days' => $days,

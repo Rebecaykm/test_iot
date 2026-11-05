@@ -5,11 +5,14 @@
     $control = 'h-8 border border-zinc-300 dark:border-ta-gray-700/70 rounded-lg bg-white dark:bg-ta-gray-900 text-xs text-zinc-700 dark:text-ta-gray-200 hover:bg-zinc-50 dark:hover:bg-ta-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors';
     $panel = 'absolute left-0 mt-1 bg-white dark:bg-ta-gray-900 rounded-xl shadow-xl border border-zinc-200 dark:border-ta-gray-800 z-50 overflow-hidden';
 
-    $nameHeader = [1 => 'Línea', 2 => 'Estación', 3 => 'Número de parte'][$level];
-    $filter = [1 => ['lpLinesFilter', 'Buscar área, línea o estación...'], 2 => ['lpWcFilter', 'Buscar estación...'], 3 => null][$level];
+    // Niveles: 0 áreas (inicio), 1 líneas del área, 2 estaciones de la línea, 3 números de parte
+    $nameHeader = [0 => 'Área', 1 => 'Línea', 2 => 'Estación', 3 => 'Número de parte'][$level];
+    $filter = [0 => null, 1 => ['lpLinesFilter', 'Buscar línea o estación...'], 2 => ['lpWcFilter', 'Buscar estación...'], 3 => null][$level];
     // Vista de números de parte: columna "Clase" junto al nombre
     $withClass = $level === 3;
-    $colCount = count($columns) + ($withClass ? 3 : 2);
+    // Las áreas (inicio) no llevan la columna "Sin N° de orden"
+    $withNoOrder = $level > 0;
+    $colCount = count($columns) + ($withClass ? 2 : 1) + ($withNoOrder ? 1 : 0);
     // Estado de lo producido sin número de orden (modal)
     $statusClass = ['No planeado' => 'lp-status-unplanned', 'No verificado' => 'lp-status-unverified', 'En progreso' => 'lp-status-live'];
     $loadingTargets = 'prevWeek,nextWeek,currentWeek,goToDate,selectedLines,selectedWorkCenters,partSearch,clearFilters';
@@ -29,18 +32,15 @@
                 @endif
 
                 {{-- Título: solo dónde se está (la línea, o la estación); en mayúsculas para que todos midan parejo --}}
-                @if($level > 1 && $line)
+                @if($level > 0)
                     <h1 class="flex items-center gap-1.5 min-w-0 mr-1.5 text-sm font-bold uppercase tracking-wide text-zinc-800 dark:text-ta-gray-100">
                         @if($level === 2)
                             <span class="w-2 h-2 flex-shrink-0 rounded-full" style="background-color: {{ $line['color'] ?: '#71717a' }}" aria-hidden="true"></span>
                         @endif
-                        <span class="truncate">{{ $level === 2 ? $line['name'] : $wc['name'] }}</span>
+                        <span class="truncate">{{ [1 => $areaName, 2 => $line['name'] ?? '', 3 => $wc['name'] ?? ''][$level] }}</span>
                     </h1>
                 @endif
 
-                @if($level === 1)
-                    @include('livewire.guest.partials.lp-filters')
-                @endif
             </div>
         </div>
 
@@ -63,9 +63,20 @@
                     </svg>
                 </a>
             @endif
+            {{-- Inicio: acceso escondido al avance por número de parte; con 3 clics seguidos en este espacio aparece el rompecabezas --}}
+            @if($level === 0)
+                <div wire:ignore x-data="{ clicks: 0, shown: false, timer: null }" class="relative w-8 h-8 select-none">
+                    <div x-show="!shown" @click="clicks++; clearTimeout(timer); timer = setTimeout(() => clicks = 0, 800); if (clicks >= 3) shown = true" class="absolute inset-0" aria-hidden="true"></div>
+                    <a x-show="shown" x-cloak x-transition.scale.opacity.duration.200ms style="display: none;" href="{{ route('guest.part-progress') }}" title="Avance por número de parte" aria-label="Avance por número de parte" class="absolute inset-0 flex items-center justify-center rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 0 0 .658-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z" />
+                        </svg>
+                    </a>
+                </div>
+            @endif
             <span wire:loading.delay wire:target="{{ $loadingTargets }}" class="text-zinc-500 dark:text-ta-gray-400">Cargando…</span>
 
-            @if($level > 1)
+            @if($level > 0)
                 @include('livewire.guest.partials.lp-filters')
             @endif
 
@@ -152,7 +163,7 @@
                     @foreach($columns as $col)
                         <col>
                     @endforeach
-                    <col class="w-24">
+                    @if($withNoOrder)<col class="w-24">@endif
                 </colgroup>
                 <thead class="sticky top-0 z-20">
                     <tr>
@@ -170,9 +181,11 @@
                                 <span class="text-[11px] {{ $day['highlight'] ? 'font-semibold text-zinc-700 dark:text-ta-gray-200' : 'font-normal text-zinc-500 dark:text-ta-gray-400' }}">{{ $day['label'] }}</span>
                             </th>
                         @endforeach
-                        <th rowspan="2" class="bg-zinc-50 dark:bg-ta-gray-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-l border-zinc-200 dark:border-ta-gray-700/70">
-                            Sin N° de orden
-                        </th>
+                        @if($withNoOrder)
+                            <th rowspan="2" class="bg-zinc-50 dark:bg-ta-gray-800 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300 border-b border-l border-zinc-200 dark:border-ta-gray-700/70">
+                                Sin N° de orden
+                            </th>
+                        @endif
                     </tr>
                     <tr>
                         @foreach($columns as $col)
@@ -198,7 +211,7 @@
                                 {{-- Nombre y, abajo, lo que se produce ahora (o lo último) --}}
                                 <td class="lp-name">
                                     @if($row['href'])
-                                        <a href="{{ $row['href'] }}" class="lp-wc-link flex items-center gap-2" title="Ver {{ $level === 1 ? 'estaciones' : 'números de parte' }} de {{ $row['name'] }}">@if($row['color'])<span class="w-1 h-4 rounded-full flex-shrink-0" style="background-color: {{ $row['color'] }}"></span>@endif<span class="truncate">{{ $row['name'] }}</span></a>
+                                        <a href="{{ $row['href'] }}" class="lp-wc-link flex items-center gap-2" title="Ver {{ [0 => 'líneas', 1 => 'estaciones', 2 => 'números de parte'][$level] ?? '' }} de {{ $row['name'] }}">@if($row['color'])<span class="w-1 h-4 rounded-full flex-shrink-0" style="background-color: {{ $row['color'] }}"></span>@endif<span class="truncate">{{ $row['name'] }}</span></a>
                                     @else
                                         <span class="block truncate text-sm font-semibold tabular-nums text-zinc-800 dark:text-ta-gray-100" title="{{ $row['name'] }}">{{ $row['name'] }}</span>
                                     @endif
@@ -215,7 +228,14 @@
                                         $actTime = $a && $level === 3 ? $a['time'] : '';
                                     @endphp
                                     <div class="lp-act">
-                                        @if($a && $level !== 3)
+                                        {{-- Áreas y líneas: sin estado, solo el último número de parte (clic = la lista) --}}
+                                        @if($level < 2)
+                                            @if($a)
+                                                <button type="button" wire:click="showActivity('{{ $row['key'] }}')" title="Ver últimos números de parte" class="lp-last">
+                                                    <span>Últimas Partes</span>
+                                                </button>
+                                            @endif
+                                        @elseif($a && $level === 2)
                                             <button type="button" wire:click="showActivity('{{ $row['key'] }}')" title="Ver números de parte"
                                                 class="lp-state {{ $isLive ? 'lp-state-live' : 'lp-state-stop' }}">@if($isLive)<span class="lp-dot lp-dot-green"></span>@else<span class="lp-dot-stop"></span>@endif{{ $isLive ? 'EN PROCESO' : 'DETENIDO' }}</button>
                                         @else
@@ -234,14 +254,16 @@
                                 @endif
 
                                 {{-- Turnos: HTML armado en el componente (barra real / plan, % a la derecha) --}}
-                                {!! LineProgress::cellsHtml($row['cells'], $columns, $row['orders'] ?? []) !!}
+                                {!! LineProgress::cellsHtml($row['cells'], $columns, $row['orders'] ?? [], $level) !!}
 
                                 {{-- Sin número de orden: total de la semana; clic = detalle por número de parte --}}
-                                <td class="lp-td-day px-1 text-center{{ $row['noOrder'] > 0 ? '' : ' pp-x' }}">
-                                    @if($row['noOrder'] > 0)
-                                        <button type="button" wire:click="showNoOrder('{{ $row['key'] }}')" class="lp-noorder" title="Ver números de parte sin número de orden">{{ number_format($row['noOrder']) }}</button>
-                                    @endif
-                                </td>
+                                @if($withNoOrder)
+                                    <td class="lp-td-day px-1 text-center{{ $row['noOrder'] > 0 ? '' : ' pp-x' }}">
+                                        @if($row['noOrder'] > 0)
+                                            <button type="button" wire:click="showNoOrder('{{ $row['key'] }}')" class="lp-noorder" title="Ver números de parte sin número de orden">{{ number_format($row['noOrder']) }}</button>
+                                        @endif
+                                    </td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>
@@ -264,11 +286,13 @@
 
         {{-- Pie: leyenda --}}
         <div class="px-4 py-2 border-t border-zinc-200 dark:border-ta-gray-800 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-600 dark:text-ta-gray-300 flex-shrink-0">
-            <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-ta-gray-500 dark:bg-[rgba(102,112,133,0.20)]"></span>Plan</span>
-            <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]"></span>Real</span>
-            <span class="flex items-center gap-1.5"><span class="font-bold text-[#c2410c] dark:text-orange-400">123</span>Sin número de orden</span>
+            @if($level > 0)
+                <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-ta-gray-500 dark:bg-[rgba(102,112,133,0.20)]"></span>Plan</span>
+                <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]"></span>Real</span>
+                <span class="flex items-center gap-1.5"><span class="font-bold text-[#c2410c] dark:text-orange-400">123</span>Sin número de orden</span>
+                <span class="text-zinc-300 dark:text-ta-gray-700" aria-hidden="true">|</span>
+            @endif
             {{-- Color del % de cada turno (mismos rangos que LineProgress::tone) --}}
-            <span class="text-zinc-300 dark:text-ta-gray-700" aria-hidden="true">|</span>
             <span class="flex items-center gap-3">
                 <span class="font-semibold lp-t-bad">≤ {{ LineProgress::WARN }}%</span>
                 <span class="font-semibold lp-t-warn">{{ LineProgress::WARN + 1 }}–{{ LineProgress::GOOD - 1 }}%</span>
@@ -285,7 +309,7 @@
     @if($noOrderDetail)
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="lp-modal-title">
             <div class="absolute inset-0 bg-zinc-900/50 dark:bg-black/60" wire:click="closeModals"></div>
-            <div class="relative w-full max-w-2xl max-h-[80vh] flex flex-col bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-xl overflow-hidden">
+            <div class="relative w-fit min-w-[32rem] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-xl overflow-hidden">
                 <div class="px-5 py-4 border-b border-zinc-200 dark:border-ta-gray-800 flex items-start justify-between gap-4">
                     <div>
                         <h2 id="lp-modal-title" class="text-base font-semibold text-zinc-800 dark:text-ta-gray-100">Sin número de orden · {{ $noOrderDetail['title'] }}</h2>
@@ -295,7 +319,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-                <div class="min-h-0 overflow-y-auto">
+                <div class="min-h-0 overflow-y-auto overflow-x-hidden">
                     <table class="w-full text-sm">
                         <thead class="sticky top-0 bg-zinc-50 dark:bg-ta-gray-800">
                             <tr class="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300">
@@ -311,7 +335,7 @@
                                     @if($noOrderDetail['withStation'])<td class="px-5 py-2 text-zinc-600 dark:text-ta-gray-300 whitespace-nowrap">{{ $part['station'] }}</td>@endif
                                     <td class="px-5 py-2">
                                         <div class="font-semibold text-zinc-800 dark:text-ta-gray-100">{{ $part['number'] }}</div>
-                                        @if($part['name'])<div class="text-xs text-zinc-500 dark:text-ta-gray-400 truncate max-w-[16rem]">{{ $part['name'] }}</div>@endif
+                                        @if($part['name'])<div class="text-xs text-zinc-500 dark:text-ta-gray-400 whitespace-nowrap">{{ $part['name'] }}</div>@endif
                                     </td>
                                     {{-- Estado; si la parte tiene varios, cada uno con su cantidad --}}
                                     <td class="px-5 py-2">
@@ -350,11 +374,11 @@
     @if($activityDetail)
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="lp-activity-title">
             <div class="absolute inset-0 bg-zinc-900/50 dark:bg-black/60" wire:click="closeModals"></div>
-            <div class="relative w-full max-w-xl max-h-[80vh] flex flex-col bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-xl overflow-hidden">
+            <div class="relative w-fit min-w-[32rem] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col bg-white dark:bg-ta-gray-900 rounded-xl border border-zinc-200 dark:border-ta-gray-800 shadow-xl overflow-hidden">
                 <div class="px-5 py-4 border-b border-zinc-200 dark:border-ta-gray-800 flex items-start justify-between gap-4">
                     <div>
                         <h2 id="lp-activity-title" class="text-base font-semibold text-zinc-800 dark:text-ta-gray-100">
-                            {{ $activityDetail['state'] === 'live' ? 'En proceso' : 'Detenido · última producción' }} · {{ $activityDetail['title'] }}
+                            {{ $level < 2 ? '' : ($activityDetail['state'] === 'live' ? 'En proceso · ' : 'Detenido · última producción · ') }}{{ $activityDetail['title'] }}
                         </h2>
                         <p class="mt-0.5 text-xs text-zinc-500 dark:text-ta-gray-400">{{ count($activityDetail['items']) }} números de parte</p>
                     </div>
@@ -362,7 +386,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-                <div class="min-h-0 overflow-y-auto">
+                <div class="min-h-0 overflow-y-auto overflow-x-hidden">
                     <table class="w-full text-sm">
                         <thead class="sticky top-0 bg-zinc-50 dark:bg-ta-gray-800">
                             <tr class="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-ta-gray-300">
@@ -380,7 +404,7 @@
                                         <div class="flex items-center gap-2 font-semibold tabular-nums text-zinc-800 dark:text-ta-gray-100">
                                             @if($item['live'])<span class="lp-dot lp-dot-green !relative !top-0 !right-0 flex-shrink-0" title="En proceso"></span>@endif{{ $item['number'] }}
                                         </div>
-                                        @if($item['name'])<div class="text-xs text-zinc-500 dark:text-ta-gray-400 truncate max-w-[18rem] {{ $item['live'] ? 'pl-4' : '' }}">{{ $item['name'] }}</div>@endif
+                                        @if($item['name'])<div class="text-xs text-zinc-500 dark:text-ta-gray-400 whitespace-nowrap {{ $item['live'] ? 'pl-4' : '' }}">{{ $item['name'] }}</div>@endif
                                     </td>
                                     <td class="px-5 py-2 text-right tabular-nums text-zinc-600 dark:text-ta-gray-300 whitespace-nowrap">{{ $item['startLabel'] }}</td>
                                     <td class="px-5 py-2 text-right tabular-nums text-zinc-600 dark:text-ta-gray-300 whitespace-nowrap">{{ $item['endLabel'] }}</td>
@@ -402,7 +426,7 @@
 
         const lineOptions = Object.values(catalog.lines).map(l => {
             const stations = catalog.workCenters.filter(w => w.line_id === l.id).map(w => w.name);
-            return { id: l.id, name: l.name, group: l.area_name, sub: '', stations, search: [l.name, l.area_name, ...stations].join(' ').toLowerCase() };
+            return { id: l.id, areaId: l.area_id, name: l.name, group: l.area_name, sub: '', stations, search: [l.name, l.area_name, ...stations].join(' ').toLowerCase() };
         }).sort((a, b) => (a.group + ' ' + a.name).localeCompare(b.group + ' ' + b.name, 'es', { numeric: true, sensitivity: 'base' }));
         // ↑ catalog.lines llega como objeto con llaves numéricas (id) y JS lo recorre por id: se ordena aquí por área y línea
 
@@ -498,7 +522,7 @@
             model: 'selectedLines', param: 'lines', storageKey: 'lineProgress.lines',
             allText: 'Todas las líneas', units: 'líneas', clearText: 'Mostrar todas las líneas',
             // Se puede buscar por el nombre de una de sus estaciones
-            options: () => lineOptions,
+            options: () => lineOptions.filter(o => o.areaId === $wire.areaId),
         }));
 
         // Calendario: elegir un día lleva a su semana y lo resalta en la tabla

@@ -11,7 +11,7 @@
                 URL con ?lines= (inicio) o ?wcs= (estaciones de una línea). Antes se recuperaban después de
                 cargar y se veía todo por un momento. Si la URL ya trae el filtro, manda el de la URL.
             --}}
-            @php $filterParam = isset($wcId) ? null : (isset($lineId) ? 'wcs' : 'lines'); @endphp
+            @php $filterParam = isset($wcId) ? null : (isset($lineId) ? 'wcs' : (isset($areaId) ? 'lines' : null)); @endphp
             @if($filterParam)
                 <script>
                     (function () {
@@ -21,7 +21,7 @@
 
                         try {
                             const catalog = window.lineProgressCatalog;
-                            const list = param === 'lines' ? Object.values(catalog.lines) : catalog.workCenters.filter(w => w.line_id === @js($lineId ?? null));
+                            const list = param === 'lines' ? Object.values(catalog.lines).filter(l => l.area_id === @js($areaId ?? null)) :catalog.workCenters.filter(w => w.line_id === @js($lineId ?? null));
                             const ids = JSON.parse(localStorage.getItem('lineProgress.' + param) || '[]')
                                 .filter(id => list.some(item => item.id === id));
                             if (!ids.length) return;
@@ -33,7 +33,7 @@
                 </script>
             @endif
 
-            <livewire:guest.line-progress :line-id="$lineId ?? null" :wc-id="$wcId ?? null" />
+            <livewire:guest.line-progress :area-id="$areaId ?? null" :line-id="$lineId ?? null" :wc-id="$wcId ?? null" />
         </main>
     </div>
 </x-guest-layout>
