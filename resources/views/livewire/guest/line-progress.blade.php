@@ -63,16 +63,14 @@
                     </svg>
                 </a>
             @endif
-            {{-- Inicio: acceso escondido al avance por número de parte; con 3 clics seguidos en este espacio aparece el rompecabezas --}}
+            {{-- Inicio: acceso al avance por número de parte --}}
             @if($level === 0)
-                <div wire:ignore x-data="{ clicks: 0, shown: false, timer: null }" class="relative w-8 h-8 select-none">
-                    <div x-show="!shown" @click="clicks++; clearTimeout(timer); timer = setTimeout(() => clicks = 0, 800); if (clicks >= 3) shown = true" class="absolute inset-0" aria-hidden="true"></div>
-                    <a x-show="shown" x-cloak x-transition.scale.opacity.duration.200ms style="display: none;" href="{{ route('guest.part-progress') }}" title="Avance por número de parte" aria-label="Avance por número de parte" class="absolute inset-0 flex items-center justify-center rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
+                    <a href="{{ route('guest.part-progress') }}" title="Avance por número de parte" aria-label="Avance por número de parte" class="h-8 px-2.5 gap-1.5 text-xs font-medium inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-ta-gray-700/70 text-zinc-500 dark:text-ta-gray-300 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 hover:text-[#2563eb] dark:hover:text-[#60a5fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 0 0 .658-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z" />
                         </svg>
+                        Número de parte
                     </a>
-                </div>
             @endif
             <span wire:loading.delay wire:target="{{ $loadingTargets }}" class="text-zinc-500 dark:text-ta-gray-400">Cargando…</span>
 
@@ -286,12 +284,10 @@
 
         {{-- Pie: leyenda --}}
         <div class="px-4 py-2 border-t border-zinc-200 dark:border-ta-gray-800 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-600 dark:text-ta-gray-300 flex-shrink-0">
-            @if($level > 0)
                 <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-zinc-400 bg-[rgba(161,161,170,0.15)] dark:border-ta-gray-500 dark:bg-[rgba(102,112,133,0.20)]"></span>Plan</span>
                 <span class="flex items-center gap-1.5"><span class="w-4 h-2 rounded-sm border border-[#059669] bg-[rgba(16,185,129,0.15)] dark:bg-[rgba(16,185,129,0.22)]"></span>Real</span>
-                <span class="flex items-center gap-1.5"><span class="font-bold text-[#c2410c] dark:text-orange-400">123</span>Sin número de orden</span>
+                @if($withNoOrder)<span class="flex items-center gap-1.5"><span class="font-bold text-[#c2410c] dark:text-orange-400">123</span>Sin número de orden</span>@endif
                 <span class="text-zinc-300 dark:text-ta-gray-700" aria-hidden="true">|</span>
-            @endif
             {{-- Color del % de cada turno (mismos rangos que LineProgress::tone) --}}
             <span class="flex items-center gap-3">
                 <span class="font-semibold lp-t-bad">≤ {{ LineProgress::WARN }}%</span>

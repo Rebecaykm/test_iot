@@ -538,16 +538,6 @@ class LineProgress extends Component
                 . ($c['live'] && $level >= 2 ? ' · En proceso' : '') // áreas y líneas no muestran estado
                 . (!empty($orders[$col['key']]) ? "\n" . implode("\n", $orders[$col['key']]) : '');
 
-            // Áreas: % grande, medidor delgado y, abajo, plan a la izquierda y real a la derecha (sin estado)
-            if ($level === 0) {
-                $pct = $c['pct'] === null ? '<span class="lp-sub">Sin plan</span>' : "{$c['pct']}%";
-                $meter = $c['plan'] > 0 ? "<div class=\"lp-meter\"><div class=\"lp-meter-fill\" style=\"width:{$c['fill']}%\"></div></div>" : '';
-                $html .= "<td class=\"{$class}\"><div class=\"pp-cell lp-area-cell " . self::TONE_CLASS[$c['tone']] . '" title="' . e($title) . "\">"
-                    . "<div class=\"lp-area-pct\">{$pct}</div>{$meter}"
-                    . '<div class="lp-area-qty"><span>Plan <b>' . self::compactQty($c['plan']) . '</b></span><span>Real <b>' . self::compactQty($c['real']) . '</b></span></div></div></td>';
-                continue;
-            }
-
             // Arriba: % a la izquierda (solo el % lleva el color) y el punto verde de "en proceso" a la derecha (no en líneas)
             $top = ($c['pct'] === null ? '<span class="lp-sub">Sin plan</span>' : '<span class="lp-pct ' . self::TONE_CLASS[$c['tone']] . "\">{$c['pct']}%</span>")
                 . ($c['live'] && $level >= 2 ? '<span class="lp-dot lp-dot-green"></span>' : '');

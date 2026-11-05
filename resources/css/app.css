@@ -53,12 +53,6 @@
     .lp-state-label { @apply font-semibold text-zinc-400 dark:text-ta-gray-500; }
     /* Último número de parte (áreas y líneas): botón neutro, sin estado; y celda de área con solo el % */
     .lp-last { @apply inline-flex items-center gap-1.5 h-5 px-2 max-w-full whitespace-nowrap rounded-md border border-zinc-300 dark:border-ta-gray-700 text-[11px] font-semibold tabular-nums text-zinc-700 dark:text-ta-gray-200 hover:bg-zinc-100 dark:hover:bg-ta-gray-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500; }
-    .lp-area-cell { @apply flex flex-col gap-1 px-1 py-1.5; }
-    .lp-area-pct { @apply text-center text-xl font-extrabold leading-6 tabular-nums; }
-    .lp-meter { @apply h-1 rounded-full bg-zinc-200 dark:bg-ta-gray-700 overflow-hidden; }
-    .lp-meter-fill { @apply h-full rounded-full bg-current; }
-    .lp-area-qty { @apply flex justify-between gap-1 whitespace-nowrap text-[10px] leading-3 tabular-nums text-zinc-500 dark:text-ta-gray-400; }
-    .lp-area-qty b { @apply font-semibold text-zinc-700 dark:text-ta-gray-200; }
     .lp-dot-stop { @apply inline-flex h-2 w-2 flex-shrink-0 rounded-full bg-red-600 dark:bg-red-500; }
 
     /* Punto verde de "en proceso" (estado y celda del turno), verde oscuro como el contorno del botón */

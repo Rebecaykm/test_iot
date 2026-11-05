@@ -316,29 +316,40 @@ class PartProgress extends Component
             return null;
         }
 
-        $prev = collect($part->getFullPreviousChain());
-        $next = collect($part->getFullNextChain());
-        $ids = ['prev' => $prev->pluck('part_number_id')->unique(), 'next' => $next->pluck('part_number_id')->unique()];
-
         $info = collect($this->parts());
 
-        // Jerarquía por clase: F1 (pieza final) arriba, luego M4, M3, M2 y M1
-        $rank = array_flip(['F1', 'M4', 'M3', 'M2', 'M1']);
-        $chain = fn (string $dir) => $ids[$dir]
-            ->filter(fn ($id) => $info->has($id))
-            ->map(fn ($id) => $this->partRow($info[$id], $produced, $states))
-            ->sortBy([fn ($a, $b) => ($rank[$a['item_class']] ?? 99) <=> ($rank[$b['item_class']] ?? 99), fn ($a, $b) => strnatcasecmp($a['number'], $b['number'])])
-            ->values()
-            ->all();
+        // Ramas: cada nodo cuelga del que lo produce/usa. Solo quedan los números de parte con orden en el turno
+        // o producidos; uno en cero se conserva únicamente si más adelante en su rama hay alguno con actividad.
+        // Los que no son F1/M1–M4 o no están en una línea visible se saltan y sus hijos suben un nivel.
+        $prune = function (array $node) use (&$prune, $info, $produced, $states): array {
+            $kids = collect($node['children'])->flatMap(fn ($c) => $prune($c))->values()->all();
+            if (!$info->has($node['id'])) {
+                return $kids;
+            }
+            $row = $this->partRow($info[$node['id']], $produced, $states);
+            $active = $row['qty'] > 0 || isset($states[$node['id']]);
+
+            return $active || $kids ? [$row + ['active' => $active, 'children' => $kids]] : [];
+        };
+        $branches = fn (array $tree) => collect($tree['children'])->flatMap(fn ($c) => $prune($c))->values()->all();
+        $prev = $branches($part->previousProcessTree());
+        $next = $branches($part->nextProcessTree());
 
         return [
             'part' => $info->has($part->id)
                 ? $this->partRow($info[$part->id], $produced, $states)
                 // Clase fuera de F1/M1–M4 o sin estación: se muestra lo básico
                 : ['id' => $part->id, 'number' => $part->number, 'name' => $part->name, 'item_class' => $part->itemClass?->abbreviation, 'wc_name' => $part->workCenter?->name, 'line_name' => null, 'qty' => $produced[$part->id] ?? 0, 'state' => $this->state($states, $part->id)],
-            'prev' => $chain('prev'),
-            'next' => $chain('next'),
+            'prev' => $prev,
+            'next' => $next,
+            'prevCount' => self::countNodes($prev),
+            'nextCount' => self::countNodes($next),
         ];
+    }
+
+    private static function countNodes(array $nodes): int
+    {
+        return array_sum(array_map(fn ($n) => 1 + self::countNodes($n['children']), $nodes));
     }
 
     /** Solo hay dos estados: "En progreso" = en proceso; cualquier otro (o sin orden en el turno) = detenido */

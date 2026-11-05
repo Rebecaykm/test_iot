@@ -40,11 +40,14 @@
                 <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 dark:text-ta-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
             </div>
 
-            <button type="button" wire:click="clearFilters" @disabled(!$line && !$wc && trim($part) === '')
-                class="col-span-2 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:hidden sm:col-span-1 sm:disabled:inline-flex sm:disabled:cursor-not-allowed sm:disabled:opacity-40 dark:border-ta-gray-700 dark:bg-ta-gray-800 dark:text-ta-gray-200 dark:hover:bg-ta-gray-700">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                Limpiar filtros
-            </button>
+            {{-- Solo aparece si hay búsqueda o algún filtro --}}
+            @if($line || $wc || trim($part) !== '')
+                <button type="button" wire:click="clearFilters"
+                    class="col-span-2 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:col-span-1 dark:border-ta-gray-700 dark:bg-ta-gray-800 dark:text-ta-gray-200 dark:hover:bg-ta-gray-700">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                    Limpiar filtros
+                </button>
+            @endif
         </div>
     </div>
 
@@ -79,12 +82,12 @@
                 <div class="grid grid-cols-1 border-t border-zinc-100 dark:border-ta-gray-800 md:grid-cols-2 md:divide-x md:divide-zinc-100 dark:md:divide-ta-gray-800">
                     @foreach(['prev' => 'Anteriores (componentes)', 'next' => 'Posteriores (dónde se usa)'] as $dir => $title)
                         <div class="min-w-0 {{ $loop->first ? '' : 'border-t border-zinc-100 dark:border-ta-gray-800 md:border-t-0' }}">
-                            <h3 class="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-ta-gray-400">{{ $title }} · {{ count($detail[$dir]) }}</h3>
-                            <div class="divide-y divide-zinc-100 dark:divide-ta-gray-800">
-                                @foreach($detail[$dir] as $c)
-                                    @include('livewire.guest.partials.part-row', ['part' => $c, 'station' => true, 'key' => $dir . '-' . $c['id']])
-                                @endforeach
-                            </div>
+                            <h3 class="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-ta-gray-400">{{ $title }} · {{ $detail[$dir . 'Count'] }}</h3>
+                            @if($detail[$dir])
+                                <div class="pb-2">@include('livewire.guest.partials.part-tree', ['nodes' => $detail[$dir], 'key' => $dir])</div>
+                            @else
+                                <p class="px-3 pb-3 text-sm text-zinc-500 dark:text-ta-gray-400">Ninguno con orden o producción en este turno.</p>
+                            @endif
                         </div>
                     @endforeach
                 </div>
