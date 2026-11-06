@@ -49,6 +49,9 @@ class PartProgress extends Component
     #[Url(except: '')]
     public string $part = '';
 
+    /** [part_number_id => plan] del turno pintado; se llena en render() y lo usa partRow() */
+    private array $planQty = [];
+
     /** Huella de los datos pintados: el refresco no re-renderiza si no cambió */
     #[Locked]
     public string $fingerprint = '';
@@ -288,6 +291,29 @@ class PartProgress extends Component
         );
     }
 
+    /**
+     * [part_number_id => plan] del turno: planned_quantity de production_records con número de orden,
+     * misma regla que el plan de / (ProductionRecord::getPartWeeklyProgress).
+     */
+    private function plan(array $shift, Carbon $date): array
+    {
+        $range = Shift::getShiftDateTimeRange(Shift::make($shift), $date);
+
+        return $this->cache()->remember(
+            "part_progress:v1:plan:{$date->toDateString()}:{$shift['abbreviation']}",
+            $this->isClosed($range) ? self::CLOSED_TTL : self::LIVE_STATES_TTL,
+            fn () => DB::table('production_records')
+                ->where('planned_date', $date->toDateString())
+                ->where('shift_id', $shift['id'])
+                ->whereRaw("COALESCE(shop_order_number, '') <> ''")
+                ->groupBy('part_number_id')
+                ->selectRaw('part_number_id, SUM(planned_quantity) AS qty')
+                ->pluck('qty', 'part_number_id')
+                ->map(fn ($q) => (int) $q)
+                ->all()
+        );
+    }
+
     /** [id => datos] de los números de parte (solo clases F1, M1–M4) de líneas visibles */
     private function parts(): array
     {
@@ -331,7 +357,7 @@ class PartProgress extends Component
                 return $kids;
             }
             $row = $this->partRow($info[$id], $produced, $states);
-            $active = $row['qty'] > 0 || isset($states[$id]);
+            $active = $row['qty'] > 0 || $row['plan'] > 0 || isset($states[$id]);
 
             return $active || $kids ? [$row + ['active' => $active, 'children' => $kids]] : [];
         };
@@ -347,7 +373,7 @@ class PartProgress extends Component
             'part' => $info->has($part->id)
                 ? $this->partRow($info[$part->id], $produced, $states)
                 // Clase fuera de F1/M1–M4 o sin estación: se muestra lo básico
-                : ['id' => $part->id, 'number' => $part->number, 'name' => $part->name, 'item_class' => $part->itemClass?->abbreviation, 'wc_name' => $part->workCenter?->name, 'line_name' => null, 'qty' => $produced[$part->id] ?? 0, 'state' => $this->state($states, $part->id)],
+                : ['id' => $part->id, 'number' => $part->number, 'name' => $part->name, 'item_class' => $part->itemClass?->abbreviation, 'wc_name' => $part->workCenter?->name, 'line_name' => null, 'qty' => $produced[$part->id] ?? 0, 'plan' => $this->planQty[$part->id] ?? 0, 'state' => $this->state($states, $part->id)],
             'prev' => $prev,
             'next' => $next,
             'prevCount' => self::countNodes($prev),
@@ -418,6 +444,7 @@ class PartProgress extends Component
             'wc_name' => $p->wc_name,
             'line_name' => $p->line_name,
             'qty' => $produced[$p->id] ?? 0,
+            'plan' => $this->planQty[$p->id] ?? 0,
             'state' => $this->state($states, $p->id),
         ];
     }
@@ -427,7 +454,7 @@ class PartProgress extends Component
     {
         [$shift, $date] = $this->selected();
 
-        if (md5(serialize([$this->produced($shift, $date), $this->states($shift, $date)])) === $this->fingerprint) {
+        if (md5(serialize([$this->produced($shift, $date), $this->states($shift, $date), $this->plan($shift, $date)])) === $this->fingerprint) {
             $this->skipRender();
         }
     }
@@ -441,11 +468,12 @@ class PartProgress extends Component
 
         $produced = $this->produced($shift, $date);
         $states = $this->states($shift, $date);
-        $this->fingerprint = md5(serialize([$produced, $states]));
+        $this->planQty = $this->plan($shift, $date);
+        $this->fingerprint = md5(serialize([$produced, $states, $this->planQty]));
 
         $lineIds = array_map('intval', $this->line);
         $wcIds = array_map('intval', $this->wc);
-        $rows = collect(array_intersect_key($this->parts(), $produced + $states))
+        $rows = collect(array_intersect_key($this->parts(), $produced + $states + $this->planQty))
             ->filter(fn ($r) => ($lineIds === [] || in_array((int) $r->line_id, $lineIds, true))
                 && ($wcIds === [] || in_array((int) $r->wc_id, $wcIds, true))
                 && ($search === '' || stripos($r->number, $search) !== false))
@@ -459,11 +487,13 @@ class PartProgress extends Component
                 'name' => $parts[0]['line_name'],
                 'color' => $parts[0]['line_color'],
                 'total' => $parts->sum('qty'),
+                'plan' => $parts->sum('plan'),
                 'stations' => $parts->groupBy('wc_id')
                     ->map(fn ($ps) => [
                         'id' => $ps[0]['wc_id'],
                         'name' => $ps[0]['wc_name'],
                         'total' => $ps->sum('qty'),
+                        'plan' => $ps->sum('plan'),
                         'parts' => $ps->sortBy([fn ($a, $b) => ($b['state'] === 'live') <=> ($a['state'] === 'live'), ['qty', 'desc']])->values()->all(),
                     ])
                     ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)

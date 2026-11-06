@@ -73,8 +73,8 @@
                     </div>
                     <div class="flex items-start justify-between gap-4 sm:flex-col sm:items-end">
                         <div class="sm:text-right">
-                            <div class="text-3xl font-bold tabular-nums text-zinc-900 dark:text-ta-gray-50">{{ number_format($p['qty']) }}</div>
-                            <div class="text-xs text-zinc-500 dark:text-ta-gray-400">piezas en el turno</div>
+                            <div class="tabular-nums"><span class="text-3xl font-bold text-zinc-900 dark:text-ta-gray-50">{{ number_format($p['qty']) }}</span>@if($p['plan'] > 0)<span class="text-lg font-medium text-zinc-500 dark:text-ta-gray-400"> / {{ number_format($p['plan']) }}</span>@endif</div>
+                            <div class="text-xs text-zinc-500 dark:text-ta-gray-400">{{ $p['plan'] > 0 ? 'real / plan del turno · ' . round($p['qty'] / $p['plan'] * 100) . '%' : 'piezas en el turno · sin plan' }}</div>
                         </div>
                     </div>
                 </div>
@@ -99,7 +99,7 @@
                 <h2 class="flex items-center gap-2 text-base font-bold text-zinc-800 dark:text-ta-gray-100">
                     <span class="h-2.5 w-2.5 flex-shrink-0 rounded-full" style="background-color: {{ $ln['color'] ?: '#71717a' }}"></span>
                     {{ $ln['name'] }}
-                    <span class="text-sm font-medium tabular-nums text-zinc-500 dark:text-ta-gray-400">{{ number_format($ln['total']) }}</span>
+                    <span class="text-sm font-medium tabular-nums text-zinc-500 dark:text-ta-gray-400">{{ number_format($ln['total']) }}@if($ln['plan'] > 0) / {{ number_format($ln['plan']) }}@endif</span>
                 </h2>
 
                 <div class="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -107,7 +107,7 @@
                         <article wire:key="wc-{{ $st['id'] }}" class="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-ta-gray-800 dark:bg-ta-gray-900">
                             <header class="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2 dark:border-ta-gray-800">
                                 <a href="{{ route('guest.progress.station', $st['id']) }}" class="lp-wc-link">{{ $st['name'] }}</a>
-                                <span class="text-sm font-semibold tabular-nums text-zinc-500 dark:text-ta-gray-400">{{ number_format($st['total']) }}</span>
+                                <span class="flex-shrink-0 text-sm font-semibold tabular-nums text-zinc-500 dark:text-ta-gray-400">{{ number_format($st['total']) }}@if($st['plan'] > 0)<span class="font-medium"> / {{ number_format($st['plan']) }}</span>@endif</span>
                             </header>
                             <div class="divide-y divide-zinc-100 dark:divide-ta-gray-800">
                                 @foreach($st['parts'] as $pt)
