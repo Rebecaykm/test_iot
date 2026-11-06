@@ -321,19 +321,27 @@ class PartProgress extends Component
         // Ramas: cada nodo cuelga del que lo produce/usa. Solo quedan los números de parte con orden en el turno
         // o producidos; uno en cero se conserva únicamente si más adelante en su rama hay alguno con actividad.
         // Los que no son F1/M1–M4 o no están en una línea visible se saltan y sus hijos suben un nivel.
-        $prune = function (array $node) use (&$prune, $info, $produced, $states): array {
-            $kids = collect($node['children'])->flatMap(fn ($c) => $prune($c))->values()->all();
-            if (!$info->has($node['id'])) {
+        $walk = function (int $id, array $path, array $adj) use (&$walk, $info, $produced, $states): array {
+            if (in_array($id, $path, true)) {
+                return []; // ciclo en los datos de origen
+            }
+            $path[] = $id;
+            $kids = collect(array_unique($adj[$id] ?? []))->flatMap(fn ($c) => $walk($c, $path, $adj))->values()->all();
+            if (!$info->has($id)) {
                 return $kids;
             }
-            $row = $this->partRow($info[$node['id']], $produced, $states);
-            $active = $row['qty'] > 0 || isset($states[$node['id']]);
+            $row = $this->partRow($info[$id], $produced, $states);
+            $active = $row['qty'] > 0 || isset($states[$id]);
 
             return $active || $kids ? [$row + ['active' => $active, 'children' => $kids]] : [];
         };
-        $branches = fn (array $tree) => collect($tree['children'])->flatMap(fn ($c) => $prune($c))->values()->all();
-        $prev = $branches($part->previousProcessTree());
-        $next = $branches($part->nextProcessTree());
+        $branches = function (string $dir) use ($walk, $part): array {
+            $adj = $this->adjacency($part->id, $dir);
+
+            return collect(array_unique($adj[$part->id] ?? []))->flatMap(fn ($c) => $walk($c, [$part->id], $adj))->values()->all();
+        };
+        $prev = $branches('prev');
+        $next = $branches('next');
 
         return [
             'part' => $info->has($part->id)
@@ -345,6 +353,55 @@ class PartProgress extends Component
             'prevCount' => self::countNodes($prev),
             'nextCount' => self::countNodes($next),
         ];
+    }
+
+    /**
+     * Vecinos de cada número de parte hacia atrás ('prev', hacia M1) o hacia adelante ('next', hacia F1).
+     * La lista de materiales (Infor MBM) guarda padre → hijo, pero a veces un M2 trae un M3 como "hijo";
+     * la jerarquía de clases manda: M1 → M2 → M3 → M4 → F1. Si el hijo es de una clase más alta que el padre,
+     * la relación se invierte (el M3 queda como posterior del M2). Clases iguales o fuera de la jerarquía
+     * (S1, P1, T…) conservan el sentido de la lista de materiales.
+     *
+     * @return array<int, int[]> id => ids de sus vecinos en esa dirección
+     */
+    private function adjacency(int $rootId, string $dir): array
+    {
+        return $this->cache()->remember("part_progress:v1:adj:{$dir}:{$rootId}", self::CATALOG_TTL, function () use ($rootId, $dir) {
+            $rank = ['M1' => 1, 'M2' => 2, 'M3' => 3, 'M4' => 4, 'F1' => 5];
+            $adj = [];
+            $seen = [$rootId => true];
+            $frontier = [$rootId];
+
+            for ($depth = 0; $frontier && $depth < 20; $depth++) {
+                $edges = DB::table('part_number_relations AS r')
+                    ->join('part_numbers AS pp', 'pp.id', '=', 'r.parent_part_number_id')
+                    ->join('part_numbers AS cc', 'cc.id', '=', 'r.child_part_number_id')
+                    ->leftJoin('item_classes AS pi', 'pi.id', '=', 'pp.item_class_id')
+                    ->leftJoin('item_classes AS ci', 'ci.id', '=', 'cc.item_class_id')
+                    ->where('r.is_active', true)
+                    ->where(fn ($q) => $q->whereIn('r.parent_part_number_id', $frontier)->orWhereIn('r.child_part_number_id', $frontier))
+                    ->orderBy('r.sequence_order')
+                    ->get(['r.parent_part_number_id AS p', 'r.child_part_number_id AS c', 'pi.abbreviation AS pc', 'ci.abbreviation AS cc']);
+
+                $next = [];
+                foreach ($edges as $e) {
+                    $inverted = isset($rank[$e->pc], $rank[$e->cc]) && $rank[$e->cc] > $rank[$e->pc];
+                    [$from, $to] = $inverted ? [(int) $e->p, (int) $e->c] : [(int) $e->c, (int) $e->p]; // from = el que va antes
+                    [$at, $other] = $dir === 'next' ? [$from, $to] : [$to, $from];
+                    if (!in_array($at, $frontier, true)) {
+                        continue;
+                    }
+                    $adj[$at][] = $other;
+                    if (!isset($seen[$other])) {
+                        $seen[$other] = true;
+                        $next[] = $other;
+                    }
+                }
+                $frontier = $next;
+            }
+
+            return $adj;
+        });
     }
 
     private static function countNodes(array $nodes): int
