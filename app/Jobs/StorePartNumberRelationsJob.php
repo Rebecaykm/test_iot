@@ -19,20 +19,56 @@ class StorePartNumberRelationsJob implements ShouldQueue
 
     protected Collection $relations;
 
-    public function __construct(Collection $relations)
+    /** Números de parte consultados en MBM: sus relaciones locales que Infor ya no regresó se desactivan */
+    protected array $queriedNumbers;
+
+    public function __construct(Collection $relations, array $queriedNumbers = [])
     {
         $this->relations = $relations;
+        $this->queriedNumbers = $queriedNumbers;
     }
 
     public function handle(): void
     {
         $log = Log::channel('part_number_relations');
+        $now = Carbon::now();
 
+        $this->store($log, $now);
+        $this->deactivateRemoved($log, $now);
+    }
+
+    /**
+     * Una relación borrada en MBM (no solo dada de baja por fecha) ya no regresa en la consulta,
+     * así que el upsert nunca la toca: todo lo de las partes consultadas que no se sincronizó en
+     * esta corrida se desactiva.
+     */
+    protected function deactivateRemoved($log, Carbon $now): void
+    {
+        if (empty($this->queriedNumbers)) {
+            return;
+        }
+
+        $ids = PartNumber::whereIn('number', $this->queriedNumbers)->pluck('id')->all();
+
+        foreach (array_chunk($ids, 500) as $chunk) {
+            $n = DB::table('part_number_relations')
+                ->where('is_active', true)
+                ->where(fn ($q) => $q->whereIn('parent_part_number_id', $chunk)->orWhereIn('child_part_number_id', $chunk))
+                ->where(fn ($q) => $q->whereNull('last_synced_at')->orWhere('last_synced_at', '<', $now))
+                ->update(['is_active' => false, 'updated_at' => $now]);
+
+            if ($n > 0) {
+                $log->info("[GUARDAR] {$n} relación(es) desactivada(s): ya no existen en MBM");
+            }
+        }
+    }
+
+    protected function store($log, Carbon $now): void
+    {
         if ($this->relations->isEmpty()) {
             return;
         }
 
-        $now = Carbon::now();
         $today = $now->toDateString();
 
         // Recopilar todos los números de parte únicos del lote en una sola query.
@@ -70,7 +106,11 @@ class StorePartNumberRelationsJob implements ShouldQueue
             $effectiveDate   = $this->parseInforDate($relation->effective_date ?? null);
             $discontinueDate = $this->parseInforDate($relation->discontinue_date ?? null);
 
-            $isActive = (!$effectiveDate || $effectiveDate->toDateString() <= $today)
+            // BDEFF 99999999 = nunca entra en vigor (parseInforDate lo vuelve null, que aquí sería "siempre")
+            $neverEffective = trim((string) ($relation->effective_date ?? '')) === '99999999';
+
+            $isActive = !$neverEffective
+                && (!$effectiveDate || $effectiveDate->toDateString() <= $today)
                 && (!$discontinueDate || $discontinueDate->toDateString() >= $today);
 
             $rows[] = [

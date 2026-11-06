@@ -71,11 +71,8 @@ class FetchPartNumberRelationsJob implements ShouldQueue
                 ->unique(fn ($item) => $item->parent_part . '::' . $item->child_part)
                 ->values();
 
-            if ($relations->isEmpty()) {
-                return;
-            }
-
-            StorePartNumberRelationsJob::dispatch($relations)->onQueue('infor-relations');
+            // Aun sin resultados se despacha: si MBM ya no regresa nada, sus relaciones locales se desactivan
+            StorePartNumberRelationsJob::dispatch($relations, $this->partNumbers)->onQueue('infor-relations');
         } catch (Throwable $e) {
             $this->handleQueryError($e);
         }

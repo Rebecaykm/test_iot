@@ -356,38 +356,31 @@ class PartProgress extends Component
     }
 
     /**
-     * Vecinos de cada número de parte hacia atrás ('prev', hacia M1) o hacia adelante ('next', hacia F1).
-     * La lista de materiales (Infor MBM) guarda padre → hijo, pero a veces un M2 trae un M3 como "hijo";
-     * la jerarquía de clases manda: M1 → M2 → M3 → M4 → F1. Si el hijo es de una clase más alta que el padre,
-     * la relación se invierte (el M3 queda como posterior del M2). Clases iguales o fuera de la jerarquía
-     * (S1, P1, T…) conservan el sentido de la lista de materiales.
+     * Vecinos de cada número de parte hacia atrás ('prev', sus componentes) o hacia adelante ('next', dónde se usa).
+     * Manda la lista de materiales (Infor MBM): el hijo siempre va antes que el padre. La clase NO indica el orden
+     * (IIC: M1 Prensa, M2 Sub Assy, M3 Assy, M4 Pintura, F1 Terminado); p. ej. un "AFTER BUSH" M2 consume su
+     * "AFTER PAINT" M4. Los fantasmas (01) se atraviesan en partDetail.
      *
      * @return array<int, int[]> id => ids de sus vecinos en esa dirección
      */
     private function adjacency(int $rootId, string $dir): array
     {
-        return $this->cache()->remember("part_progress:v1:adj:{$dir}:{$rootId}", self::CATALOG_TTL, function () use ($rootId, $dir) {
-            $rank = ['M1' => 1, 'M2' => 2, 'M3' => 3, 'M4' => 4, 'F1' => 5];
+        return $this->cache()->remember("part_progress:v2:adj:{$dir}:{$rootId}", self::CATALOG_TTL, function () use ($rootId, $dir) {
             $adj = [];
             $seen = [$rootId => true];
             $frontier = [$rootId];
+            [$atCol, $otherCol] = $dir === 'next' ? ['c', 'p'] : ['p', 'c'];
 
             for ($depth = 0; $frontier && $depth < 20; $depth++) {
                 $edges = DB::table('part_number_relations AS r')
-                    ->join('part_numbers AS pp', 'pp.id', '=', 'r.parent_part_number_id')
-                    ->join('part_numbers AS cc', 'cc.id', '=', 'r.child_part_number_id')
-                    ->leftJoin('item_classes AS pi', 'pi.id', '=', 'pp.item_class_id')
-                    ->leftJoin('item_classes AS ci', 'ci.id', '=', 'cc.item_class_id')
                     ->where('r.is_active', true)
-                    ->where(fn ($q) => $q->whereIn('r.parent_part_number_id', $frontier)->orWhereIn('r.child_part_number_id', $frontier))
+                    ->whereIn($dir === 'next' ? 'r.child_part_number_id' : 'r.parent_part_number_id', $frontier)
                     ->orderBy('r.sequence_order')
-                    ->get(['r.parent_part_number_id AS p', 'r.child_part_number_id AS c', 'pi.abbreviation AS pc', 'ci.abbreviation AS cc']);
+                    ->get(['r.parent_part_number_id AS p', 'r.child_part_number_id AS c']);
 
                 $next = [];
                 foreach ($edges as $e) {
-                    $inverted = isset($rank[$e->pc], $rank[$e->cc]) && $rank[$e->cc] > $rank[$e->pc];
-                    [$from, $to] = $inverted ? [(int) $e->p, (int) $e->c] : [(int) $e->c, (int) $e->p]; // from = el que va antes
-                    [$at, $other] = $dir === 'next' ? [$from, $to] : [$to, $from];
+                    [$at, $other] = [(int) $e->$atCol, (int) $e->$otherCol];
                     if (!in_array($at, $frontier, true)) {
                         continue;
                     }
