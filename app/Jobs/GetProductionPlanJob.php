@@ -104,10 +104,9 @@ class GetProductionPlanJob implements ShouldQueue
 
         foreach ($partNumbers as $partNumber) {
             $syncFrom = $syncFromByWorkCenter->get($workCenterByPartNumber->get($partNumber));
-            $partStart = $syncFrom !== null && $syncFrom > $windowStart ? $syncFrom : $windowStart;
 
+            // Las órdenes antes de sync_from también se llenan (con lo anterior, que no se envía a Infor).
             $orders = $ordersByPartNumber->get($partNumber, collect())
-                ->filter(fn($productionPlan) => $productionPlan->PLANNED_DATE >= $partStart)
                 ->sortBy(fn($productionPlan) => $productionPlan->PLANNED_DATE . '|' . ($shiftPosition[$productionPlan->PLANNED_SHIFT] ?? PHP_INT_MAX))
                 ->map(fn($productionPlan) => [
                     'shop_order_number' => $productionPlan->shop_order_number,
