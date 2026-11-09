@@ -82,10 +82,12 @@ class InforSyncSettingController extends Controller
                 $setting->workCenters()->whereNotIn('work_center_id', $syncDates->keys())->delete();
 
                 foreach ($syncDates as $workCenterId => $syncFrom) {
-                    $setting->workCenters()->updateOrCreate(
-                        ['work_center_id' => $workCenterId],
-                        ['sync_from' => $syncFrom]
-                    );
+                    $workCenter = $setting->workCenters()->firstOrNew(['work_center_id' => $workCenterId]);
+
+                    // Con fecha nueva el acumulado se vuelve a dividir al llegar esa fecha.
+                    if ($workCenter->sync_from?->toDateString() !== $syncFrom) {
+                        $workCenter->fill(['sync_from' => $syncFrom, 'split_at' => null])->save();
+                    }
                 }
             }
         });

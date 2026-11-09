@@ -50,10 +50,22 @@ class GetProductionPlanJob implements ShouldQueue
 
         $this->cancelObsoletePartRecords();
 
-        $syncFromByWorkCenter = InforSyncWorkCenter::query()
+        $liveWorkCenters = InforSyncWorkCenter::query()
             ->whereHas('setting', fn($query) => $query->where('environment', InforSyncSetting::ENVIRONMENT_LIVE))
-            ->get(['work_center_id', 'sync_from'])
+            ->get(['id', 'work_center_id', 'sync_from', 'split_at']);
+
+        $syncFromByWorkCenter = $liveWorkCenters
             ->mapWithKeys(fn(InforSyncWorkCenter $workCenter) => [$workCenter->work_center_id => $workCenter->sync_from->toDateString()]);
+
+        // Estaciones cuyo envío ya arrancó (sync_from desde su primer turno) y
+        // todavía no dividen su acumulado: corte = inicio del primer turno.
+        $firstShift = Shift::query()->orderBy('start_time')->first();
+        $pendingSplits = $liveWorkCenters
+            ->whereNull('split_at')
+            ->mapWithKeys(fn(InforSyncWorkCenter $workCenter) => [
+                $workCenter->work_center_id => $workCenter->sync_from->copy()->setTimeFromTimeString($firstShift->start_time),
+            ])
+            ->filter(fn(Carbon $cut) => $cut->lte(Carbon::now()));
 
         $workCenterByPartNumber = PartNumber::query()
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
@@ -85,6 +97,7 @@ class GetProductionPlanJob implements ShouldQueue
         // string para que SQL Server compare contra nvarchar.
         $partNumbers = $ordersByPartNumber->keys()
             ->merge($this->partNumbersWithAccumulators($monthStart, $monthEnd->toDateString()))
+            ->merge($workCenterByPartNumber->filter(fn($workCenterId) => $pendingSplits->has($workCenterId))->keys())
             ->map(fn($partNumber) => (string) $partNumber)
             ->filter(fn($partNumber) => $workCenterByPartNumber->has($partNumber))
             ->unique();
@@ -105,7 +118,18 @@ class GetProductionPlanJob implements ShouldQueue
                 ->values()
                 ->all();
 
-            StoreProductionPlanJob::dispatch($partNumber, $orders, $syncFrom, $operatingDate->toDateString(), $currentShift->shift->id);
+            $splitFrom = $pendingSplits->get($workCenterByPartNumber->get($partNumber))?->toDateTimeString();
+
+            StoreProductionPlanJob::dispatch($partNumber, $orders, $syncFrom, $operatingDate->toDateString(), $currentShift->shift->id, $splitFrom);
+        }
+
+        // shortcut: se marca al despachar, no al terminar cada job; si uno falla, esa parte no se divide (revisar el log).
+        if ($pendingSplits->isNotEmpty()) {
+            InforSyncWorkCenter::query()
+                ->whereIn('id', $liveWorkCenters->whereIn('work_center_id', $pendingSplits->keys())->pluck('id'))
+                ->update(['split_at' => Carbon::now()]);
+
+            Log::info('[Plan] Arranque de envío: se divide el acumulado de las estaciones #' . $pendingSplits->keys()->implode(', #'));
         }
 
         Log::info("[Plan] Rango {$windowStart} a {$windowEnd} · turno {$operatingDate->toDateString()} {$currentShift->shift->abbreviation} · {$productionPlans->count()} órdenes de FSO · {$partNumbers->count()} partes en cola");
@@ -155,20 +179,20 @@ class GetProductionPlanJob implements ShouldQueue
     }
 
     /**
-     * Números de parte con acumulado "No planeado" en el mes operativo,
-     * incluidos los que quedaron en cero (se descartan al consolidar).
+     * Números de parte con acumulado "No planeado" o "No verificado" en el mes
+     * operativo, incluidos los que quedaron en cero (se descartan al consolidar).
      */
     protected function partNumbersWithAccumulators(string $monthStart, string $monthEnd): array
     {
-        $accumulatorStatus = Status::where('name', 'LIKE', 'No planeado')->first();
+        $accumulatorStatusIds = Status::whereIn('name', ['No planeado', 'No verificado'])->pluck('id');
 
-        if (!$accumulatorStatus) {
+        if ($accumulatorStatusIds->isEmpty()) {
             return [];
         }
 
         return ProductionRecord::query()
             ->join('part_numbers', 'production_records.part_number_id', '=', 'part_numbers.id')
-            ->where('production_records.status_id', $accumulatorStatus->id)
+            ->whereIn('production_records.status_id', $accumulatorStatusIds)
             ->where(fn($query) => $query->whereNull('production_records.shop_order_number')->orWhere('production_records.shop_order_number', ''))
             ->where('production_records.planned_quantity', 0)
             ->whereBetween('production_records.planned_date', [$monthStart, $monthEnd])

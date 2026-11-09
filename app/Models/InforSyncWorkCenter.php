@@ -11,10 +11,12 @@ class InforSyncWorkCenter extends Model
         'infor_sync_setting_id',
         'work_center_id',
         'sync_from',
+        'split_at',
     ];
 
     protected $casts = [
         'sync_from' => 'date',
+        'split_at' => 'datetime',
     ];
 
     public function setting(): BelongsTo
