@@ -216,23 +216,22 @@ class StoreProductionPlanJob implements ShouldQueue
             && (int) $existingRecord->status_id === $completedStatus->id;
 
         // "Acumulador": producción del PLC sin orden/plan todavía (status "No
-        // planeado", "No verificado" o "En progreso"). Solo sirve el del mismo mes
-        // que la orden y con fecha/turno igual o anterior a ella (llena hacia
-        // adelante: D, luego N, luego el D siguiente...). Como al llenar solo se
-        // mueve al slot de la orden, nunca cambia de mes. Las órdenes desde la
-        // fecha de arranque solo se llenan con lo producido desde esa fecha; las
-        // anteriores, con lo anterior (que no se envía a Infor).
+        // planeado", "No verificado" o "En progreso"). Sirve cualquiera del mismo
+        // mes que la orden, aunque sea de un turno posterior (producción atrasada):
+        // las órdenes llegan en orden de fecha y turno, así se llenan primero las
+        // más antiguas. Como al llenar solo se mueve al slot de la orden, nunca
+        // cambia de mes. Con fecha de arranque, las órdenes desde esa fecha solo
+        // se llenan con lo producido desde esa fecha y las anteriores con lo
+        // anterior (que no se envía a Infor).
         $accumulatorStatusIds = Status::whereIn('name', ['No planeado', 'No verificado', 'En progreso'])->pluck('id')->all();
+        $orderMonth = Carbon::parse($plannedDateStr);
 
         if (!empty($accumulatorStatusIds) && !$orderAlreadyCompleted) {
             $accumulatorCandidates = ProductionRecord::accumulators($partNumber->id)
                 ->whereIn('status_id', $accumulatorStatusIds)
                 ->when($existingRecord, fn ($query) => $query->where('id', '!=', $existingRecord->id))
-                ->where('planned_date', '>=', Carbon::parse($plannedDateStr)->startOfMonth()->toDateString())
-                ->when($this->sync_from !== null && $plannedDateStr >= $this->sync_from, fn ($query) => $query->where('planned_date', '>=', $this->sync_from))
-                ->where(fn ($query) => $query->where('planned_date', '<', $plannedDateStr)
-                    ->orWhere(fn ($query) => $query->where('planned_date', $plannedDateStr)
-                        ->whereIn('shift_id', $this->shiftIdsWhere('<=', $shift))))
+                ->whereBetween('planned_date', [$orderMonth->copy()->startOfMonth()->toDateString(), $orderMonth->copy()->endOfMonth()->toDateString()])
+                ->when($this->sync_from !== null, fn ($query) => $query->where('planned_date', $plannedDateStr >= $this->sync_from ? '>=' : '<', $this->sync_from))
                 ->get();
 
             // Con varios acumuladores se usa el más antiguo que no esté "En progreso"
@@ -743,15 +742,6 @@ class StoreProductionPlanJob implements ShouldQueue
 
                 $this->change('acumulados en cero descartados', "#{$record->id}");
             });
-    }
-
-    /**
-     * Ids de los turnos cuya hora de inicio cumple "$operator" contra la de
-     * $shift; p. ej. '<=' con N da D y N.
-     */
-    protected function shiftIdsWhere(string $operator, Shift $shift): array
-    {
-        return $this->shifts->where('start_time', $operator, $shift->start_time)->pluck('id')->all();
     }
 
     /**
