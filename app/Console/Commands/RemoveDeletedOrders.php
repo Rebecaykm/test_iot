@@ -9,6 +9,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -81,8 +82,17 @@ class RemoveDeletedOrders extends Command
                     DB::beginTransaction();
 
                     try {
-                        $this->processRecords($partRecords, $partNumber, $inProgressId);
-                        $dryRun ? DB::rollBack() : DB::commit();
+                        $entries = $this->processRecords($partRecords, $partNumber, $inProgressId);
+
+                        if ($dryRun) {
+                            DB::rollBack();
+                        } else {
+                            DB::commit();
+                            // Solo después del commit, para no registrar algo que se revirtió.
+                            foreach ($entries as [$message, $context]) {
+                                Log::channel('deleted_orders')->info($message, $context);
+                            }
+                        }
                     } catch (Throwable $e) {
                         DB::rollBack();
                         $this->error("  error, no se guardó nada para este número. {$e->getMessage()}");
@@ -101,18 +111,26 @@ class RemoveDeletedOrders extends Command
         return self::SUCCESS;
     }
 
-    protected function processRecords(Collection $records, $partNumber, int $inProgressId): void
+    /**
+     * Devuelve las entradas para el log deleted_orders (los descartados sin producción no van).
+     */
+    protected function processRecords(Collection $records, $partNumber, int $inProgressId): array
     {
+        $entries = [];
+
         foreach ($records as $record) {
             $label = $this->describe($record);
+            $context = $this->logContext($record, $partNumber);
 
             if ($record->synced_to_infor) {
                 $this->warn("  {$label}: ya está en Infor, se deja. Corregir en Infor.");
+                $entries[] = ['[EN INFOR - SIN CAMBIO] Orden eliminada en Infor pero su producción ya se envió; corregir en Infor', $context];
                 continue;
             }
 
             if ((int) $record->status_id === $inProgressId) {
                 $this->warn("  {$label}: En progreso, se deja (el PLC puede estar escribiendo). Volver a correr cuando cambie.");
+                $entries[] = ['[EN PROGRESO - SIN CAMBIO] Orden eliminada en Infor, se deja porque el PLC puede estar escribiendo', $context];
                 continue;
             }
 
@@ -120,6 +138,7 @@ class RemoveDeletedOrders extends Command
                 $producedQuantity = (int) $record->produced_quantity;
                 $accumulator = ProductionRecord::moveToAccumulator($partNumber, $record);
                 $this->line("  {$label}: {$producedQuantity} pzs pasan al acumulador #{$accumulator->id} y se descarta.");
+                $entries[] = ['[AL ACUMULADOR] Orden eliminada en Infor, su producción pasa al acumulador', $context + ['Acumulador' => $accumulator->id]];
                 continue;
             }
 
@@ -137,8 +156,30 @@ class RemoveDeletedOrders extends Command
 
             if ($updated > 0) {
                 $this->line("  Orden {$order}: {$updated} histories quedan sin orden.");
+                $entries[] = ['[HISTORIES] Quedan sin orden', ['Orden' => $order, 'Registros' => $updated]];
             }
         }
+
+        return $entries;
+    }
+
+    /**
+     * Datos del registro antes de tocarlo (moveToAccumulator lo deja en 0 o lo borra).
+     */
+    protected function logContext(ProductionRecord $record, $partNumber): array
+    {
+        return [
+            'Orden' => $record->shop_order_number,
+            'Registro' => $record->id,
+            'Número de parte' => $partNumber->number,
+            'Fecha planeada' => substr((string) $record->planned_date, 0, 10),
+            'Turno' => $record->shift_id,
+            'Cantidad planeada' => (int) $record->planned_quantity,
+            'Cantidad producida' => (int) $record->produced_quantity,
+            'Scrap' => (int) $record->scrap_quantity,
+            'Sincronizado a Infor' => (bool) $record->synced_to_infor,
+            'Fecha de sincronización' => $record->synced_at,
+        ];
     }
 
     protected function describe(ProductionRecord $record): string

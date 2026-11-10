@@ -80,6 +80,13 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'deleted_orders' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/deleted-orders.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'replace_placeholders' => true,
+        ],
+
         'infor_proto' => [
             'driver' => 'single',
             'path' => storage_path('logs/proto.log'),
