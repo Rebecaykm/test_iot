@@ -13,9 +13,27 @@
 @section('content')
     <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
         <div class="card-body p-4">
-            @if ($hasPressAccess)
+            @if ($hasPressAccess || $hasWorkCenters)
             <div class="report-grid">
 
+                @if ($hasWorkCenters)
+                {{-- Sobreproducción: pide el rango de fechas en un modal antes de descargar --}}
+                <button type="button" class="report-tile" data-toggle="modal" data-target="#overproductionModal">
+                    <span class="report-tile-icon">
+                        {{-- Heroicon: arrow-trending-up (outline) --}}
+                        <svg class="hi" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+                        </svg>
+                    </span>
+                    <span class="report-tile-text">Sobreproducción</span>
+                    <span class="report-tile-badge">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </span>
+                </button>
+                @endif
+
+                @if ($hasPressAccess)
                 {{-- Reporte MDI --}}
                 <a href="{{ route('reports.mdi.export') }}" class="report-tile">
                     <span class="report-tile-icon">
@@ -45,6 +63,7 @@
                         <i class="fas fa-file-excel"></i> Excel
                     </span>
                 </button>
+                @endif
 
             </div>
             @else
@@ -53,12 +72,76 @@
                     <i class="fas fa-folder-open mb-3 report-empty-icon" aria-hidden="true"></i>
                     <p class="mb-1 fw-600 text-dark">No tienes reportes disponibles</p>
                     <p class="mb-0 report-empty-text">
-                        Estos reportes son de prensas. Pide que te asignen una línea o estación de prensas para verlos.
+                        Pide que te asignen una línea o estación para ver los reportes.
                     </p>
                 </div>
             @endif
         </div>
     </div>
+
+    @if ($hasWorkCenters)
+    {{-- Modal: rango de fechas del reporte Sobreproducción (no se puede consultar antes de noviembre) --}}
+    <div class="modal fade" id="overproductionModal" tabindex="-1" aria-labelledby="overproductionModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="{{ route('reports.overproduction.export') }}" method="GET" id="overproductionForm"
+                class="modal-content border-0 shadow rounded-4 overflow-hidden">
+                <div class="modal-header bg-white report-modal-divider-bottom">
+                    <h5 class="modal-title fw-600 text-dark report-modal-title" id="overproductionModalTitle">
+                        <i class="fas fa-chart-line mr-2 report-modal-title-icon" aria-hidden="true"></i>Sobreproducción
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="text-muted report-modal-intro">
+                        Números de parte que se produjeron de más: sin plan y sin orden de Infor. Por defecto se descarga el mes actual.
+                    </p>
+
+                    <div class="row">
+                        <div class="col-sm-6 mb-3 mb-sm-0">
+                            <label for="op-start-date" class="field-label">Fecha de inicio *</label>
+                            <div class="filter-group report-date-group @error('start_date', 'overproduction') is-invalid @enderror">
+                                <i class="fas fa-calendar filter-icon" aria-hidden="true"></i>
+                                <input type="text" name="start_date" id="op-start-date" class="filter-input flatpickr-date"
+                                    placeholder="Seleccionar fecha"
+                                    value="{{ old('start_date', request('start_date', max(now()->startOfMonth()->toDateString(), $overproductionFloor))) }}"
+                                    min="{{ $overproductionFloor }}" required>
+                            </div>
+                            @error('start_date', 'overproduction')
+                                <div class="field-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-sm-6">
+                            <label for="op-end-date" class="field-label">Fecha de fin *</label>
+                            <div class="filter-group report-date-group @error('end_date', 'overproduction') is-invalid @enderror">
+                                <i class="fas fa-calendar-check filter-icon" aria-hidden="true"></i>
+                                <input type="text" name="end_date" id="op-end-date" class="filter-input flatpickr-date"
+                                    placeholder="Seleccionar fecha"
+                                    value="{{ old('end_date', request('end_date', now()->endOfMonth()->toDateString())) }}"
+                                    min="{{ $overproductionFloor }}" required>
+                            </div>
+                            @error('end_date', 'overproduction')
+                                <div class="field-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-white report-modal-divider-top">
+                    <button type="button" class="btn-action btn-action-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-1" aria-hidden="true"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn-action btn-action-solid">
+                        <i class="fas fa-file-excel mr-1" aria-hidden="true"></i>Descargar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 
     @if ($hasPressAccess)
     {{-- Modal: rango de fechas del reporte Rechazos de IoT --}}
@@ -234,6 +317,21 @@
 
 @section('js')
     @include('partials.theme-datepicker-scripts')
+    @if ($hasWorkCenters)
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = $('#overproductionModal');
+
+            @if ($errors->overproduction->any())
+                modal.modal('show');
+            @endif
+
+            document.getElementById('overproductionForm').addEventListener('submit', () => {
+                setTimeout(() => modal.modal('hide'), 300);
+            });
+        });
+    </script>
+    @endif
     @if ($hasPressAccess)
     <script>
         document.addEventListener('DOMContentLoaded', () => {

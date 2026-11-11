@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\MdiReportExport;
+use App\Exports\OverproductionExport;
 use App\Exports\RejectedProductionRecordsExport;
 use App\Models\PartNumber;
 use App\Models\RejectedProductionRecord;
@@ -10,6 +11,7 @@ use App\Models\WorkCenter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
@@ -21,10 +23,20 @@ class ReportController extends Controller
     {
         return view('reports.index', [
             'hasPressAccess' => $this->userHasPressAccess(),
+            'hasWorkCenters' => $this->userWorkCenterIds() !== [],
+            'overproductionFloor' => self::OVERPRODUCTION_FLOOR_DATE,
         ]);
     }
 
     private const PRESS_AREA = 'Estampado';
+
+    /** Sobreproducción: no se consulta antes de esta fecha. */
+    private const OVERPRODUCTION_FLOOR_DATE = '2026-11-01';
+
+    /** Estatus de production_records que cuentan como sobreproducción: No planeado, Expirado, No verificado y Cancelado. */
+    private const OVERPRODUCTION_STATUS_IDS = [24, 19, 14, 12];
+
+    private const OVERPRODUCTION_ITEM_CLASSES = ['F1', 'M3', 'M2', 'M1'];
 
     /**
      * Los reportes de prensas (MDI y Rechazos de IoT) solo son para usuarios con al
@@ -154,5 +166,83 @@ class ReportController extends Controller
         $filename = 'Rechazos_IoT_' . $start->format('Ymd') . '_' . $end->format('Ymd') . '.xlsx';
 
         return Excel::download(new RejectedProductionRecordsExport($rows), $filename);
+    }
+
+    /**
+     * Descarga el reporte "Sobreproducción" en Excel: números de parte que produjeron
+     * sin tener plan ni orden de Infor (sin shop_order_number), dentro del rango indicado.
+     *
+     * Solo incluye las estaciones del usuario (sus líneas y las asignadas directamente).
+     * El administrador recibe además las columnas técnicas (IDs, fechas de registro, sync).
+     */
+    public function exportOverproduction(Request $request)
+    {
+        // Bolsa de errores propia: las fechas comparten nombre con el modal de Rechazos de IoT
+        $validated = $request->validateWithBag('overproduction', [
+            'start_date' => 'required|date|after_or_equal:' . self::OVERPRODUCTION_FLOOR_DATE,
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ], [
+            'start_date.required' => 'Selecciona la fecha de inicio.',
+            'start_date.date' => 'La fecha de inicio no es una fecha válida.',
+            'start_date.after_or_equal' => 'La fecha de inicio no puede ser anterior a noviembre de 2026.',
+            'end_date.required' => 'Selecciona la fecha de fin.',
+            'end_date.date' => 'La fecha de fin no es una fecha válida.',
+            'end_date.after_or_equal' => 'La fecha de fin debe ser igual o posterior a la fecha de inicio.',
+        ]);
+
+        $isAdmin = Auth::user()->hasRole('Administrador');
+
+        // [encabezado => columna]; las marcadas con $adminOnly solo las ve el administrador
+        $adminOnly = ['ID', 'PART ID', 'IS OBSOLETE', 'PRODUCTION START', 'PRODUCTION END', 'CREATED AT', 'UPDATED AT', 'SYNCED TO INFOR', 'SYNCED AT'];
+        $columns = [
+            'ID' => 'pr.id',
+            'LINE' => 'ln.name',
+            'WORK NAME' => 'wc.number',
+            'WORK CENTER' => 'wc.name',
+            'PART ID' => 'pn.id',
+            'PART NUMBER' => 'pn.number',
+            'PART NAME' => 'pn.name',
+            'ITEM CLASS' => 'ic.abbreviation',
+            'ORDER NUMBER' => 'pr.shop_order_number',
+            'PLANNED DATE' => 'pr.planned_date',
+            'SHIFT' => 's.abbreviation',
+            'PLANNED QUANTITY' => 'pr.planned_quantity',
+            'PRODUCED QUANTITY' => 'pr.produced_quantity',
+            'IS OBSOLETE' => "CASE WHEN pn.is_obsolete = 1 THEN 'TRUE' ELSE 'FALSE' END",
+            'STATUS' => 't.name',
+            'PRODUCTION START' => 'pr.production_start',
+            'PRODUCTION END' => 'pr.production_end',
+            'CREATED AT' => 'pr.created_at',
+            'UPDATED AT' => 'pr.updated_at',
+            'INFOR SYNC' => "CASE WHEN swc.sync_from IS NOT NULL THEN 'Sí' ELSE 'No' END",
+            'INFOR SYNC DATE' => 'swc.sync_from',
+            'SYNCED TO INFOR' => "CASE WHEN pr.synced_to_infor = 1 THEN 'TRUE' ELSE 'FALSE' END",
+            'SYNCED AT' => 'pr.synced_at',
+        ];
+        if (! $isAdmin) {
+            $columns = array_diff_key($columns, array_flip($adminOnly));
+        }
+
+        $rows = DB::table('production_records as pr')
+            ->selectRaw(collect($columns)->map(fn ($col, $alias) => "$col AS \"$alias\"")->implode(', '))
+            ->join('part_numbers as pn', 'pr.part_number_id', '=', 'pn.id')
+            ->join('shifts as s', 'pr.shift_id', '=', 's.id')
+            ->join('statuses as t', 'pr.status_id', '=', 't.id')
+            ->join('work_centers as wc', 'pn.work_center_id', '=', 'wc.id')
+            ->join('item_classes as ic', 'pn.item_class_id', '=', 'ic.id')
+            ->leftJoin('lines as ln', 'wc.line_id', '=', 'ln.id')
+            ->leftJoin('infor_sync_work_centers as swc', 'swc.work_center_id', '=', 'wc.id')
+            ->whereBetween('pr.planned_date', [$validated['start_date'], $validated['end_date']])
+            ->whereIn('t.id', self::OVERPRODUCTION_STATUS_IDS)
+            ->whereNull('pr.shop_order_number')
+            ->whereIn('ic.abbreviation', self::OVERPRODUCTION_ITEM_CLASSES)
+            ->whereIn('wc.id', $this->userWorkCenterIds())
+            ->orderBy('pr.planned_date')->orderBy('s.abbreviation')->orderBy('wc.number')->orderBy('pn.number')
+            ->get()
+            ->map(fn ($row) => array_values((array) $row));
+
+        $filename = 'OVERPRODUCTION_' . Carbon::now()->format('YmdHis') . '.xlsx';
+
+        return Excel::download(new OverproductionExport($rows, array_keys($columns)), $filename);
     }
 }
