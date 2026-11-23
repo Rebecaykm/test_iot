@@ -53,14 +53,21 @@ class InforSyncSetting extends Model
     }
 
     /**
-     * Números de las estaciones cuya fecha de inicio de envío ya llegó
+     * Números de las estaciones cuyo envío ya arrancó: desde el inicio del primer
+     * turno de sync_from, que es el corte del acumulado (GetProductionPlanJob).
+     * Antes del corte todavía no se divide y se enviarían órdenes con producción vieja.
      */
     public function workCenterNumbers(): array
     {
-        return WorkCenter::query()
-            ->whereIn('id', $this->workCenters()->whereDate('sync_from', '<=', today())->select('work_center_id'))
-            ->pluck('number')
-            ->toArray();
+        $firstShiftStart = Shift::query()->orderBy('start_time')->value('start_time');
+
+        $ready = $this->workCenters()
+            ->whereDate('sync_from', '<=', today())
+            ->get(['work_center_id', 'sync_from'])
+            ->filter(fn (InforSyncWorkCenter $workCenter) => $workCenter->sync_from->copy()->setTimeFromTimeString($firstShiftStart)->lte(now()))
+            ->pluck('work_center_id');
+
+        return WorkCenter::query()->whereIn('id', $ready)->pluck('number')->toArray();
     }
 
     /**

@@ -14,12 +14,14 @@ use Illuminate\Support\Facades\Log;
 /**
  * Cierra el mes inmediato anterior al mes operativo (el turno N antes de las
  * 08:00 es del día anterior). Los registros que quedaron abiertos (Pendiente,
- * En progreso, Detenido o No planeado) y no se enviaron a Infor:
+ * En progreso o Detenido) y no se enviaron a Infor:
  *
  *  - Con orden y producción menor al plan → Incompleto (se envía a Infor).
  *  - Con orden y producción igual o mayor al plan → Completado (se envía a Infor).
  *  - Con orden y sin producción → Expirado (no se produjo).
- *  - Sin orden (acumulado: no se planeó y se sobreprodujo) → Expirado.
+ *  - Sin orden → Expirado.
+ *
+ * Los acumulados "No planeado" y "No verificado" no se tocan: conservan su estado y no se envían a Infor.
  *
  * Cada registro se queda en su fecha, turno y cantidades; solo cambia el estado.
  * Se puede correr cualquier día: si el mes anterior ya está cerrado no hace nada.
@@ -28,7 +30,7 @@ class ClosePreviousProductionMonth extends Command
 {
     protected $signature = 'iot:close-previous-month {--dry-run : Muestra lo que se cambiaría sin guardar}';
 
-    protected $description = 'Cierra el mes anterior: las órdenes abiertas pasan a Incompleto, Completado o Expirado y los acumulados a Expirado.';
+    protected $description = 'Cierra el mes anterior: las órdenes abiertas pasan a Incompleto, Completado o Expirado. Los acumulados conservan su estado.';
 
     public function handle()
     {
@@ -39,7 +41,7 @@ class ClosePreviousProductionMonth extends Command
             return self::FAILURE;
         }
 
-        $statuses = Status::whereIn('name', ['Pendiente', 'En progreso', 'Detenido', 'No planeado', 'Completado', 'Incompleto', 'Expirado'])
+        $statuses = Status::whereIn('name', ['Pendiente', 'En progreso', 'Detenido', 'Completado', 'Incompleto', 'Expirado'])
             ->pluck('id', 'name');
 
         foreach (['Completado', 'Incompleto', 'Expirado'] as $required) {
@@ -49,7 +51,7 @@ class ClosePreviousProductionMonth extends Command
             }
         }
 
-        $openStatusIds = $statuses->only(['Pendiente', 'En progreso', 'Detenido', 'No planeado'])->values()->all();
+        $openStatusIds = $statuses->only(['Pendiente', 'En progreso', 'Detenido'])->values()->all();
         $previousMonth = $currentShift->date->copy()->startOfMonth()->subMonth();
         $from = ProductionRecord::applyHistoryFloor($previousMonth->copy())->toDateString();
         $to = $previousMonth->copy()->endOfMonth()->toDateString();
