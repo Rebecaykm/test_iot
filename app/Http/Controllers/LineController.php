@@ -25,7 +25,12 @@ class LineController extends Controller
             $searchTerm = $request->search;
 
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'like', "%{$searchTerm}%");
+                $q->where('name', 'like', "%{$searchTerm}%")
+                    ->orWhere('description', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('area', fn ($a) => $a->where('name', 'like', "%{$searchTerm}%"))
+                    ->orWhereHas('workCenters', fn ($w) => $w
+                        ->where('number', 'like', "%{$searchTerm}%")
+                        ->orWhere('name', 'like', "%{$searchTerm}%"));
             });
         }
 
@@ -59,7 +64,7 @@ class LineController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
             'area_id' => ['nullable', 'exists:areas,id'],
             'show_in_progress' => ['nullable', 'boolean'],
-            'work_centers' => ['required', 'array', 'min:1'],
+            'work_centers' => ['nullable', 'array'],
             'work_centers.*' => [
                 'exists:work_centers,id',
                 Rule::exists('work_centers', 'id')->whereNull('line_id')
@@ -90,7 +95,7 @@ class LineController extends Controller
             ]);
 
             // Actualizar work centers (sintaxis corregida)
-            WorkCenter::whereIn('id', $validatedData['work_centers'])
+            WorkCenter::whereIn('id', $validatedData['work_centers'] ?? [])
                 ->update(['line_id' => $line->id]);
 
             DB::commit();
@@ -138,7 +143,7 @@ class LineController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
             'area_id' => ['nullable', 'exists:areas,id'],
             'show_in_progress' => ['nullable', 'boolean'],
-            'work_centers' => ['required', 'array', 'min:1'],
+            'work_centers' => ['nullable', 'array'],
             'work_centers.*' => [
                 'exists:work_centers,id',
                 Rule::exists('work_centers', 'id')->where(function ($query) use ($line) {
@@ -168,13 +173,15 @@ class LineController extends Controller
                 'show_in_progress' => $request->boolean('show_in_progress')
             ]);
 
+            $workCenterIds = $validatedData['work_centers'] ?? [];
+
             // Primero, desasignar todas las estaciones de esta línea
             WorkCenter::where('line_id', $line->id)
-                ->whereNotIn('id', $validatedData['work_centers'])
+                ->whereNotIn('id', $workCenterIds)
                 ->update(['line_id' => null]);
 
             // Luego asignar las nuevas estaciones
-            WorkCenter::whereIn('id', $validatedData['work_centers'])
+            WorkCenter::whereIn('id', $workCenterIds)
                 ->update(['line_id' => $line->id]);
 
             DB::commit();
