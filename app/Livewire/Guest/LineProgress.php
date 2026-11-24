@@ -52,7 +52,7 @@ class LineProgress extends Component
      * genera las clases que encuentra literalmente en el código, y con 'lp-t-' . $tone
      * las descartaba (el % salía sin color).
      */
-    private const TONE_CLASS = [
+    protected const TONE_CLASS = [
         'good' => 'lp-t-good',
         'warn' => 'lp-t-warn',
         'bad' => 'lp-t-bad',
@@ -192,7 +192,7 @@ class LineProgress extends Component
     }
 
     /** Enteros y sin duplicados */
-    private function normalizeFilters(): void
+    protected function normalizeFilters(): void
     {
         $this->selectedLines = array_values(array_unique(array_map('intval', $this->selectedLines)));
         $this->selectedWorkCenters = array_values(array_unique(array_map('intval', $this->selectedWorkCenters)));
@@ -228,7 +228,7 @@ class LineProgress extends Component
 
     // Semana
 
-    private function weekStart(): Carbon
+    protected function weekStart(): Carbon
     {
         $current = Carbon::today()->startOfWeek(Carbon::MONDAY);
 
@@ -265,7 +265,7 @@ class LineProgress extends Component
     }
 
     /** Día resaltado: el elegido o, si no hay, hoy */
-    private function highlightDate(): string
+    protected function highlightDate(): string
     {
         try {
             return $this->date !== '' ? Carbon::createFromFormat('!Y-m-d', $this->date)->toDateString() : Carbon::today()->toDateString();
@@ -295,7 +295,7 @@ class LineProgress extends Component
      * Cachea con el TTL según la semana: las pasadas por 1 hora; la actual y las
      * futuras por 10 s (compartido entre todas las pantallas, a lo más 10 s de retraso).
      */
-    private function cached(string $key, Carbon $weekEnd, callable $callback): mixed
+    protected function cached(string $key, Carbon $weekEnd, callable $callback): mixed
     {
         $ttl = $weekEnd->lt(Carbon::today()) ? self::PAST_TTL : self::LIVE_TTL;
 
@@ -307,7 +307,7 @@ class LineProgress extends Component
      * arreglos simples (no modelos: serializados pesan ~10 veces menos). Una sola
      * entrada de caché compartida por todas las pantallas; cada una filtra después.
      */
-    private function weekRows(Carbon $start, Carbon $end): array
+    protected function weekRows(Carbon $start, Carbon $end): array
     {
         return $this->cached("line_progress:v5:week:{$start->toDateString()}", $end, function () use ($start, $end) {
             return ProductionRecord::getLineWeeklyProgress([], $start->toDateString(), $end->toDateString())
@@ -326,7 +326,7 @@ class LineProgress extends Component
     }
 
     /** Lo mismo que weekRows(), pero por número de parte y solo de una estación (vista 3) */
-    private function partRows(Carbon $start, Carbon $end, int $wcId): array
+    protected function partRows(Carbon $start, Carbon $end, int $wcId): array
     {
         // v6: incluye la clase del número de parte y "Sin orden" por estado (UNPLANNED_SQL)
         return $this->cached("line_progress:v6:parts:{$start->toDateString()}:{$wcId}", $end, function () use ($start, $end, $wcId) {
@@ -351,7 +351,7 @@ class LineProgress extends Component
      * aparece al pasar el mouse por la barra:
      * [número de parte]["D|2026-10-23"] => ['Orden 123: Plan 100 · Real 80', ...]
      */
-    private function partOrders(Carbon $start, Carbon $end, string $wcName): array
+    protected function partOrders(Carbon $start, Carbon $end, string $wcName): array
     {
         return $this->cached("line_progress:v1:orders:{$start->toDateString()}:" . md5($wcName), $end, function () use ($start, $end, $wcName) {
             $orders = [];
@@ -372,7 +372,7 @@ class LineProgress extends Component
      *  - part["wc|part"]: estado de cada número de parte (vista 3)
      * Toda la planta, compartido por todas las pantallas.
      */
-    private function activity(): array
+    protected function activity(): array
     {
         return Cache::store(self::CACHE_STORE)->remember('line_progress:v2:activity', self::LIVE_TTL, function () {
             $byWc = [];
@@ -412,7 +412,7 @@ class LineProgress extends Component
      * Turnos con su horario. Llave propia: /guest/part-progress cachea
      * 'line_progress:shifts' sin las horas.
      */
-    private function shifts(): array
+    protected function shifts(): array
     {
         return Cache::store(self::CACHE_STORE)->remember('line_progress:shifts:v2', self::CATALOG_TTL, fn () => Shift::getAllShifts()
             ->map(fn ($s) => [
@@ -429,7 +429,7 @@ class LineProgress extends Component
      * Columnas de datos: cada día dividido en sus turnos, con el estado del turno
      * (cerrado, en curso o por venir).
      */
-    private function columns(array $days, array $shifts, Carbon $now): array
+    protected function columns(array $days, array $shifts, Carbon $now): array
     {
         $columns = [];
         foreach ($days as $day) {
@@ -492,7 +492,7 @@ class LineProgress extends Component
     }
 
     /** Renglón (área, estación o número de parte): celdas por turno y lo producido sin orden */
-    private function buildRow(array $rows, array $columns): array
+    protected function buildRow(array $rows, array $columns): array
     {
         $sums = [];
         $noOrder = 0;
@@ -590,7 +590,7 @@ class LineProgress extends Component
     }
 
     /** Fecha corta: "23/10 14:20" (día/mes hora:minutos) */
-    private function timeLabel(?string $ts): string
+    protected function timeLabel(?string $ts): string
     {
         return $ts ? Carbon::parse($ts)->format('d/m H:i') : '—';
     }
@@ -600,7 +600,7 @@ class LineProgress extends Component
      * parte con su estación y la hora. Con varias estaciones, lo último es la última
      * corrida de cada una, de la más reciente a la más vieja.
      */
-    private function activityFor(array $wcIds, array $wcNames, array $activity): ?array
+    protected function activityFor(array $wcIds, array $wcNames, array $activity): ?array
     {
         $live = [];
         $last = [];
@@ -640,27 +640,40 @@ class LineProgress extends Component
         return route($route, $params) . ($this->week !== '' ? '?week=' . $this->week : '');
     }
 
-    public function render()
+    private const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    /** Encabezados de los 7 días (lunes a domingo); se resalta el día elegido o hoy */
+    protected function weekDays(Carbon $start): array
     {
-        $now = Carbon::now();
-        $start = $this->weekStart();
-        $end = $start->copy()->addDays(6); // domingo
-
         $dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-        $meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
-        // Encabezados de los 7 días (lunes a domingo); se resalta el día elegido o hoy
         $highlight = $this->highlightDate();
         $days = [];
         for ($i = 0; $i < 7; $i++) {
             $d = $start->copy()->addDays($i);
             $days[] = [
                 'name' => $dayNames[$i],
-                'label' => $d->day . ' ' . $meses[$d->month - 1],
+                'label' => $d->day . ' ' . self::MESES[$d->month - 1],
                 'date' => $d->toDateString(),
                 'highlight' => $d->toDateString() === $highlight,
             ];
         }
+
+        return $days;
+    }
+
+    /** "19 – 25 Oct"; si cruza de mes, "28 Sep – 4 Oct"; el año solo si no es el actual */
+    protected function weekLabel(Carbon $start, Carbon $end): string
+    {
+        return $start->day . ($start->month !== $end->month ? ' ' . self::MESES[$start->month - 1] : '')
+            . ' – ' . $end->day . ' ' . self::MESES[$end->month - 1] . ($end->year !== Carbon::today()->year ? ' ' . $end->year : '');
+    }
+
+    public function render()
+    {
+        $now = Carbon::now();
+        $start = $this->weekStart();
+        $end = $start->copy()->addDays(6); // domingo
+        $days = $this->weekDays($start);
 
         $shifts = $this->shifts();
         $columns = $this->columns($days, $shifts, $now);
@@ -832,9 +845,7 @@ class LineProgress extends Component
             'groups' => $groups,
             'noOrderDetail' => $noOrderDetail,
             'activityDetail' => $activityDetail,
-            // "19 – 25 Oct"; si cruza de mes, "28 Sep – 4 Oct"; el año solo si no es el actual
-            'weekLabel' => $start->day . ($start->month !== $end->month ? ' ' . $meses[$start->month - 1] : '')
-                . ' – ' . $end->day . ' ' . $meses[$end->month - 1] . ($end->year !== Carbon::today()->year ? ' ' . $end->year : ''),
+            'weekLabel' => $this->weekLabel($start, $end),
             'isCurrentWeek' => $start->isSameDay(Carbon::today()->startOfWeek(Carbon::MONDAY)),
             'lastUpdated' => $now->format('H:i:s'),
             // Botones de Ayuda visual y gráficas de prensa: solo estaciones de estampado (igual que /guest/wc-progress)

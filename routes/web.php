@@ -44,6 +44,9 @@ Route::get('guest/progress/station/{workCenter}', function (int $workCenter) {
     return view('guest.line-progress', ['wcId' => $workCenter]);
 })->whereNumber('workCenter')->name('guest.progress.station');
 
+// Árbol de la planta: Área → Línea → Estación → Números de parte, semana completa. Sin link en ningún menú.
+Route::view('guest/plant-progress', 'guest.plant-progress')->name('guest.plant-progress');
+
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),

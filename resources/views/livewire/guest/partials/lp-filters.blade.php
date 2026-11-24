@@ -67,6 +67,7 @@
     </div>
 @endif
 
+@unless($noClear ?? false)
 {{--
     Limpiar filtro: borra también la selección guardada en este navegador. Va como método:
     Alpine evalúa @click como expresión ("resultado = ...") y un try/catch suelto ahí no es válido.
@@ -87,3 +88,4 @@
     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
     Limpiar filtros
 </button>
+@endunless
