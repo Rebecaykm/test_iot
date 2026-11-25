@@ -11,8 +11,21 @@ class Alert extends Model
     protected $fillable = [
         'name',
         'description',
-        'type_alert_id'
+        'type_alert_id',
+        'work_center_id',
+        'bit_device',
+        'word_device',
+        'bit_index',
+        'stop_category',
     ];
+
+    /**
+     * Estación dueña del bit
+     */
+    public function workCenter(): BelongsTo
+    {
+        return $this->belongsTo(WorkCenter::class, 'work_center_id');
+    }
 
     /**
      *

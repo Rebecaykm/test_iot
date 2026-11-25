@@ -28,6 +28,7 @@ class WorkCenterMapView extends Component
     public function getWorkCentersProperty()
     {
         $workCenters = WorkCenter::query()
+            ->withIp()
             ->with('line')
             ->when($this->selectedLine, fn($q) => $q->where('line_id', $this->selectedLine))
             ->whereNotNull('line_id')

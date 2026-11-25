@@ -70,6 +70,8 @@ class GetProductionPlanJob implements ShouldQueue
         $workCenterByPartNumber = PartNumber::query()
             ->join('work_centers', 'part_numbers.work_center_id', '=', 'work_centers.id')
             ->join('lines', 'work_centers.line_id', '=', 'lines.id')
+            ->whereNotNull('work_centers.ip')
+            ->where('work_centers.ip', '!=', '')
             ->where(fn($query) => $query->where('part_numbers.is_obsolete', false))
             ->orderBy('part_numbers.id')
             ->get(['part_numbers.number', 'part_numbers.work_center_id'])

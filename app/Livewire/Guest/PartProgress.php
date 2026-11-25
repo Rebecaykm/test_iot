@@ -178,8 +178,10 @@ class PartProgress extends Component
     /** Líneas visibles con sus estaciones, para los filtros */
     private function catalog(): array
     {
-        return Cache::remember('part_progress:v7:catalog', self::CATALOG_TTL, fn () => DB::table('lines')
+        return Cache::remember('part_progress:v8:catalog', self::CATALOG_TTL, fn () => DB::table('lines')
             ->join('work_centers', 'work_centers.line_id', '=', 'lines.id')
+            ->whereNotNull('work_centers.ip')
+            ->where('work_centers.ip', '!=', '')
             ->where('lines.show_in_progress', true)
             ->orderBy('lines.name')
             ->orderBy('work_centers.name')
@@ -317,11 +319,13 @@ class PartProgress extends Component
     /** [id => datos] de los números de parte (solo clases F1, M1–M4) de líneas visibles */
     private function parts(): array
     {
-        return $this->cache()->remember('part_progress:v8:parts', self::CATALOG_TTL, fn () => ProductionRecord::applyProgressItemClasses(
+        return $this->cache()->remember('part_progress:v9:parts', self::CATALOG_TTL, fn () => ProductionRecord::applyProgressItemClasses(
             DB::table('part_numbers')
                 ->join('work_centers', 'work_centers.id', '=', 'part_numbers.work_center_id')
                 ->join('lines', 'lines.id', '=', 'work_centers.line_id')
                 ->leftJoin('item_classes', 'item_classes.id', '=', 'part_numbers.item_class_id')
+                ->whereNotNull('work_centers.ip')
+                ->where('work_centers.ip', '!=', '')
                 ->where('lines.show_in_progress', true)
         )
             ->get([

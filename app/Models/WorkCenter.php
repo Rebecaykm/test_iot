@@ -24,6 +24,12 @@ class WorkCenter extends Model
         'height'
     ];
 
+    /** Estaciones con IP capturada: son las que se leen del PLC. */
+    public function scopeWithIp($query)
+    {
+        return $query->whereNotNull('work_centers.ip')->where('work_centers.ip', '!=', '');
+    }
+
     /**
      *
      */
@@ -46,6 +52,12 @@ class WorkCenter extends Model
     public function partNumbers(): HasMany
     {
         return $this->hasMany(PartNumber::class, 'work_center_id');
+    }
+
+    /** Catálogo de bits del PLC de la estación */
+    public function alerts(): HasMany
+    {
+        return $this->hasMany(Alert::class, 'work_center_id');
     }
 
     /**

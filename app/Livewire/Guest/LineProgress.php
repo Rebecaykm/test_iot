@@ -41,7 +41,7 @@ class LineProgress extends Component
     private const CATALOG_TTL = 600;
 
     /** v5: cada línea trae su area_id (0 = sin área) */
-    private const CATALOG_KEY = 'line_progress:v5:catalog';
+    private const CATALOG_KEY = 'line_progress:v6:catalog';
 
     /** Color del %: rojo hasta WARN (70 %), ámbar arriba de eso y verde desde GOOD (91 %) */
     public const GOOD = 91;
@@ -111,13 +111,14 @@ class LineProgress extends Component
             $lines = Line::query()
                 ->select('lines.id', 'lines.name', 'lines.color', 'lines.area_id', 'areas.name as area_name')
                 ->leftJoin('areas', 'lines.area_id', '=', 'areas.id')
-                ->whereHas('workCenters')
+                ->whereHas('workCenters', fn ($q) => $q->withIp())
                 ->where('lines.show_in_progress', true)
                 ->get()
                 ->keyBy('id');
 
             $workCenters = WorkCenter::query()
                 ->select('id', 'name', 'line_id')
+                ->withIp()
                 ->whereIn('line_id', $lines->keys())
                 ->get()
                 ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE);
@@ -737,7 +738,7 @@ class LineProgress extends Component
             // Líneas del área; si hay líneas elegidas de esta área, solo esas
             $areaLines = collect($catalog['lines'])->where('area_id', $this->areaId);
             $picked = $areaLines->whereIn('id', $this->selectedLines);
-            $byLine = collect($this->weekRows($start, $end))->groupBy('line_id');
+            $byLine = collect($this->weekRows($start, $end))->whereIn('wc_id', $catalogWcs->pluck('id'))->groupBy('line_id');
             $rows = [];
             foreach ($picked->isNotEmpty() ? $picked : $areaLines as $l) {
                 if (!isset($byLine[$l['id']])) {
@@ -754,7 +755,7 @@ class LineProgress extends Component
             $groups[] = ['name' => null, 'rows' => $rows];
         } else {
             // Inicio: un renglón por área con el avance de todas sus líneas
-            $byLine = collect($this->weekRows($start, $end))->groupBy('line_id');
+            $byLine = collect($this->weekRows($start, $end))->whereIn('wc_id', $catalogWcs->pluck('id'))->groupBy('line_id');
             $areas = [];
             foreach ($catalog['lines'] as $l) {
                 $areas[$l['area_id']]['name'] = $l['area_name'];

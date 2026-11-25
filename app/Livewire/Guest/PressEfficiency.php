@@ -82,8 +82,9 @@ class PressEfficiency extends Component
      */
     public static function stations()
     {
-        return Cache::store(self::CACHE_STORE)->remember('press_efficiency:stations', 600, function () {
+        return Cache::store(self::CACHE_STORE)->remember('press_efficiency:stations:v2', 600, function () {
             return WorkCenter::query()
+                ->withIp()
                 ->select('work_centers.id', 'work_centers.number', 'work_centers.name', 'lines.name as line_name')
                 ->join('lines', 'lines.id', '=', 'work_centers.line_id')
                 ->join('areas', 'areas.id', '=', 'lines.area_id')

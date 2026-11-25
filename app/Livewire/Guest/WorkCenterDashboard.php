@@ -46,7 +46,7 @@ class WorkCenterDashboard extends Component
         $this->allLines = Line::query()
             ->select('lines.id', 'lines.name', 'areas.name as area_name')
             ->join('areas', 'lines.area_id', '=', 'areas.id')
-            ->whereHas('workCenters')
+            ->whereHas('workCenters', fn ($q) => $q->withIp())
             ->orderBy('areas.name')
             ->orderBy('lines.name')
             ->get()
@@ -107,6 +107,8 @@ class WorkCenterDashboard extends Component
             ->join('areas', 'lines.area_id', '=', 'areas.id')
             ->join('shifts', 'production_records.shift_id', '=', 'shifts.id')
             ->join('statuses', 'production_records.status_id', '=', 'statuses.id')
+            ->whereNotNull('work_centers.ip')
+            ->where('work_centers.ip', '!=', '')
             ->where('production_records.planned_date', $this->date)
             ->where('shifts.abbreviation', $this->shift->abbreviation);
 
